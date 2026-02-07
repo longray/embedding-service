@@ -348,7 +348,7 @@ if __name__ == "__main__":
     import uvicorn
 
     # 检查模型缓存
-    model_cache_path = os.path.join(MODEL_CACHE_DIR, "models--Alibaba-NLP--Qwen3-Embedding-0.6B")
+    model_cache_path = os.path.join(MODEL_CACHE_DIR, "Qwen", "Qwen3-Embedding-0___6B")
     if not os.path.exists(model_cache_path):
         logger.warning(f"⚠️  模型缓存不存在: {model_cache_path}")
         logger.warning("   首次启动将自动下载（约 1.2GB），请耐心等待...")
@@ -356,7 +356,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8000,
+        port=18000,
         workers=1,  # GPU 模式必须单 worker
         log_level="info",
         reload=False
