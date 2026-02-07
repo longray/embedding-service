@@ -1,0 +1,37 @@
+[project]
+name = "qwen3-embedding-service"
+version = "0.1.0"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    # === Web 服务 ===
+    "fastapi>=0.115.0,<0.116.0",
+    "uvicorn[standard]>=0.32.0,<0.33.0",
+    "pydantic>=2.9.0,<2.10.0",
+    "python-multipart>=0.0.9,<0.0.10",
+    
+    # === 模型推理（ModelScope 方式）===
+    "modelscope>=1.17.0,<1.18.0",
+    "transformers>=4.48.0",  # ⬅️ 升级以支持 Qwen3
+    # torch 2.4.0+cu121 单独安装，不写在这里
+    
+    # === ModelScope 兼容依赖（关键！）===
+    "datasets>=2.14.0,<2.15.0",      # ⬅️ 降级：避免 get_metadata_patterns 错误
+    "oss2>=2.19.1,<2.20.0",          # ModelScope 需要
+    "aiohttp>=3.8.0,<3.10.0",        # ⬅️ 降低版本，兼容 modelscope 1.17
+    
+    # === 工具库 ===
+    "numpy>=1.26.0,<1.27.0",
+    "sentencepiece>=0.2.0,<0.3.0",  # Qwen 模型需要
+    "regex>=2023.0.0",
+    "psutil>=6.0.0,<6.1.0",
+    "tqdm>=4.65.0,<5.0.0",
+    "packaging>=23.0,<24.0",
+    "addict>=2.4.0,<2.5.0",
+    "filelock>=3.12.0,<3.14.0",
+    "sympy>=1.12.0,<1.14.0",         # ⬅️ 降低上限，兼容 modelscope
+    "setuptools>=68.0.0,<70.0.0",    # ⬅️ 避免 pkg_resources 移除警告
+]
+
+[build-system]
+requires = ["hatchling>=1.21.0"]
+build-backend = "hatchling.build"
