@@ -1,5 +1,6 @@
 @echo off
 chcp 65001 >nul
+
 title Qwen3-Embedding-0.6B API 服务
 setlocal EnableDelayedExpansion
 
@@ -7,8 +8,9 @@ setlocal EnableDelayedExpansion
 set "PROJECT_DIR=D:\embedding_service"
 set "UV_PATH=C:\Users\Longray\.local\bin\uv.exe"
 set "PYTHON_PATH=%PROJECT_DIR%\.venv\Scripts\python.exe"
-set "SCRIPT_PATH=%PROJECT_DIR%\src\qwen3_embedding_service\main.py"
+set "SCRIPT_PATH=%PROJECT_DIR%\src\qwen3_embedding_service\start_embedding.py"
 set "PORT=18000"
+set MAX_BATCH_SIZE=256
 
 :: ==================== 颜色定义 ====================
 set "GREEN=[92m"

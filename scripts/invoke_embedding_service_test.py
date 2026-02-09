@@ -2,18 +2,19 @@
 # -*- coding: utf-8 -*-
 """
 Qwen3-Embedding-0.6B 批量嵌入测试脚本
-测试 64 条最大批量处理能力
+测试 128 条最大批量处理能力
 """
 
 import requests
 import numpy as np
 from typing import List, Dict
 
-API_URL = "http://localhost:8000/v1/embeddings"
+API_URL = "http://172.22.240.1:18000/v1/embeddings"
 MODEL_ID = "Qwen3-Embedding-0.6B"
+BATCH_SIZE = 128  # ✅ 批量大小已提升至 128
 
 
-def generate_test_texts(count: int = 64) -> List[str]:
+def generate_test_texts(count: int = BATCH_SIZE) -> List[str]:
     """生成指定数量的测试文本（模拟不同场景）"""
 
     templates = [
@@ -61,14 +62,14 @@ def batch_embed(texts: List[str]) -> Dict:
     """调用 API 获取批量嵌入"""
 
     payload = {
-        "input": texts,  # 直接传入列表
+        "input": texts,
         "model": MODEL_ID,
         "encoding_format": "float",
         "normalize": True
     }
 
     try:
-        response = requests.post(API_URL, json=payload, timeout=120)
+        response = requests.post(API_URL, json=payload, timeout=180)  # ⏱️ 延长超时至 180 秒以适应更大批量
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
@@ -95,7 +96,7 @@ def verify_embeddings(embeddings: List[List[float]], expected_count: int, expect
     assert actual_dim == expected_dim, f"维度不匹配: 期望 {expected_dim}, 实际 {actual_dim}"
     print(f"✅ 维度验证通过: {actual_dim} 维向量")
 
-    # 3. L2 归一化验证（余弦相似度基础）
+    # 3. L2 归一化验证
     norms = [np.linalg.norm(emb) for emb in embeddings]
     avg_norm = np.mean(norms)
     std_norm = np.std(norms)
@@ -103,10 +104,9 @@ def verify_embeddings(embeddings: List[List[float]], expected_count: int, expect
     print(f"✅ L2 归一化验证: 平均范数 = {avg_norm:.6f} (标准差: {std_norm:.8f})")
     assert 0.99 < avg_norm < 1.01, "L2 归一化验证失败，范数应接近 1.0"
 
-    # 4. 相似度计算示例（前 3 条文本的余弦相似度矩阵）
+    # 4. 相似度计算示例（前 5 条）
     print(f"\n📐 余弦相似度矩阵（前 5 条样本）:")
     emb_matrix = np.array(embeddings[:5])
-    # 由于已归一化，点积即余弦相似度
     similarity_matrix = np.dot(emb_matrix, emb_matrix.T)
 
     print("       ", end="")
@@ -118,12 +118,10 @@ def verify_embeddings(embeddings: List[List[float]], expected_count: int, expect
         print(f"文本{i:2d}  ", end="")
         for j in range(5):
             sim = similarity_matrix[i, j]
-            if i == j:
-                print(f" {sim:.3f}* ", end="")  # 对角线应为 1.0
-            else:
-                print(f" {sim:.3f}  ", end="")
+            marker = "*" if i == j else " "
+            print(f" {sim:.3f}{marker} ", end="")
         print()
-    print("* 对角线值为 1.000（文本与自身的相似度）")
+    print("* 对角线值应为 1.000（文本与自身的相似度）")
 
     return {
         "count": actual_count,
@@ -136,31 +134,39 @@ def verify_embeddings(embeddings: List[List[float]], expected_count: int, expect
 def main():
     print("🚀 Qwen3-Embedding-0.6B 批量嵌入测试")
     print(f"{'=' * 50}")
-    print(f"目标: 测试最大批量 64 条文本的嵌入能力")
+    print(f"目标: 测试最大批量 {BATCH_SIZE} 条文本的嵌入能力")
     print(f"API端点: {API_URL}")
     print(f"{'=' * 50}\n")
 
-    # 生成 64 条测试文本
-    test_texts = generate_test_texts(count=64)
+    # 生成 128 条测试文本
+    test_texts = generate_test_texts(count=BATCH_SIZE)
     print(f"📝 已生成 {len(test_texts)} 条测试文本（内容不重复）")
-    print(f"   示例文本1: {test_texts[0][:50]}...")
-    print(f"   示例文本32: {test_texts[31][:50]}...")
+    print(f"   示例文本1:  {test_texts[0][:50]}...")
     print(f"   示例文本64: {test_texts[63][:50]}...")
+    print(f"   示例文本128:{test_texts[127][:50]}...")
 
     # 执行批量嵌入请求
-    print(f"\n⏳ 发送批量嵌入请求（64条）...")
-    result = batch_embed(test_texts)
+    print(f"\n⏳ 发送批量嵌入请求（{BATCH_SIZE} 条）...")
+    try:
+        result = batch_embed(test_texts)
+    except Exception as e:
+        print(f"\n💥 批量处理失败！请确认 API 是否支持 {BATCH_SIZE} 条批量请求")
+        print(f"常见原因：")
+        print(f"  • 服务端配置限制（如 max_batch_size）")
+        print(f"  • 内存或显存不足")
+        print(f"  • 超时时间不足（当前设为 180 秒）")
+        raise
 
     # 解析结果
     embeddings = [item["embedding"] for item in result["data"]]
     usage = result["usage"]
 
     print(f"\n✅ 请求成功!")
-    print(f"   处理时间: {usage['processing_time_ms']:.2f} ms")
-    print(f"   总 Token 数: {usage['total_tokens']}")
+    print(f"   处理时间: {usage.get('processing_time_ms', 'N/A'):.2f} ms")
+    print(f"   总 Token 数: {usage.get('total_tokens', 'N/A')}")
 
     # 验证嵌入质量
-    stats = verify_embeddings(embeddings, expected_count=64)
+    stats = verify_embeddings(embeddings, expected_count=BATCH_SIZE)
 
     # 输出统计信息
     print(f"\n{'=' * 50}")
@@ -173,7 +179,7 @@ def main():
     print(f"适用场景: 语义搜索、文本聚类、相似度匹配")
 
     print(f"\n{'=' * 50}")
-    print("✨ 测试完成！64 条批量嵌入功能正常")
+    print(f"✨ 测试完成！{BATCH_SIZE} 条批量嵌入功能验证通过")
     print(f"{'=' * 50}")
 
 
