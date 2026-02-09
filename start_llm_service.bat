@@ -9,7 +9,7 @@ set "PROJECT_DIR=D:\embedding_service"
 set "PYTHON_PATH=%PROJECT_DIR%\.venv\Scripts\python.exe"
 set "SCRIPT_PATH=%PROJECT_DIR%\src\qwen3_embedding_service\start_llm.py"
 set "PORT=18001"
-set "MAX_BATCH_SIZE=32"        :: MiniCPM4-0.5B 推荐值：32-64（根据显存调整）
+set "MAX_BATCH_SIZE=2"        :: MiniCPM4-0.5B 推荐值：32-64（根据显存调整）
 set "CACHE_SIZE=500"
 
 :: ==================== 颜色定义 ====================

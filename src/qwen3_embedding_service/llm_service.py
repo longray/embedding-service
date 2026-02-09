@@ -12,6 +12,13 @@ import time
 import logging
 from functools import lru_cache
 import hashlib
+# 在 llm_service.py 顶部添加（消除视觉干扰）
+import warnings
+warnings.filterwarnings(
+    "ignore",
+    message=".*Torch was not compiled with flash attention.*",
+    category=UserWarning
+)
 
 # ==================== 环境初始化 ====================
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -37,16 +44,23 @@ logger.info(f"检测到设备: {DEVICE} | PyTorch: {torch.__version__}")
 
 # 显存自适应配置
 def get_safe_config():
-    """根据显存返回安全配置"""
+    """根据显存返回安全配置（支持低至1GB显存的设备）"""
     if DEVICE != "cuda":
-        return {"max_batch_size": 4, "max_new_tokens": 512, "max_length": 2048}
+        return {"max_batch_size": 4, "max_new_tokens": 2048, "max_length": 4096}
+
     total_gb = torch.cuda.get_device_properties(0).total_memory / 1024 ** 3
-    if total_gb >= 12:
-        return {"max_batch_size": 16, "max_new_tokens": 4096, "max_length": 8192}
-    elif total_gb >= 6:
-        return {"max_batch_size": 8, "max_new_tokens": 2048, "max_length": 4096}
+
+    if total_gb >= 2:
+        return {"max_batch_size": 2, "max_new_tokens": 1024, "max_length": 2048}
+
+    # 极低显存：<2GB（如老旧GPU/集成显卡）
+    # 此时MiniCPM4-0.5B模型本身约需1.5-2GB（bfloat16），难以安全运行
     else:
-        return {"max_batch_size": 4, "max_new_tokens": 1024, "max_length": 2048}
+        logger.warning(
+            f"检测到极低显存({total_gb:.1f}GB)，MiniCPM4-0.5B在GPU上运行风险高，"
+            "建议设置环境变量 CUDA_VISIBLE_DEVICES='' 强制使用CPU模式"
+        )
+        return {"max_batch_size": 1, "max_new_tokens": 512, "max_length": 1024}
 
 
 SAFE_CONFIG = get_safe_config()
