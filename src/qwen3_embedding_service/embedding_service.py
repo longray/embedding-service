@@ -236,11 +236,15 @@ async def create_embedding(request: EmbeddingRequest):
         ]
 
         processing_time_ms = (time.time() - start_time) * 1000
+        
+        # 避免除零错误
+        throughput = batch_size / (processing_time_ms / 1000) if processing_time_ms > 0 else 0.0
+        
         logger.info(
             f"完成 {batch_size} 条 | "
             f"维度: {embeddings.shape[1]} | "
             f"耗时: {processing_time_ms:.2f}ms | "
-            f"速度: {batch_size / (processing_time_ms / 1000):.1f} 条/秒"
+            f"速度: {throughput:.1f} 条/秒"
         )
 
         return EmbeddingResponse(
