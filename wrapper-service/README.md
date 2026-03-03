@@ -117,13 +117,20 @@ curl http://localhost:3001/health
 | 变量名 | 默认值 | 说明 |
 |---------|--------|------|
 | `WRAPPER_PORT` | 3001 | 服务端口 |
+| `WRAPPER_HOST` | 0.0.0.0 | 监听地址 |
 | `WRAPPER_EMBEDDING_SERVICE_URL` | http://localhost:18000 | Embedding服务地址 |
 | `WRAPPER_LLM_SERVICE_URL` | http://localhost:18001 | LLM服务地址 |
 | `WRAPPER_LOG_LEVEL` | INFO | 日志级别 (DEBUG/INFO/WARNING/ERROR) |
 | `WRAPPER_JSON_LOGS` | false | 是否输出JSON格式日志 |
+| `WRAPPER_CACHE_ENABLED` | true | 是否启用缓存 |
 | `WRAPPER_CACHE_MAX_SIZE` | 1000 | 缓存最大条目数 |
 | `WRAPPER_CACHE_TTL` | 3600 | 缓存过期时间（秒） |
 | `WRAPPER_HTTP_TIMEOUT` | 30.0 | HTTP请求超时（秒） |
+| `WRAPPER_HTTP_CONNECT_TIMEOUT` | 5.0 | 连接超时（秒） |
+| `WRAPPER_RATE_LIMIT_ENABLED` | true | 是否启用限流 |
+| `WRAPPER_RATE_LIMIT_REQUESTS` | 100 | 限流请求数 |
+| `WRAPPER_RATE_LIMIT_WINDOW` | 60 | 限流时间窗口（秒） |
+| `WRAPPER_CIRCUIT_BREAKER_ENABLED` | true | 是否启用熔断器 |
 | `WRAPPER_CIRCUIT_BREAKER_THRESHOLD` | 5 | 熔断器失败阈值 |
 | `WRAPPER_CIRCUIT_BREAKER_TIMEOUT` | 60 | 熔断器超时（秒） |
 
