@@ -1,0 +1,238 @@
+{
+  "project": "embedding_service",
+  "version": "1.0.0",
+  "generated": "2026-03-03T14:00:00Z",
+  "spec_source": "D:\\github\\code-quality-standard",
+  
+  "phases": [
+    {
+      "id": "p1-local-gate",
+      "name": "本地质量门禁",
+      "description": "配置Pre-commit hooks实现本地提交前检查",
+      "tools": ["gitleaks", "bandit", "ruff", "pyright"],
+      "config_files": [".pre-commit-config.yaml", "pyproject.toml"],
+      "blocking": true,
+      "priority": "P0-P1",
+      "success_criteria": "连续3个commit的pre-commit检查全部通过",
+      "spec_ref": "docs/07-PRECOMMIT-STANDARDS.md#7.2",
+      "tasks": [
+        {
+          "task": "安装pre-commit",
+          "command": "pip install pre-commit",
+          "validation": "pre-commit --version"
+        },
+        {
+          "task": "创建.pre-commit-config.yaml",
+          "command": "生成配置文件",
+          "validation": "文件存在且语法正确"
+        },
+        {
+          "task": "安装hooks",
+          "command": "pre-commit install --install-hooks",
+          "validation": ".git/hooks/pre-commit存在"
+        },
+        {
+          "task": "测试hooks",
+          "command": "pre-commit run --all-files",
+          "validation": "所有hooks执行成功"
+        }
+      ]
+    },
+    
+    {
+      "id": "p2-ci-gate",
+      "name": "持续集成门禁",
+      "description": "配置GitHub Actions实现CI自动检查",
+      "trigger": "on_push",
+      "blocking": true,
+      "priority": "P0-P1",
+      "success_criteria": "CI_JOB_STATUS == 'success'",
+      "spec_ref": "docs/08-CICD-INTEGRATION-STANDARDS.md#8.2",
+      "tasks": [
+        {
+          "task": "创建CI配置",
+          "command": "创建.github/workflows/quality-check.yml",
+          "validation": "文件存在且语法正确"
+        },
+        {
+          "task": "配置安全扫描job",
+          "command": "添加gitleaks和bandit检查",
+          "validation": "job定义正确"
+        },
+        {
+          "task": "配置质量检查job",
+          "command": "添加ruff和pyright检查",
+          "validation": "job定义正确"
+        },
+        {
+          "task": "配置测试job",
+          "command": "添加pytest覆盖率检查",
+          "validation": "job定义正确"
+        },
+        {
+          "task": "测试CI流程",
+          "command": "推送测试commit",
+          "validation": "CI通过"
+        }
+      ]
+    },
+    
+    {
+      "id": "p3-monitoring",
+      "name": "全量监控度量",
+      "description": "配置质量指标监控和趋势分析",
+      "frequency": "weekly",
+      "metrics": ["complexity_trend", "coverage_trend", "error_count"],
+      "spec_ref": "docs/03-LINTING-STANDARDS.md#3.5",
+      "tasks": [
+        {
+          "task": "创建状态目录",
+          "command": "mkdir -p .quality-state",
+          "validation": "目录存在"
+        },
+        {
+          "task": "配置metrics日志",
+          "command": "创建metrics.log模板",
+          "validation": "日志格式正确"
+        },
+        {
+          "task": "配置周报脚本",
+          "command": "创建generate-report.sh",
+          "validation": "脚本可执行"
+        }
+      ]
+    }
+  ],
+  
+  "exit_criteria": {
+    "min_iterations": 3,
+    "stability_period": "最后5个commit无P0/P1违规",
+    "max_block_time_min": 120,
+    "quality_gates": {
+      "p0_violations": 0,
+      "p1_violations": 0,
+      "p2_auto_fixed": true,
+      "test_coverage": 70,
+      "ci_success_rate": 100
+    }
+  },
+  
+  "state_tracking": {
+    "log_file": ".quality-state/metrics.log",
+    "ref_log": ".quality-state/spec-refs.log",
+    "checkpoint_file": ".quality-state/checkpoint.json",
+    "checkpoint_interval_min": 30,
+    "metrics": [
+      {
+        "name": "ruff_errors",
+        "type": "count",
+        "threshold": 0,
+        "priority": "P1"
+      },
+      {
+        "name": "ruff_warnings",
+        "type": "count",
+        "threshold": 10,
+        "priority": "P3"
+      },
+      {
+        "name": "pyright_errors",
+        "type": "count",
+        "threshold": 0,
+        "priority": "P1"
+      },
+      {
+        "name": "bandit_high",
+        "type": "count",
+        "threshold": 0,
+        "priority": "P0"
+      },
+      {
+        "name": "bandit_medium",
+        "type": "count",
+        "threshold": 5,
+        "priority": "P1"
+      },
+      {
+        "name": "test_coverage",
+        "type": "percentage",
+        "threshold": 70,
+        "priority": "P4"
+      }
+    ]
+  },
+  
+  "priority_handling": {
+    "P0": {
+      "action": "block",
+      "auto_fix": false,
+      "require_manual": true,
+      "examples": ["密钥泄露", "SQL注入"]
+    },
+    "P1": {
+      "action": "block",
+      "auto_fix": false,
+      "require_manual": true,
+      "examples": ["类型错误", "未定义变量"]
+    },
+    "P2": {
+      "action": "auto_fix",
+      "auto_fix": true,
+      "require_manual": false,
+      "examples": ["格式问题", "未使用导入"]
+    },
+    "P3": {
+      "action": "warn",
+      "auto_fix": false,
+      "require_manual": false,
+      "examples": ["复杂度警告", "命名建议"]
+    }
+  },
+  
+  "tools_config": {
+    "gitleaks": {
+      "version": "v8.21.2",
+      "priority": "P0",
+      "blocking": true,
+      "spec_ref": "docs/05-SECURITY-SCANNING.md#5.2"
+    },
+    "bandit": {
+      "version": "1.7.10",
+      "priority": "P0-P1",
+      "blocking": true,
+      "config": "pyproject.toml",
+      "spec_ref": "docs/05-SECURITY-SCANNING.md#5.3"
+    },
+    "ruff": {
+      "version": ">=0.6.0",
+      "priority": "P1-P2",
+      "blocking": true,
+      "auto_fix": true,
+      "config": "pyproject.toml",
+      "spec_ref": "docs/03-LINTING-STANDARDS.md#3.2"
+    },
+    "pyright": {
+      "version": "latest",
+      "priority": "P1",
+      "blocking": true,
+      "config": "pyproject.toml",
+      "spec_ref": "docs/04-TYPE-CHECKING-STANDARDS.md#4.2"
+    },
+    "pytest": {
+      "version": "latest",
+      "priority": "P4",
+      "blocking": false,
+      "coverage_threshold": 70,
+      "spec_ref": "docs/06-TESTING-STANDARDS.md#6.2"
+    }
+  },
+  
+  "performance_targets": {
+    "project_size": "small",
+    "file_count": 21,
+    "code_lines": 2764,
+    "incremental_check_max_sec": 3,
+    "full_check_max_sec": 10,
+    "cache_hit_max_sec": 1
+  }
+}

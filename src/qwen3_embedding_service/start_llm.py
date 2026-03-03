@@ -1,5 +1,5 @@
-from llm_service import app  
 import uvicorn
+from llm_service import app
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=18001)
+    uvicorn.run(app, host="0.0.0.0", port=18001)  # nosec B104

@@ -1,15 +1,16 @@
+import hashlib
+import logging
 import os
-import torch
+import time
+from functools import lru_cache
+from typing import Literal
+
 import numpy as np
-from fastapi import FastAPI, HTTPException, Request, status
+import torch
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, validator
-from typing import List, Optional, Union, Literal
-from transformers import AutoTokenizer, AutoModel
-import time
-import logging
-from functools import lru_cache
-import hashlib
+from transformers import AutoModel, AutoTokenizer
 
 # ==================== 环境初始化 ====================
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -22,22 +23,21 @@ print(f"模型缓存目录: {MODEL_CACHE_DIR}")
 print(f"目录存在: {os.path.exists(MODEL_CACHE_DIR)}")
 
 # ==================== 日志配置 ====================
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("embedding_service")
 
 # ==================== 设备检测 & 全局配置 ====================
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 logger.info(f"检测到设备: {DEVICE} | PyTorch: {torch.__version__}")
 
+
 # 显存自适应配置
 def get_safe_batch_size():
     if DEVICE != "cuda":
         return 64
-    total_gb = torch.cuda.get_device_properties(0).total_memory / 1024 ** 3
+    total_gb = torch.cuda.get_device_properties(0).total_memory / 1024**3
     return 256 if total_gb >= 12 else 128 if total_gb >= 6 else 64
+
 
 MAX_BATCH_SIZE = int(os.getenv("EMB_MAX_BATCH_SIZE", get_safe_batch_size()))
 MAX_TEXT_LENGTH = 32768
@@ -48,7 +48,7 @@ logger.info(f"运行配置: 批量上限={MAX_BATCH_SIZE}, 序列长度={MAX_LEN
 if DEVICE == "cuda":
     logger.info(
         f"   GPU: {torch.cuda.get_device_name(0)} | "
-        f"显存: {torch.cuda.get_device_properties(0).total_memory / 1024 ** 3:.1f} GB"
+        f"显存: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB"
     )
     torch.backends.cuda.matmul.allow_tf32 = False
     torch.backends.cudnn.benchmark = True
@@ -62,11 +62,7 @@ try:
 
     dtype = torch.float16 if DEVICE == "cuda" else torch.float32
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        MODEL_PATH,
-        trust_remote_code=True,
-        cache_dir=MODEL_CACHE_DIR
-    )
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=True, cache_dir=MODEL_CACHE_DIR)
     model = AutoModel.from_pretrained(
         MODEL_PATH,
         trust_remote_code=True,
@@ -90,21 +86,15 @@ except Exception as e:
 
 
 # ==================== Embedding 函数 ====================
-def get_embeddings(texts: List[str]) -> np.ndarray:
-    inputs = tokenizer(
-        texts,
-        return_tensors="pt",
-        padding=True,
-        truncation=True,
-        max_length=MAX_LENGTH
-    )
+def get_embeddings(texts: list[str]) -> np.ndarray:
+    inputs = tokenizer(texts, return_tensors="pt", padding=True, truncation=True, max_length=MAX_LENGTH)
     inputs = {k: v.to(DEVICE) for k, v in inputs.items()}
 
     with torch.no_grad():
         outputs = model(**inputs)
         hidden_states = outputs.last_hidden_state
 
-        attention_mask = inputs['attention_mask']
+        attention_mask = inputs["attention_mask"]
         mask_expanded = attention_mask.unsqueeze(-1).expand(hidden_states.size()).float()
         sum_embeddings = torch.sum(hidden_states * mask_expanded, dim=1)
         sum_mask = torch.clamp(mask_expanded.sum(dim=1), min=1e-9)
@@ -116,11 +106,12 @@ def get_embeddings(texts: List[str]) -> np.ndarray:
 
 # ==================== 工具函数 ====================
 def hash_text(text: str) -> str:
-    return hashlib.md5(text.encode('utf-8')).hexdigest()
+    return hashlib.md5(text.encode("utf-8")).hexdigest()  # nosec B324
 
 
 # ==================== 缓存机制 ====================
 CACHE_SIZE = int(os.getenv("EMB_CACHE_SIZE", "1000"))
+
 
 @lru_cache(maxsize=CACHE_SIZE)
 def cached_encode(text_hash: str, text: str) -> tuple:
@@ -130,13 +121,13 @@ def cached_encode(text_hash: str, text: str) -> tuple:
 
 # ==================== Pydantic 模型 ====================
 class EmbeddingRequest(BaseModel):
-    input: Union[str, List[str]] = Field(...)
+    input: str | list[str] = Field(...)
     model: str = Field("Qwen3-Embedding-0.6B")
     encoding_format: Literal["float", "base64"] = Field("float")
-    dimensions: Optional[int] = Field(None, ge=32, le=1024)
+    dimensions: int | None = Field(None, ge=32, le=1024)
     normalize: bool = Field(True)
 
-    @validator('input')
+    @validator("input")
     def validate_input(cls, v):
         max_batch = int(os.getenv("EMB_MAX_BATCH_SIZE", str(MAX_BATCH_SIZE)))
         max_length = 32768
@@ -166,12 +157,12 @@ class Usage(BaseModel):
 class EmbeddingObject(BaseModel):
     object: str = "embedding"
     index: int
-    embedding: List[float]
+    embedding: list[float]
 
 
 class EmbeddingResponse(BaseModel):
     object: str = "list"
-    data: List[EmbeddingObject]
+    data: list[EmbeddingObject]
     model: str = "Qwen3-Embedding-0.6B"
     usage: Usage
 
@@ -216,7 +207,7 @@ async def create_embedding(request: EmbeddingRequest):
         embeddings_list = []
         total_tokens = 0
 
-        for idx, text in enumerate(texts):
+        for _idx, text in enumerate(texts):
             text_hash = hash_text(text)
             total_tokens += len(text.split())
 
@@ -224,22 +215,19 @@ async def create_embedding(request: EmbeddingRequest):
             embedding = np.array(emb_tuple)
 
             if request.dimensions and request.dimensions < embedding.shape[0]:
-                embedding = embedding[:request.dimensions]
+                embedding = embedding[: request.dimensions]
 
             embeddings_list.append(embedding)
 
         embeddings = np.stack(embeddings_list)
 
-        data = [
-            EmbeddingObject(index=i, embedding=emb.tolist())
-            for i, emb in enumerate(embeddings)
-        ]
+        data = [EmbeddingObject(index=i, embedding=emb.tolist()) for i, emb in enumerate(embeddings)]
 
         processing_time_ms = (time.time() - start_time) * 1000
-        
+
         # 避免除零错误
         throughput = batch_size / (processing_time_ms / 1000) if processing_time_ms > 0 else 0.0
-        
+
         logger.info(
             f"完成 {batch_size} 条 | "
             f"维度: {embeddings.shape[1]} | "
@@ -253,13 +241,13 @@ async def create_embedding(request: EmbeddingRequest):
             usage=Usage(
                 prompt_tokens=total_tokens,
                 total_tokens=total_tokens,
-                processing_time_ms=round(processing_time_ms, 2)
-            )
+                processing_time_ms=round(processing_time_ms, 2),
+            ),
         )
 
     except Exception as e:
-        logger.error(f"嵌入生成失败: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"嵌入生成失败: {str(e)}")
+        logger.error(f"嵌入生成失败: {e!s}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"嵌入生成失败: {e!s}") from e
 
 
 @app.get("/health")
@@ -268,9 +256,9 @@ async def health_check():
     if DEVICE == "cuda":
         gpu_info = {
             "gpu_name": torch.cuda.get_device_name(0),
-            "gpu_memory_total_gb": round(torch.cuda.get_device_properties(0).total_memory / 1024 ** 3, 2),
-            "gpu_memory_used_mb": round(torch.cuda.memory_allocated(0) / 1024 ** 2, 2),
-            "gpu_memory_reserved_mb": round(torch.cuda.memory_reserved(0) / 1024 ** 2, 2),
+            "gpu_memory_total_gb": round(torch.cuda.get_device_properties(0).total_memory / 1024**3, 2),
+            "gpu_memory_used_mb": round(torch.cuda.memory_allocated(0) / 1024**2, 2),
+            "gpu_memory_reserved_mb": round(torch.cuda.memory_reserved(0) / 1024**2, 2),
         }
 
     return {
@@ -282,22 +270,24 @@ async def health_check():
         "max_length": MAX_LENGTH,
         "model": MODEL_PATH,
         "cuda_available": torch.cuda.is_available(),
-        **gpu_info
+        **gpu_info,
     }
 
 
 @app.get("/v1/models")
 async def list_models():
     return {
-        "data": [{
-            "id": "Qwen3-Embedding-0.6B",
-            "object": "model",
-            "created": 1700000000,
-            "owned_by": "Alibaba",
-            "dimensions": 1024,
-            "max_batch_size": MAX_BATCH_SIZE,
-        }],
-        "object": "list"
+        "data": [
+            {
+                "id": "Qwen3-Embedding-0.6B",
+                "object": "model",
+                "created": 1700000000,
+                "owned_by": "Alibaba",
+                "dimensions": 1024,
+                "max_batch_size": MAX_BATCH_SIZE,
+            }
+        ],
+        "object": "list",
     }
 
 
@@ -312,19 +302,19 @@ async def get_stats():
             "misses": cache_info.misses,
             "maxsize": cache_info.maxsize,
             "currsize": cache_info.currsize,
-            "hit_rate": round(cache_info.hits / total * 100, 2) if total > 0 else 0.0
+            "hit_rate": round(cache_info.hits / total * 100, 2) if total > 0 else 0.0,
         },
         "config": {
             "max_batch_size": MAX_BATCH_SIZE,
             "max_length": MAX_LENGTH,
             "device": DEVICE,
         },
-        "model_loaded": model is not None
+        "model_loaded": model is not None,
     }
 
 
 # ==================== 启动信息打印函数 ====================
-def print_startup_info(host: str = "0.0.0.0", port: int = 18000):
+def print_startup_info(host: str = "0.0.0.0", port: int = 18000):  # nosec B104
     """打印服务启动信息（纯ASCII，无颜色代码）"""
     import socket
 
@@ -332,12 +322,12 @@ def print_startup_info(host: str = "0.0.0.0", port: int = 18000):
     try:
         hostname = socket.gethostname()
         local_ip = socket.gethostbyname(hostname)
-    except:
+    except Exception:
         local_ip = "127.0.0.1"
 
     # 计算显存占用参考值
     if DEVICE == "cuda":
-        total_gb = torch.cuda.get_device_properties(0).total_memory / 1024 ** 3
+        total_gb = torch.cuda.get_device_properties(0).total_memory / 1024**3
         if MAX_BATCH_SIZE >= 256:
             est_memory = "3.5-4.5 GB"
         elif MAX_BATCH_SIZE >= 128:
@@ -413,19 +403,11 @@ if __name__ == "__main__":
         logger.warning("首次启动将自动下载（约 1.2GB），请耐心等待...")
 
     # 配置
-    HOST = "0.0.0.0"
+    HOST = "0.0.0.0"  # nosec B104
     PORT = 18000
 
     # 打印启动信息（在 uvicorn 启动前）
     print_startup_info(HOST, PORT)
 
     # 启动服务 - 修复：直接传 app 对象，不是字符串
-    uvicorn.run(
-        app,
-        host=HOST,
-        port=PORT,
-        workers=1,
-        log_level="info",
-        reload=False
-    )
-
+    uvicorn.run(app, host=HOST, port=PORT, workers=1, log_level="info", reload=False)

@@ -1,0 +1,5 @@
+# Quality Metrics Log
+# Format: JSON Lines (one JSON object per line)
+# 
+# Example entry:
+# {"timestamp": "2026-03-03T14:00:00Z", "commit": "abc123", "metrics": {"ruff_errors": 0, "pyright_errors": 0, "test_coverage": 72.5}}

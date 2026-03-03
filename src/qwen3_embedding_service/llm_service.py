@@ -1,23 +1,23 @@
-import os
-import sys
-import torch
-import numpy as np
-from fastapi import FastAPI, HTTPException, Request, status
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, validator
-from typing import List, Optional, Union, Literal, Dict
-from transformers import AutoTokenizer, AutoModelForCausalLM
-import time
-import logging
-from functools import lru_cache
 import hashlib
+import logging
+import os
+import time
+
 # 在 llm_service.py 顶部添加（消除视觉干扰）
 import warnings
+from functools import lru_cache
+from typing import Literal
+
+import torch
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field, validator
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
 warnings.filterwarnings(
     "ignore",
     message=".*Torch was not compiled with flash attention.*",
-    category=UserWarning
+    category=UserWarning,
 )
 
 # ==================== 环境初始化 ====================
@@ -31,10 +31,7 @@ print(f"模型缓存目录: {MODEL_CACHE_DIR}")
 print(f"目录存在: {os.path.exists(MODEL_CACHE_DIR)}")
 
 # ==================== 日志配置 ====================
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("llm_service")
 
 # ==================== 设备检测 & 全局配置 ====================
@@ -48,7 +45,7 @@ def get_safe_config():
     if DEVICE != "cuda":
         return {"max_batch_size": 4, "max_new_tokens": 2048, "max_length": 4096}
 
-    total_gb = torch.cuda.get_device_properties(0).total_memory / 1024 ** 3
+    total_gb = torch.cuda.get_device_properties(0).total_memory / 1024**3
 
     if total_gb >= 2:
         return {"max_batch_size": 2, "max_new_tokens": 1024, "max_length": 2048}
@@ -73,7 +70,7 @@ logger.info(f"运行配置: 批量上限={MAX_BATCH_SIZE}, 最大生成长度={M
 if DEVICE == "cuda":
     logger.info(
         f"   GPU: {torch.cuda.get_device_name(0)} | "
-        f"显存: {torch.cuda.get_device_properties(0).total_memory / 1024 ** 3:.1f} GB"
+        f"显存: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB"
     )
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.benchmark = True
@@ -88,13 +85,9 @@ try:
 
     # MiniCPM4-0.5B 推荐使用 bfloat16
     dtype = torch.bfloat16 if DEVICE == "cuda" else torch.float32
-    logger.info(f"加载tokenizer...")
-    tokenizer = AutoTokenizer.from_pretrained(
-        MODEL_PATH,
-        trust_remote_code=True,
-        cache_dir=MODEL_CACHE_DIR
-    )
-    logger.info(f"加载model...")
+    logger.info("加载tokenizer...")
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=True, cache_dir=MODEL_CACHE_DIR)
+    logger.info("加载model...")
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_PATH,
         trust_remote_code=True,
@@ -104,8 +97,8 @@ try:
     )
 
     if DEVICE == "cpu":
-        model = model.to(DEVICE)
-    logger.info(f"执行eval...")
+        model = model.to(DEVICE)  # type: ignore[arg-type]
+    logger.info("执行eval...")
     model.eval()
 
     load_time = time.time() - start
@@ -124,11 +117,11 @@ except Exception as e:
 
 # ==================== 对话生成函数 ====================
 def generate_response(
-        messages: List[Dict[str, str]],
-        temperature: float = 0.7,
-        top_p: float = 0.7,
-        max_new_tokens: int = None,
-        do_sample: bool = True
+    messages: list[dict[str, str]],
+    temperature: float = 0.7,
+    top_p: float = 0.7,
+    max_new_tokens: int | None = None,
+    do_sample: bool = True,
 ) -> str:
     """
     使用 MiniCPM4-0.5B 生成对话回复
@@ -144,11 +137,7 @@ def generate_response(
         max_new_tokens = MAX_NEW_TOKENS
 
     # 应用对话模板
-    prompt_text = tokenizer.apply_chat_template(
-        messages,
-        tokenize=False,
-        add_generation_prompt=True
-    )
+    prompt_text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
 
     # 编码输入
     model_inputs = tokenizer([prompt_text], return_tensors="pt").to(DEVICE)
@@ -167,15 +156,10 @@ def generate_response(
     gen_kwargs = {k: v for k, v in gen_kwargs.items() if v is not None}
 
     with torch.no_grad():
-        model_outputs = model.generate(
-            **model_inputs,
-            **gen_kwargs
-        )
+        model_outputs = model.generate(**model_inputs, **gen_kwargs)
 
     # 解码输出，去除输入部分
-    output_token_ids = [
-        model_outputs[i][len(model_inputs[i]):] for i in range(len(model_inputs['input_ids']))
-    ]
+    output_token_ids = [model_outputs[i][len(model_inputs[i]) :] for i in range(len(model_inputs["input_ids"]))]
 
     response = tokenizer.batch_decode(output_token_ids, skip_special_tokens=True)[0]
     return response
@@ -183,7 +167,7 @@ def generate_response(
 
 # ==================== 工具函数 ====================
 def hash_text(text: str) -> str:
-    return hashlib.md5(text.encode('utf-8')).hexdigest()
+    return hashlib.md5(text.encode("utf-8")).hexdigest()  # nosec B324
 
 
 # ==================== 缓存机制 ====================
@@ -206,14 +190,14 @@ class Message(BaseModel):
 
 class ChatCompletionRequest(BaseModel):
     model: str = Field("MiniCPM4-0.5B")
-    messages: List[Message] = Field(...)
-    temperature: Optional[float] = Field(0.7, ge=0.0, le=2.0)
-    top_p: Optional[float] = Field(0.7, ge=0.0, le=1.0)
-    max_tokens: Optional[int] = Field(None, ge=1, le=8192)
-    stream: Optional[bool] = Field(False)
-    do_sample: Optional[bool] = Field(True)
+    messages: list[Message] = Field(...)
+    temperature: float | None = Field(0.7, ge=0.0, le=2.0)
+    top_p: float | None = Field(0.7, ge=0.0, le=1.0)
+    max_tokens: int | None = Field(None, ge=1, le=8192)
+    stream: bool | None = Field(False)
+    do_sample: bool | None = Field(True)
 
-    @validator('messages')
+    @validator("messages")
     def validate_messages(cls, v):
         if not v:
             raise ValueError("消息列表不能为空")
@@ -239,7 +223,7 @@ class ChatCompletionResponse(BaseModel):
     object: str = "chat.completion"
     created: int
     model: str
-    choices: List[Choice]
+    choices: list[Choice]
     usage: Usage
 
 
@@ -250,7 +234,7 @@ class SimpleGenerateRequest(BaseModel):
     max_new_tokens: int = Field(512, ge=1, le=MAX_NEW_TOKENS)
     use_cache: bool = Field(True)
 
-    @validator('prompt')
+    @validator("prompt")
     def validate_prompt(cls, v):
         max_len = 32768
         if len(v) > max_len:
@@ -261,7 +245,7 @@ class SimpleGenerateRequest(BaseModel):
 class GenerateResponse(BaseModel):
     response: str
     model: str
-    usage: Dict
+    usage: dict
     generation_time_ms: float
 
 
@@ -317,10 +301,10 @@ async def create_chat_completion(request: ChatCompletionRequest):
         # 生成回复
         response_text = generate_response(
             messages=messages,
-            temperature=request.temperature,
-            top_p=request.top_p,
+            temperature=request.temperature or 0.7,
+            top_p=request.top_p or 0.7,
             max_new_tokens=request.max_tokens,
-            do_sample=request.do_sample
+            do_sample=request.do_sample if request.do_sample is not None else True,
         )
 
         completion_tokens = len(tokenizer.encode(response_text))
@@ -336,21 +320,23 @@ async def create_chat_completion(request: ChatCompletionRequest):
         return ChatCompletionResponse(
             created=int(time.time()),
             model=request.model,
-            choices=[Choice(
-                index=0,
-                message=Message(role="assistant", content=response_text),
-                finish_reason="stop"
-            )],
+            choices=[
+                Choice(
+                    index=0,
+                    message=Message(role="assistant", content=response_text),
+                    finish_reason="stop",
+                )
+            ],
             usage=Usage(
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
-                total_tokens=total_tokens
-            )
+                total_tokens=total_tokens,
+            ),
         )
 
     except Exception as e:
-        logger.error(f"生成失败: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"生成失败: {str(e)}")
+        logger.error(f"生成失败: {e!s}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"生成失败: {e!s}") from e
 
 
 @app.post("/generate", response_model=GenerateResponse)
@@ -369,7 +355,7 @@ async def simple_generate(request: SimpleGenerateRequest):
                 request.prompt,
                 request.temperature,
                 request.top_p,
-                request.max_new_tokens
+                request.max_new_tokens,
             )
             response_text = cached_result[0]
             from_cache = True
@@ -379,7 +365,7 @@ async def simple_generate(request: SimpleGenerateRequest):
                 messages=messages,
                 temperature=request.temperature,
                 top_p=request.top_p,
-                max_new_tokens=request.max_new_tokens
+                max_new_tokens=request.max_new_tokens,
             )
             from_cache = False
 
@@ -387,24 +373,19 @@ async def simple_generate(request: SimpleGenerateRequest):
         completion_tokens = len(tokenizer.encode(response_text))
 
         logger.info(
-            f"生成完成 | 缓存: {from_cache} | "
-            f"输出: {completion_tokens} tokens | "
-            f"耗时: {generation_time_ms:.2f}ms"
+            f"生成完成 | 缓存: {from_cache} | 输出: {completion_tokens} tokens | 耗时: {generation_time_ms:.2f}ms"
         )
 
         return GenerateResponse(
             response=response_text,
             model="MiniCPM4-0.5B",
-            usage={
-                "completion_tokens": completion_tokens,
-                "from_cache": from_cache
-            },
-            generation_time_ms=round(generation_time_ms, 2)
+            usage={"completion_tokens": completion_tokens, "from_cache": from_cache},
+            generation_time_ms=round(generation_time_ms, 2),
         )
 
     except Exception as e:
-        logger.error(f"生成失败: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"生成失败: {str(e)}")
+        logger.error(f"生成失败: {e!s}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"生成失败: {e!s}") from e
 
 
 @app.get("/health")
@@ -413,9 +394,9 @@ async def health_check():
     if DEVICE == "cuda":
         gpu_info = {
             "gpu_name": torch.cuda.get_device_name(0),
-            "gpu_memory_total_gb": round(torch.cuda.get_device_properties(0).total_memory / 1024 ** 3, 2),
-            "gpu_memory_used_mb": round(torch.cuda.memory_allocated(0) / 1024 ** 2, 2),
-            "gpu_memory_reserved_mb": round(torch.cuda.memory_reserved(0) / 1024 ** 2, 2),
+            "gpu_memory_total_gb": round(torch.cuda.get_device_properties(0).total_memory / 1024**3, 2),
+            "gpu_memory_used_mb": round(torch.cuda.memory_allocated(0) / 1024**2, 2),
+            "gpu_memory_reserved_mb": round(torch.cuda.memory_reserved(0) / 1024**2, 2),
         }
 
     return {
@@ -428,22 +409,24 @@ async def health_check():
         "max_new_tokens": MAX_NEW_TOKENS,
         "max_length": MAX_LENGTH,
         "cuda_available": torch.cuda.is_available(),
-        **gpu_info
+        **gpu_info,
     }
 
 
 @app.get("/v1/models")
 async def list_models():
     return {
-        "data": [{
-            "id": "MiniCPM4-0.5B",
-            "object": "model",
-            "created": 1700000000,
-            "owned_by": "OpenBMB",
-            "parameters": "0.5B",
-            "max_tokens": MAX_NEW_TOKENS,
-        }],
-        "object": "list"
+        "data": [
+            {
+                "id": "MiniCPM4-0.5B",
+                "object": "model",
+                "created": 1700000000,
+                "owned_by": "OpenBMB",
+                "parameters": "0.5B",
+                "max_tokens": MAX_NEW_TOKENS,
+            }
+        ],
+        "object": "list",
     }
 
 
@@ -458,7 +441,7 @@ async def get_stats():
             "misses": cache_info.misses,
             "maxsize": cache_info.maxsize,
             "currsize": cache_info.currsize,
-            "hit_rate": round(cache_info.hits / total * 100, 2) if total > 0 else 0.0
+            "hit_rate": round(cache_info.hits / total * 100, 2) if total > 0 else 0.0,
         },
         "config": {
             "max_batch_size": MAX_BATCH_SIZE,
@@ -466,12 +449,12 @@ async def get_stats():
             "max_length": MAX_LENGTH,
             "device": DEVICE,
         },
-        "model_loaded": model is not None
+        "model_loaded": model is not None,
     }
 
 
 # ==================== 启动信息打印函数 ====================
-def print_startup_info(host: str = "0.0.0.0", port: int = 18001):
+def print_startup_info(host: str = "0.0.0.0", port: int = 18001):  # nosec B104
     """打印服务启动信息"""
     import socket
 
@@ -479,12 +462,12 @@ def print_startup_info(host: str = "0.0.0.0", port: int = 18001):
     try:
         hostname = socket.gethostname()
         local_ip = socket.gethostbyname(hostname)
-    except:
+    except Exception:
         local_ip = "127.0.0.1"
 
     # 计算显存占用参考值
     if DEVICE == "cuda":
-        total_gb = torch.cuda.get_device_properties(0).total_memory / 1024 ** 3
+        total_gb = torch.cuda.get_device_properties(0).total_memory / 1024**3
         est_memory = "1.5-2.0 GB"  # MiniCPM4-0.5B 实测约 1.8GB
         gpu_info = f"显存占用估算: ~{est_memory} / {total_gb:.1f} GB"
         device_str = f"CUDA ({torch.cuda.get_device_name(0)})"
@@ -514,11 +497,11 @@ def print_startup_info(host: str = "0.0.0.0", port: int = 18001):
         "",
         " 接口列表",
         "  " + "-" * 58,
-        f"  POST /v1/chat/completions  - OpenAI 兼容对话接口",
-        f"  POST /generate             - 简单生成接口（支持缓存）",
-        f"  GET  /health               - 健康检查",
-        f"  GET  /v1/models            - 模型列表",
-        f"  GET  /stats                - 统计信息",
+        "  POST /v1/chat/completions  - OpenAI 兼容对话接口",
+        "  POST /generate             - 简单生成接口（支持缓存）",
+        "  GET  /health               - 健康检查",
+        "  GET  /v1/models            - 模型列表",
+        "  GET  /stats                - 统计信息",
         "",
         " 运行配置",
         "  " + "-" * 58,
@@ -540,6 +523,7 @@ def print_startup_info(host: str = "0.0.0.0", port: int = 18001):
     print("\\n".join(lines))
     logger.info(f"服务启动完成，监听 {host}:{port}")
 
+
 # ==================== 启动 ====================
 if __name__ == "__main__":
     import uvicorn
@@ -548,22 +532,15 @@ if __name__ == "__main__":
     model_cache_path = os.path.join(MODEL_CACHE_DIR, "models--OpenBMB--MiniCPM4-0.5B")
     if not os.path.exists(model_cache_path):
         logger.warning(f"模型缓存:{model_cache_path}")
-        logger.warning(f"模型缓存可能不存在，首次启动将自动下载")
+        logger.warning("模型缓存可能不存在，首次启动将自动下载")
         logger.warning("模型大小约 1.2GB，请确保网络连接...")
 
     # 配置
-    HOST = "0.0.0.0"
+    HOST = "0.0.0.0"  # nosec B104
     PORT = 18001
 
     # 打印启动信息
     print_startup_info(HOST, PORT)
 
     # 启动服务 - 修复：直接传 app 对象，不是字符串
-    uvicorn.run(
-        app,
-        host=HOST,
-        port=PORT,
-        workers=1,
-        log_level="info",
-        reload=False
-    )
+    uvicorn.run(app, host=HOST, port=PORT, workers=1, log_level="info", reload=False)

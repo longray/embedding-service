@@ -1,0 +1,10 @@
+# Specification References Log
+# Records which specification sections were used for each configuration
+#
+# Format: timestamp | config_file | spec_reference
+#
+2026-03-03T14:00:00Z | .pre-commit-config.yaml | docs/11-TOOLCHAIN-TEMPLATES.md#python-project-template
+2026-03-03T14:00:00Z | .pre-commit-config.yaml | docs/07-PRECOMMIT-STANDARDS.md#7.2
+2026-03-03T14:00:00Z | pyproject.toml | docs/11-TOOLCHAIN-TEMPLATES.md#python-project-template
+2026-03-03T14:00:00Z | pyproject.toml | docs/03-LINTING-STANDARDS.md#3.2
+2026-03-03T14:00:00Z | pyproject.toml | docs/06-TESTING-STANDARDS.md#6.2

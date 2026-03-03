@@ -35,3 +35,82 @@ dependencies = [
 [build-system]
 requires = ["hatchling>=1.21.0"]
 build-backend = "hatchling.build"
+
+# === QUALITY-SPEC-REF ===
+# Repo: longray/code-quality-standard
+# Files: docs/11-TOOLCHAIN-TEMPLATES.md#python-project-template
+#        docs/03-LINTING-STANDARDS.md#3.2
+#        docs/06-TESTING-STANDARDS.md#6.2
+# === /QUALITY-SPEC-REF ===
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+include = ["src/**/*.py"]
+exclude = ["tests/", ".venv/", "venv/", "build/", "dist/", "src/**/models/", "scripts/"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "RUF", # Ruff-specific rules
+    "S",   # flake8-bandit (安全规则)
+]
+
+ignore = [
+    "E501",   # line too long (由line-length配置处理)
+    "W293",   # blank line contains whitespace
+    "RUF001", # 忽略中文标点符号检查
+    "RUF002", # 忽略docstring中的中文标点符号
+    "RUF003", # 忽略注释中的中文标点符号
+    "S324",   # MD5哈希（用于缓存键，非安全场景）
+    "S104",   # 绑定到所有接口（服务设计需要）
+]
+[tool.pytest.ini_options]
+testpaths = ["wrapper-service/tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+addopts = "-v --strict-markers --tb=short"
+markers = [
+    "integration: marks tests as integration tests",
+    "slow: marks tests as slow",
+]
+[tool.coverage.run]
+source = ["src", "wrapper-service/src"]
+branch = true
+omit = ["*/tests/*", "*/__init__.py", "*/scripts/*"]
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "@abstractmethod",
+]
+fail_under = 70
+show_missing = true
+skip_covered = true
+[tool.bandit]
+exclude_dirs = ["tests", ".venv", "venv", "build", "dist", "src/qwen3_embedding_service/models", "scripts"]
+skips = ["B101"]  # Skip assert_used test (pytest uses assert)
+severity = "low"
+
+[tool.pyright]
+exclude = [
+    "tests",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "src/**/models",
+    "scripts",
+    "src/**/start_*.py"
+]
+pythonVersion = "3.10"
+typeCheckingMode = "basic"
