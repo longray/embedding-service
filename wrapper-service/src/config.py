@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     """应用配置（从环境变量加载）"""
 
     # 服务配置
-    wrapper_port: int = 3001
+    port: int = 3001
     wrapper_host: str = "0.0.0.0"
 
     # 后端服务配置
@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 
     # 缓存配置
     cache_enabled: bool = True
-    cache_size: int = 1000
+    cache_max_size: int = 1000
     cache_ttl: int = 3600  # ✅ 修复：使用正确的变量名 ttl
 
     # 限流配置
@@ -43,7 +43,7 @@ class Settings(BaseSettings):
 
     # 日志配置
     log_level: str = "INFO"
-    log_format: str = "json"
+    json_logs: bool = False
 
     class Config:
         env_prefix = "WRAPPER_"
