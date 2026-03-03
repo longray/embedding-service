@@ -34,7 +34,7 @@ class ServiceUnavailableError(WrapperServiceError):
         )
 
 
-class CircuitBreakerOpenError(WrapperServiceError):
+class CircuitBreakerError(WrapperServiceError):
     """熔断器打开异常"""
 
     def __init__(self, service_name: str):

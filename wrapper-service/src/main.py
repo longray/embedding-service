@@ -131,7 +131,7 @@ async def create_embeddings(request: Request):
         result = embedding_breaker.call(call_embedding_service)
 
         # 缓存结果
-        cache.put(cache_key, result)
+        cache.set(cache_key, result)
         return result
 
     except CircuitBreakerError as e:
