@@ -36,9 +36,11 @@ python -m src.main
 
 ## API端点
 
-- `GET /health` - 健康检查
+- `GET /health` - 健康检查（包含SurrealDB状态）
 - `POST /v1/embeddings` - 创建文本嵌入
 - `POST /v1/chat/completions` - 聊天补全
+- `POST /api/v1/memories` - 批量上传记忆
+- `POST /api/v1/memories/search` - 搜索记忆
 - `GET /metrics` - Prometheus指标
 
 ### API使用示例
@@ -105,6 +107,33 @@ curl http://localhost:3001/health
   }
 }
 ```
+#### 批量上传记忆
+
+```bash
+curl -X POST http://localhost:3001/api/v1/memories \
+  -H "Content-Type: application/json" \
+  -d '{
+    "memories": [
+      {
+        "content": "memory text",
+        "metadata": {"source": "user"},
+        "entities": [{"name": "entity1", "type": "person"}]
+      }
+    ]
+  }'
+```
+
+#### 搜索记忆
+
+```bash
+curl -X POST http://localhost:3001/api/v1/memories/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "search text",
+    "mode": "hybrid",
+    "limit": 10
+  }'
+```
 
 ## 架构设计
 
@@ -133,6 +162,10 @@ curl http://localhost:3001/health
 | `WRAPPER_CIRCUIT_BREAKER_ENABLED` | true | 是否启用熔断器 |
 | `WRAPPER_CIRCUIT_BREAKER_THRESHOLD` | 5 | 熔断器失败阈值 |
 | `WRAPPER_CIRCUIT_BREAKER_TIMEOUT` | 60 | 熔断器超时（秒） |
+| `WRAPPER_SURREALDB_URL` | ws://localhost:8000/rpc | SurrealDB连接地址 |
+| `WRAPPER_SURREALDB_NAMESPACE` | memory_ns | SurrealDB命名空间 |
+| `WRAPPER_SURREALDB_DATABASE` | memory_db | SurrealDB数据库名 |
+| `WRAPPER_SURREALDB_POOL_SIZE` | 10 | 连接池大小 |
 
 ## 部署指南
 
