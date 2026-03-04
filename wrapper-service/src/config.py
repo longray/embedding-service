@@ -16,11 +16,20 @@ class Settings(BaseSettings):
 
     # 服务配置
     port: int = 3001
-    wrapper_host: str = "0.0.0.0"
+    wrapper_host: str = "0.0.0.0"  # nosec B104
 
     # 后端服务配置
     embedding_service_url: str = "http://localhost:18000"
     llm_service_url: str = "http://localhost:18001"
+
+    # SurrealDB配置
+    surrealdb_url: str = "ws://localhost:8000/rpc"
+    surrealdb_namespace: str = "memory_ns"
+    surrealdb_database: str = "memory_db"
+    surrealdb_username: str = "root"
+    surrealdb_password: str = "root"
+    surrealdb_pool_size: int = 10
+    surrealdb_max_overflow: int = 5
 
     # 超时配置
     http_timeout: float = 30.0

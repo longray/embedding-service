@@ -19,6 +19,8 @@ from .utils.exceptions import (
     CircuitBreakerError,
 )
 from .utils import metrics
+from .utils.connection_pool import SurrealDBConnectionPool
+from .utils.memory_manager import MemoryManager
 
 
 # 初始化配置和日志
@@ -37,6 +39,9 @@ embedding_breaker = CircuitBreaker(
 )
 
 llm_breaker = CircuitBreaker(failure_threshold=5, timeout=60.0, half_open_max_calls=3)
+# SurrealDB连接池和记忆管理器（在lifespan中初始化）
+surrealdb_pool: SurrealDBConnectionPool | None = None
+memory_manager: MemoryManager | None = None
 
 
 @asynccontextmanager
@@ -51,10 +56,35 @@ async def lifespan(app: FastAPI):
             "llm_url": settings.llm_service_url,
         }
     )
+    # 初始化SurrealDB连接池
+    global surrealdb_pool, memory_manager
+    surrealdb_pool = SurrealDBConnectionPool(
+        url=settings.surrealdb_url,
+        namespace=settings.surrealdb_namespace,
+        database=settings.surrealdb_database,
+        username=settings.surrealdb_username,
+        password=settings.surrealdb_password,
+        pool_size=settings.surrealdb_pool_size,
+        max_overflow=settings.surrealdb_max_overflow,
+    )
+    await surrealdb_pool.initialize()
+    
+    # 初始化记忆管理器
+    memory_manager = MemoryManager(
+        pool=surrealdb_pool,
+        embedding_service_url=settings.embedding_service_url,
+    )
+    logger.info("surrealdb_initialized")
     yield
     # 关闭
     logger.info("wrapper_service_stopping")
     await get_http_pool().close()
+    # 关闭SurrealDB连接池
+    if memory_manager:
+        await memory_manager.close()
+    if surrealdb_pool:
+        await surrealdb_pool.close()
+    logger.info("surrealdb_closed")
 
 
 app = FastAPI(title="Embedding Wrapper Service", version="1.0.0", lifespan=lifespan)
@@ -82,6 +112,17 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
 @app.get("/health")
 async def health_check():
     """健康检查"""
+    # 检查SurrealDB健康状态
+    surrealdb_healthy = False
+    if surrealdb_pool:
+        try:
+            async with surrealdb_pool.acquire() as conn:
+                from .utils.surrealdb_client import SurrealDBClient
+                client = SurrealDBClient(conn)
+                surrealdb_healthy = await client.health_check()
+        except Exception as e:
+            logger.error("surrealdb_health_check_failed", error=str(e))
+    
     return {
         "status": "healthy",
         "cache_stats": cache.get_stats(),
@@ -89,6 +130,7 @@ async def health_check():
             "embedding": embedding_breaker.state.value,
             "llm": llm_breaker.state.value,
         },
+        "surrealdb": "healthy" if surrealdb_healthy else "unhealthy",
     }
 
 
@@ -181,8 +223,65 @@ async def create_chat_completion(request: Request):
         metrics.backend_errors.labels(service="llm", error_type=type(e).__name__).inc()
         raise ServiceUnavailableError(f"LLM service error: {str(e)}")
 
+@app.post("/api/v1/memories")
+@metrics.track_request("POST", "/api/v1/memories")
+async def upload_memories(request: Request):
+    """
+    批量上传记忆
+    
+    请求体示例:
+    {
+        "memories": [
+            {
+                "content": "memory text",
+                "metadata": {},
+                "entities": [],
+                "relations": []
+            }
+        ]
+    }
+    """
+    if not memory_manager:
+        raise ServiceUnavailableError("Memory service not initialized")
+    
+    body = await request.json()
+    memories = body.get("memories", [])
+    
+    if not memories:
+        raise HTTPException(status_code=400, detail="No memories provided")
+    
+    result = await memory_manager.upload_memories(memories)
+    return result
+@app.post("/api/v1/memories/search")
+@metrics.track_request("POST", "/api/v1/memories/search")
+async def search_memories(request: Request):
+    """
+    搜索记忆
+    
+    请求体示例:
+    {
+        "query": "search text",
+        "mode": "hybrid",
+        "limit": 10,
+        "threshold": 0.7
+    }
+    """
+    if not memory_manager:
+        raise ServiceUnavailableError("Memory service not initialized")
+    
+    body = await request.json()
+    query = body.get("query", "")
+    mode = body.get("mode", "hybrid")
+    limit = body.get("limit", 10)
+    threshold = body.get("threshold", 0.7)
+    
+    if not query:
+        raise HTTPException(status_code=400, detail="Query is required")
+    
+    results = await memory_manager.search_memories(query, mode, limit, threshold)
+    return {"results": results, "total": len(results)}
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=settings.port)
+    uvicorn.run(app, host="0.0.0.0", port=settings.port)  # nosec B104
