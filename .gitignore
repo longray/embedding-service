@@ -1,2 +1,23 @@
 /src/qwen3_embedding_service/models/
 /.idea/
+
+# 日志文件
+*.log
+history.txt
+
+# 数据目录
+data/
+surrealdb_data/
+
+# 缓存
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
+# 覆盖率
+.coverage
+wrapper-service/.coverage
+
+# 运行时
+*.pyc
+.DS_Store
