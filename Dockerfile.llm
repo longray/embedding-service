@@ -1,0 +1,46 @@
+# Stage 1: Build
+FROM python:3.11-slim as builder
+
+WORKDIR /app
+
+# Install uv
+RUN pip install uv
+
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies
+RUN uv pip install --system -e "."
+
+# Stage 2: Run
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Python packages from builder stage
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy application code
+COPY src/qwen3_embedding_service ./src/qwen3_embedding_service
+
+# Expose port
+EXPOSE 18001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:18001/health || exit 1
+
+# Environment variables (defaults, can be overridden)
+ENV LLM_PORT=18001
+ENV LLM_MODEL_PATH=OpenBMB/MiniCPM4-0.5B
+ENV LLM_MAX_NEW_TOKENS=1024
+ENV LLM_CACHE_SIZE=100
+
+# Start command
+CMD ["python", "-m", "src.qwen3_embedding_service.llm_service"]

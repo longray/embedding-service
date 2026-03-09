@@ -1,0 +1,46 @@
+# 阶段1: 构建阶段
+FROM python:3.11-slim as builder
+
+WORKDIR /app
+
+# 安装 uv
+RUN pip install uv
+
+# 复制依赖文件
+COPY pyproject.toml uv.lock ./
+
+# 安装依赖（使用uv）
+RUN uv pip install --system -e "."
+
+# 阶段2: 运行阶段
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# 安装系统依赖（如果需要）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# 环境变量默认值（可在 docker-compose.yml 传入覆盖）
+ENV EMB_PORT=${EMB_PORT:-18000} \
+    EMB_MODEL_PATH=${EMB_MODEL_PATH:-Qwen/Qwen3-Embedding-0___6B} \
+    EMB_MAX_BATCH_SIZE=${EMB_MAX_BATCH_SIZE:-256} \
+    EMB_CACHE_SIZE=${EMB_CACHE_SIZE:-1000}
+
+# 从构建阶段复制Python包
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# 复制应用代码
+COPY src/qwen3_embedding_service ./src/qwen3_embedding_service
+
+# 暴露端口
+EXPOSE 18000
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:18000/health || exit 1
+
+# 启动命令
+CMD ["python", "-m", "src.qwen3_embedding_service.embedding_service"]
