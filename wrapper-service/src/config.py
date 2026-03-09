@@ -54,6 +54,26 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     json_logs: bool = False
 
+    # 认证配置（P2新增）
+    auth_enabled: bool = False  # 默认关闭，向后兼容
+    api_key_header: str = "X-API-Key"  # API Key请求头名称
+    # API Keys格式: "key1:read,key2:read;write,key3:admin"
+    api_keys: str = ""  # 从环境变量读取，格式见上
+
+    @property
+    def parsed_api_keys(self) -> dict[str, list[str]]:
+        """解析API Keys配置为字典"""
+        if not self.api_keys:
+            return {}
+        result: dict[str, list[str]] = {}
+        # 支持逗号分割的多条配置，例如 "k1:read;write,k2:admin"
+        for key_config in self.api_keys.split(","):
+            if ":" not in key_config:
+                continue
+            key, perms = key_config.split(":", 1)
+            result[key.strip()] = [p.strip() for p in perms.split(";") if p.strip()]
+        return result
+
     class Config:
         env_prefix = "WRAPPER_"
         case_sensitive = False

@@ -2,7 +2,7 @@
 包装服务主程序
 """
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
 from contextlib import asynccontextmanager
@@ -17,7 +17,10 @@ from .utils.exceptions import (
     WrapperServiceError,
     ServiceUnavailableError,
     CircuitBreakerError,
+    AuthError,
+    PermissionDeniedError,
 )
+from .utils.auth import require_auth, require_permission, Permission
 from .utils import metrics
 from .utils.connection_pool import SurrealDBConnectionPool
 from .utils.memory_manager import MemoryManager
@@ -29,14 +32,10 @@ setup_logging(settings.log_level, settings.json_logs)
 logger = get_logger(__name__)
 
 # 初始化缓存
-cache = ThreadSafeLRUCache(
-    max_size=settings.cache_max_size, ttl_seconds=settings.cache_ttl
-)
+cache = ThreadSafeLRUCache(max_size=settings.cache_max_size, ttl_seconds=settings.cache_ttl)
 
 # 初始化熔断器
-embedding_breaker = CircuitBreaker(
-    failure_threshold=5, timeout=60.0, half_open_max_calls=3
-)
+embedding_breaker = CircuitBreaker(failure_threshold=5, timeout=60.0, half_open_max_calls=3)
 
 llm_breaker = CircuitBreaker(failure_threshold=5, timeout=60.0, half_open_max_calls=3)
 # SurrealDB连接池和记忆管理器（在lifespan中初始化）
@@ -68,7 +67,7 @@ async def lifespan(app: FastAPI):
         max_overflow=settings.surrealdb_max_overflow,
     )
     await surrealdb_pool.initialize()
-    
+
     # 初始化记忆管理器
     memory_manager = MemoryManager(
         pool=surrealdb_pool,
@@ -118,11 +117,12 @@ async def health_check():
         try:
             async with surrealdb_pool.acquire() as conn:
                 from .utils.surrealdb_client import SurrealDBClient
+
                 client = SurrealDBClient(conn)
                 surrealdb_healthy = await client.health_check()
         except Exception as e:
             logger.error("surrealdb_health_check_failed", error=str(e))
-    
+
     return {
         "status": "healthy",
         "cache_stats": cache.get_stats(),
@@ -136,9 +136,12 @@ async def health_check():
 
 @app.post("/v1/embeddings")
 @metrics.track_request("POST", "/v1/embeddings")
-async def create_embeddings(request: Request):
+async def create_embeddings(
+    request: Request,
+    permissions: list[str] = Depends(require_auth),
+):
     """
-    创建文本嵌入向量
+    创建文本嵌入向量 (需要 read 权限)
 
     请求体示例:
     {
@@ -146,6 +149,9 @@ async def create_embeddings(request: Request):
         "model": "qwen3-embedding"
     }
     """
+    # 权限检查
+    if Permission.READ not in permissions and Permission.ADMIN not in permissions:
+        raise PermissionDeniedError("Requires read permission")
     body = await request.json()
     text = body.get("input", "")
 
@@ -164,9 +170,7 @@ async def create_embeddings(request: Request):
 
         async def call_embedding_service():
             pool = get_http_pool()
-            response = await pool.post(
-                f"{settings.embedding_service_url}/v1/embeddings", json=body
-            )
+            response = await pool.post(f"{settings.embedding_service_url}/v1/embeddings", json=body)
             response.raise_for_status()
             return response.json()
 
@@ -181,17 +185,18 @@ async def create_embeddings(request: Request):
         raise ServiceUnavailableError("Embedding service unavailable")
     except httpx.HTTPError as e:
         logger.error("backend_error", service="embedding", error=str(e))
-        metrics.backend_errors.labels(
-            service="embedding", error_type=type(e).__name__
-        ).inc()
+        metrics.backend_errors.labels(service="embedding", error_type=type(e).__name__).inc()
         raise ServiceUnavailableError(f"Embedding service error: {str(e)}")
 
 
 @app.post("/v1/chat/completions")
 @metrics.track_request("POST", "/v1/chat/completions")
-async def create_chat_completion(request: Request):
+async def create_chat_completion(
+    request: Request,
+    permissions: list[str] = Depends(require_auth),
+):
     """
-    创建聊天补全
+    创建聊天补全 (需要 read 权限)
 
     请求体示例:
     {
@@ -199,6 +204,9 @@ async def create_chat_completion(request: Request):
         "model": "qwen3"
     }
     """
+    # 权限检查
+    if Permission.READ not in permissions and Permission.ADMIN not in permissions:
+        raise PermissionDeniedError("Requires read permission")
     body = await request.json()
 
     # 调用后端服务（带熔断保护）
@@ -206,9 +214,7 @@ async def create_chat_completion(request: Request):
 
         async def call_llm_service():
             pool = get_http_pool()
-            response = await pool.post(
-                f"{settings.llm_service_url}/v1/chat/completions", json=body
-            )
+            response = await pool.post(f"{settings.llm_service_url}/v1/chat/completions", json=body)
             response.raise_for_status()
             return response.json()
 
@@ -223,12 +229,16 @@ async def create_chat_completion(request: Request):
         metrics.backend_errors.labels(service="llm", error_type=type(e).__name__).inc()
         raise ServiceUnavailableError(f"LLM service error: {str(e)}")
 
+
 @app.post("/api/v1/memories")
 @metrics.track_request("POST", "/api/v1/memories")
-async def upload_memories(request: Request):
+async def upload_memories(
+    request: Request,
+    permissions: list[str] = Depends(require_auth),
+):
     """
-    批量上传记忆
-    
+    批量上传记忆 (需要 write 权限)
+
     请求体示例:
     {
         "memories": [
@@ -241,23 +251,31 @@ async def upload_memories(request: Request):
         ]
     }
     """
+    # 权限检查
+    if Permission.WRITE not in permissions and Permission.ADMIN not in permissions:
+        raise PermissionDeniedError("Requires write permission")
     if not memory_manager:
         raise ServiceUnavailableError("Memory service not initialized")
-    
+
     body = await request.json()
     memories = body.get("memories", [])
-    
+
     if not memories:
         raise HTTPException(status_code=400, detail="No memories provided")
-    
+
     result = await memory_manager.upload_memories(memories)
     return result
+
+
 @app.post("/api/v1/memories/search")
 @metrics.track_request("POST", "/api/v1/memories/search")
-async def search_memories(request: Request):
+async def search_memories(
+    request: Request,
+    permissions: list[str] = Depends(require_auth),
+):
     """
-    搜索记忆
-    
+    搜索记忆 (需要 read 权限)
+
     请求体示例:
     {
         "query": "search text",
@@ -266,20 +284,24 @@ async def search_memories(request: Request):
         "threshold": 0.7
     }
     """
+    # 权限检查
+    if Permission.READ not in permissions and Permission.ADMIN not in permissions:
+        raise PermissionDeniedError("Requires read permission")
     if not memory_manager:
         raise ServiceUnavailableError("Memory service not initialized")
-    
+
     body = await request.json()
     query = body.get("query", "")
     mode = body.get("mode", "hybrid")
     limit = body.get("limit", 10)
     threshold = body.get("threshold", 0.7)
-    
+
     if not query:
         raise HTTPException(status_code=400, detail="Query is required")
-    
+
     results = await memory_manager.search_memories(query, mode, limit, threshold)
     return {"results": results, "total": len(results)}
+
 
 if __name__ == "__main__":
     import uvicorn

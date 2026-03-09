@@ -14,9 +14,7 @@ from typing import Optional
 class WrapperServiceError(Exception):
     """包装服务基础异常"""
 
-    def __init__(
-        self, message: str, status_code: int = 500, details: Optional[dict] = None
-    ):
+    def __init__(self, message: str, status_code: int = 500, details: Optional[dict] = None):
         self.message = message
         self.status_code = status_code
         self.details = details or {}
@@ -38,9 +36,7 @@ class CircuitBreakerError(WrapperServiceError):
     """熔断器打开异常"""
 
     def __init__(self, service_name: str):
-        super().__init__(
-            message=f"Circuit breaker is open for {service_name}", status_code=503
-        )
+        super().__init__(message=f"Circuit breaker is open for {service_name}", status_code=503)
 
 
 class ValidationError(WrapperServiceError):
@@ -55,3 +51,18 @@ class RateLimitExceededError(WrapperServiceError):
 
     def __init__(self, message: str = "Rate limit exceeded"):
         super().__init__(message=message, status_code=429)
+
+
+class AuthError(WrapperServiceError):
+    """认证失败异常 (401 Unauthorized)"""
+
+    def __init__(self, message: str = "Authentication failed"):
+        super().__init__(message=message, status_code=401)
+
+
+class PermissionDeniedError(WrapperServiceError):
+    """权限不足异常 (403 Forbidden)"""
+
+    def __init__(self, message: str = "Permission denied", required: Optional[str] = None):
+        details = {"required_permission": required} if required else {}
+        super().__init__(message=message, status_code=403, details=details)
