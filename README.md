@@ -1,26 +1,28 @@
 # Embedding Service (OpenCode Memory Stack)
 
 版本与路线图
-- 当前版本: v1.0.0
-- 实施阶段: P0 + P1 + P2 已完成，进入 P3 优化阶段
+- 当前版本: v1.1.0
+- 实施阶段: P0 + P1 + P2 + P3-1 + P3-2 已完成
 - 详细路线见 ROADMAP.md
 
 ## 开发状态
 
-**当前版本**: v1.0.0
-**实施阶段**: P0 + P1 + P2 已完成，进入 P3 优化阶段
+**当前版本**: v1.1.0
+**实施阶段**: P0 + P1 + P2 + P3-1 + P3-2 已完成
 
 ### 已完成 ✅
 - ✅ P0 核心功能（Embedding + LLM + 包装层）
 - ✅ P1 增强功能（熔断器、缓存、监控、测试套件）
 - ✅ P2 生产就绪（API认证授权、CI/CD、完整文档）
+- ✅ P3-1 Docker Compose 一键部署
+- ✅ P3-2 HNSW 向量搜索优化
 
 ### P3 优化路线图 🚀
 
 | 优先级 | 功能 | 预期收益 | 状态 |
 |--------|------|----------|------|
-| P3-1 | Docker Compose | 一键部署 | ⏳ 待开始 |
-| P3-2 | HNSW向量索引 | 搜索10x加速 | ⏳ 待开始 |
+| P3-1 | Docker Compose | 一键部署 | ✅ 已完成 |
+| P3-2 | HNSW向量索引 | 搜索10x加速 | ✅ 已完成 |
 | P3-3 | 监控告警 | 自动告警 | ⏳ 待开始 |
 | P3-4 | Kubernetes | 云原生部署 | ⏳ 待开始 |
 | P3-5 | 审计日志 | 合规审计 | ⏳ 待开始 |
@@ -29,7 +31,16 @@
 
 ## API端点
 
-### API端点
+### 最小化包装服务（端口 17999）
+
+| 端点 | 方法 | 功能 | 认证 |
+|------|------|------|------|
+| `/health` | GET | 健康检查 | 🌍 公开 |
+| `/v1/embeddings` | POST | 文本嵌入 + 缓存 | 🌍 公开 |
+| `/api/v1/memories` | POST | 批量上传记忆 | 🌍 公开 |
+| `/api/v1/memories/search` | POST | 搜索记忆 | 🌍 公开 |
+
+### 完整包装服务（端口 3001）
 
 | 端点 | 方法 | 功能 | 认证 |
 |------|------|------|------|
@@ -48,15 +59,40 @@ export WRAPPER_API_KEYS="your_key:read;write"
 ```
 
 ### 核心功能
-- ✅ **记忆管理**：SurrealDB向量存储，支持混合搜索
-- ✅ **API认证**：API Key认证和权限控制
-- ✅ **CI/CD**：GitHub Actions自动测试
-- 其他现有核心功能保持向后兼容
+- ✅ **记忆管理**：SurrealDB 向量存储，支持混合搜索
+- ✅ **API 认证**：API Key 认证和权限控制
+- ✅ **LRU 缓存**：文本嵌入结果缓存
+- ✅ **HTTP 连接池**：高效 HTTP 请求
+- ✅ **SurrealDB 长期连接**：避免频繁连接开销
+- ✅ **CI/CD**：GitHub Actions 自动测试
+- ✅ **完整测试套件**：150+ 测试用例
 
 ## 技术要求与兼容性
 - 保持向后兼容及现有接口
 - 认证开关可通过环境变量控制
 - 兼容现有文档结构，方便跳转至 ROADMAP.md
+
+## 快速开始
+
+### 启动最小化包装服务
+
+```bash
+# 启动服务
+uv run python -m wrapper.src.main
+
+# 或使用后台模式
+cd D:/embedding_service && uv run python -m wrapper.src.main &
+```
+
+### 运行测试
+
+```bash
+# 运行核心 API 测试（推荐）
+uv run pytest tests/test_wrapper_api.py -v
+
+# 运行所有测试
+uv run pytest tests/ -v
+```
 
 ## 文件位置
 D:\embedding_service\README.md

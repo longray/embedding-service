@@ -2,17 +2,18 @@
 
 ## 测试概述
 
-本测试套件对Embedding服务的所有API接口进行全面、严格的端到端测试，包括：
-- Embedding服务（端口18000）
-- LLM服务（端口18001）
-- 包装层服务（端口3001）
+本测试套件对 Embedding 服务的所有 API 接口进行全面、严格的端到端测试，包括：
+- Embedding 服务（端口 18000）
+- LLM 服务（端口 18001）
+- 包装层服务（端口 3001）
+- **最小化包装服务（端口 17999）** - 新增
 
 ## 测试类型
 
 ### 基础功能测试
-- 健康检查、API端点、基本功能
+- 健康检查、API 端点、基本功能
 
-### 扩展测试（新增）
+### 扩展测试
 - **边界条件测试**：超长文本、空输入、特殊字符、大批量
 - **错误处理测试**：无效参数、缺失字段、错误类型
 - **熔断器测试**：状态转换、故障恢复
@@ -33,6 +34,9 @@ uv pip install pytest pytest-asyncio httpx
 ```bash
 # 使用统一启动脚本
 uv run python start_services.py --with-llm
+
+# 或单独启动最小化包装服务
+uv run python -m wrapper.src.main
 ```
 
 ## 运行测试
@@ -41,6 +45,18 @@ uv run python start_services.py --with-llm
 
 ```bash
 uv run pytest tests/ -v
+```
+
+### 运行最小化包装服务测试（推荐）
+
+```bash
+# 运行核心 API 测试套件（56 个测试）
+uv run pytest tests/test_wrapper_api.py -v
+
+# 运行特定测试类
+uv run pytest tests/test_wrapper_api.py::TestEmbeddingsCache -v
+uv run pytest tests/test_wrapper_api.py::TestMemoriesSearchBasic -v
+uv run pytest tests/test_wrapper_api.py::TestEndToEndIntegration -v
 ```
 
 ### 运行特定类型的测试
@@ -83,7 +99,33 @@ uv run pytest tests/test_embedding_service.py::TestEmbeddingService::test_health
 
 ## 测试覆盖
 
-### Embedding服务
+### 最小化包装服务（端口 17999）- 新增
+
+**测试文件**: `tests/test_wrapper_api.py`（56 个测试）
+
+| 测试类 | 测试数 | 覆盖内容 |
+|--------|--------|----------|
+| TestHealthEndpoint | 5 | 健康检查、服务状态、缓存统计 |
+| TestEmbeddingsBasic | 3 | 单文本嵌入、默认模型、usage 字段 |
+| TestEmbeddingsCache | 5 | 缓存命中/未命中、一致性、性能 |
+| TestEmbeddingsBoundary | 4 | 空字符串、特殊字符、超长文本 |
+| TestEmbeddingsErrors | 4 | 缺失字段、无效类型、格式错误 |
+| TestMemoriesUploadBasic | 4 | 单个/批量上传、ID 格式、元数据 |
+| TestMemoriesUploadBoundary | 5 | 空列表、无内容、大批量、特殊字符 |
+| TestMemoriesUploadErrors | 3 | 缺失字段、无效类型 |
+| TestMemoriesSearchBasic | 5 | 关键词/向量/混合搜索、结果结构 |
+| TestMemoriesSearchParams | 4 | limit、threshold、默认值 |
+| TestMemoriesSearchBoundary | 4 | 空查询、特殊字符、边界值 |
+| TestMemoriesSearchErrors | 4 | 缺失字段、无效模式、超出范围 |
+| TestEndToEndIntegration | 2 | 上传→搜索验证、多次上传 |
+| TestPerformance | 4 | 响应时间、并发测试 |
+
+**运行方式**:
+```bash
+uv run pytest tests/test_wrapper_api.py -v
+```
+
+### Embedding 服务
 **基础测试** (6个):
 - ✅ 健康检查
 - ✅ 单个文本嵌入

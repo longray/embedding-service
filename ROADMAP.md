@@ -2,23 +2,28 @@
 
 ## 版本历史
 
-### v1.0.0 (当前) - 生产就绪 ✅
-**发布日期**: 2026-03-09
+### v1.1.0 (当前) - 最小化包装服务 ✅
+**发布日期**: 2026-03-10
 
 **核心功能**:
-- Embedding服务（Qwen3-Embedding-0.6B）
-- LLM服务（MiniCPM4-0.5B）
-- 包装层服务（熔断器、缓存、连接池）
-- API认证授权（API Key + 权限控制）
+- Embedding 服务（Qwen3-Embedding-0.6B）
+- LLM 服务（MiniCPM4-0.5B）
+- 最小化包装服务（端口 17999，无熔断器）
+  - LRU 缓存
+  - HTTP 连接池
+  - SurrealDB 长期连接
+  - 三个核心 API：`/v1/embeddings`、`/api/v1/memories`、`/api/v1/memories/search`
+- 包装层服务（端口 3001，完整功能）
+- API 认证授权（API Key + 权限控制）
 - 记忆管理系统（SurrealDB + 向量搜索）
 - CI/CD（GitHub Actions）
-- 完整测试套件（~96个测试用例）
+- **完整测试套件（150+ 测试用例）**
 
 ---
 
 ## P3 优化阶段 (进行中)
 
-### P3-1: Docker Compose 配置 ⭐ 高优先级
+### P3-1: Docker Compose 配置 ✅ 已完成
 
 **目标**: 一键启动所有服务
 
@@ -43,12 +48,12 @@
 
 ---
 
-### P3-2: HNSW向量索引 ⭐ 高优先级
+### P3-2: HNSW向量索引 ✅ 已完成
 
-**目标**: 将记忆搜索延迟降低90%
+**目标**: 将记忆搜索延迟降低 90%
 
 **现状**: 暴力搜索 O(n)，延迟 200-500ms
-**目标**: HNSW索引 O(log n)，延迟 <50ms
+**目标**: HNSW 索引 O(log n)，延迟 <50ms
 
 **任务清单**:
 - [x] 在 SurrealDB 创建 HNSW 索引
@@ -134,9 +139,9 @@ DEFINE INDEX memory_embedding_hnsw ON memory
 
 **任务清单**:
 - [ ] 创建审计日志中间件
-- [ ] 记录API调用（用户、时间、结果）
+- [ ] 记录 API 调用（用户、时间、结果）
 - [ ] 审计日志存储（文件/Elasticsearch）
-- [ ] 审计日志查询API
+- [ ] 审计日志查询 API
 
 **预期收益**:
 - 安全合规
@@ -153,14 +158,14 @@ DEFINE INDEX memory_embedding_hnsw ON memory
 ### P4: 高级功能
 - [ ] 模型热更新（不停机切换模型）
 - [ ] 多模型路由（负载均衡）
-- [ ] A/B测试支持
+- [ ] A/B 测试支持
 - [ ] 模型量化（边缘设备部署）
 
 ### P5: 企业级
 - [ ] 多租户支持
 - [ ] 数据加密（传输+存储）
-- [ ] 密钥管理系统（Vault集成）
-- [ ] GDPR合规
+- [ ] 密钥管理系统（Vault 集成）
+- [ ] GDPR 合规
 
 ---
 
