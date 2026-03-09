@@ -163,7 +163,18 @@ class MemoryManager:
         if not db_result or not isinstance(db_result, list):
             return results
         for item in db_result:
-            if isinstance(item, list):
+            if isinstance(item, dict):
+                formatted = {
+                    "id": str(item.get("id", "")),
+                    "content": item.get("content", ""),
+                    "metadata": item.get("metadata", {}),
+                }
+                if "score" in item:
+                    formatted["score"] = item["score"]
+                elif default_score is not None:
+                    formatted["score"] = default_score
+                results.append(formatted)
+            elif isinstance(item, list):
                 for record in item:
                     if isinstance(record, dict):
                         formatted = {

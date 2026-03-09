@@ -5,13 +5,13 @@
 import pytest
 import pytest_asyncio
 import httpx
-import httpx
 from typing import AsyncGenerator
 
 # 服务配置
 EMBEDDING_SERVICE_URL = "http://localhost:18000"
 LLM_SERVICE_URL = "http://localhost:18001"
 WRAPPER_SERVICE_URL = "http://localhost:3001"
+WRAPPER_MINIMAL_URL = "http://localhost:17999"
 
 # 超时配置
 DEFAULT_TIMEOUT = 30.0
@@ -43,6 +43,13 @@ async def llm_client() -> AsyncGenerator[httpx.AsyncClient, None]:
 async def wrapper_client() -> AsyncGenerator[httpx.AsyncClient, None]:
     """包装层服务客户端"""
     async with httpx.AsyncClient(base_url=WRAPPER_SERVICE_URL, timeout=DEFAULT_TIMEOUT) as client:
+        yield client
+
+
+@pytest_asyncio.fixture
+async def wrapper_minimal_client() -> AsyncGenerator[httpx.AsyncClient, None]:
+    """最小化包装服务客户端（端口17999）"""
+    async with httpx.AsyncClient(base_url=WRAPPER_MINIMAL_URL, timeout=DEFAULT_TIMEOUT) as client:
         yield client
 
 

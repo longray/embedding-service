@@ -160,7 +160,7 @@ async def check_embedding_service_health():
 async def check_surrealdb_health():
     try:
         db_manager = await SurrealDBManager.get_instance()
-        await db_manager.db.query("SELECT 1")
+        await db_manager.db.query("SELECT * FROM $version")
         return {"status": "healthy"}
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}
