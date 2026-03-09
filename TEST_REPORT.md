@@ -14,7 +14,7 @@
 ### 测试范围
 - ✅ Embedding 服务 (端口 18000)
 - ✅ LLM 服务 (端口 18001)
-- ✅ Wrapper 服务 (端口 3001)
+- ✅ Wrapper 服务 (端口 17999)
 - ✅ 记忆管理功能 (SurrealDB)
 
 ### 测试文件
@@ -75,7 +75,7 @@ uv run pytest tests/ -v
 | 简单生成 | `POST /generate` | 返回生成文本 | ⏳ 待验证 |
 | 对话补全 | `POST /v1/chat/completions` | 返回对话响应 | ⏳ 待验证 |
 
-### 3. Wrapper 服务测试 (端口 3001)
+### 3. Wrapper 服务测试 (端口 17999)
 
 | 测试项 | 端点 | 预期结果 | 状态 |
 |--------|------|----------|------|
@@ -171,7 +171,7 @@ uv pip install httpx
 # 检查端口占用
 netstat -ano | findstr :18000
 netstat -ano | findstr :18001
-netstat -ano | findstr :3001
+netstat -ano | findstr :17999
 
 # 修改配置文件中的端口
 ```

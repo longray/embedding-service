@@ -15,7 +15,7 @@
 - [五、核心API端点](#五核心api端点)
   - [5.1 Embedding服务](#51-embedding服务端口-18000)
   - [5.2 LLM服务](#52-llm服务端口-18001)
-  - [5.3 包装层服务](#53-包装层服务端口-3001)
+  - [5.3 包装层服务](#53-包装层服务端口-17999)
 - [六、数据模型定义](#六数据模型定义)
 - [七、插件API规范](#七插件api规范)
 - [八、OpenAPI/Swagger文档](#八openapiswagger文档)
@@ -36,7 +36,7 @@
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              包装层服务 (端口 3001)                        │
+│              包装层服务 (端口 17999)                        │
 │  ┌─────────┐  ┌─────────┐  ┌─────────┐                │
 │  │ 缓存    │  │ 熔断器  │  │ 连接池  │                │
 │  └─────────┘  └─────────┘  └─────────┘                │
@@ -57,7 +57,7 @@
 |------|------|------|------|
 | Embedding服务 | 18000 | 文本→向量转换 | Qwen3-Embedding-0.6B |
 | LLM服务 | 18001 | 对话补全生成 | MiniCPM4-0.5B |
-| 包装层服务 | 3001 | 统一入口+增强功能 | - |
+| 包装层服务 | 17999 | 统一入口+增强功能 | - |
 
 ### 1.3 核心特性
 
@@ -139,7 +139,7 @@ Current (当前版本) → Supported (支持版本) → Deprecated (弃用版本
 
 ```http
 POST /v1/embeddings HTTP/1.1
-Host: localhost:3001
+Host: localhost:17999
 Authorization: Bearer sk-xxxxxxxxxxxxxxxxxxxx
 Content-Type: application/json
 ```
@@ -182,7 +182,7 @@ async def create_embeddings(
 
 ```http
 POST /v1/embeddings HTTP/1.1
-Host: localhost:3001
+Host: localhost:17999
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Content-Type: application/json
 ```
@@ -664,7 +664,7 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
 
 ---
 
-### 5.3 包装层服务（端口 3001）
+### 5.3 包装层服务（端口 17999）
 
 #### 5.3.1 健康检查（含SurrealDB状态）
 
@@ -955,7 +955,7 @@ class MemoryUploadResponse(BaseModel):
 
 ```http
 POST /api/v1/plugins/{plugin_id}/invoke HTTP/1.1
-Host: localhost:3001
+Host: localhost:17999
 Content-Type: application/json
 
 {
@@ -977,7 +977,7 @@ Content-Type: application/json
 **实现方式**：WebSocket + JSON
 
 ```javascript
-const ws = new WebSocket('ws://localhost:3001/ws/plugins');
+const ws = new WebSocket('ws://localhost:17999/ws/plugins');
 
 ws.onopen = () => {
   ws.send(JSON.stringify({
@@ -1158,7 +1158,7 @@ info:
     name: MIT
 
 servers:
-  - url: http://localhost:3001
+  - url: http://localhost:17999
     description: 本地开发环境
   - url: https://api.example.com
     description: 生产环境
@@ -1604,7 +1604,7 @@ async def test_full_workflow():
     async with httpx.AsyncClient() as client:
         # 1. 上传记忆
         upload_response = await client.post(
-            "http://localhost:3001/api/v1/memories",
+            "http://localhost:17999/api/v1/memories",
             json={
                 "memories": [{"content": "Test memory"}]
             }
@@ -1613,7 +1613,7 @@ async def test_full_workflow():
 
         # 2. 搜索记忆
         search_response = await client.post(
-            "http://localhost:3001/api/v1/memories/search",
+            "http://localhost:17999/api/v1/memories/search",
             json={"query": "Test"}
         )
         assert search_response.status_code == 200
@@ -1637,7 +1637,7 @@ async def test_full_workflow():
 | `LLM_MAX_NEW_TOKENS` | 512-2048 | 最大生成长度 |
 | `LLM_CACHE_SIZE` | 100 | 缓存大小 |
 | **包装层服务** |||
-| `WRAPPER_PORT` | 3001 | 服务端口 |
+| `WRAPPER_PORT` | 17999 | 服务端口 |
 | `WRAPPER_EMBEDDING_SERVICE_URL` | http://localhost:18000 | Embedding服务地址 |
 | `WRAPPER_LLM_SERVICE_URL` | http://localhost:18001 | LLM服务地址 |
 | `WRAPPER_CACHE_MAX_SIZE` | 1000 | 缓存大小 |

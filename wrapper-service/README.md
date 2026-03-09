@@ -21,7 +21,7 @@ pip install -r requirements.txt
 ### 配置环境变量
 
 ```bash
-export WRAPPER_PORT=3001
+export WRAPPER_PORT=17999
 export WRAPPER_EMBEDDING_SERVICE_URL=http://localhost:18000
 export WRAPPER_LLM_SERVICE_URL=http://localhost:18001
 export WRAPPER_LOG_LEVEL=INFO
@@ -46,7 +46,7 @@ python -m src.main
 #### 创建文本嵌入
 
 ```bash
-curl -X POST http://localhost:3001/v1/embeddings \
+curl -X POST http://localhost:17999/v1/embeddings \
   -H "Content-Type: application/json" \
   -d '{
     "input": "Hello, world!",
@@ -74,7 +74,7 @@ curl -X POST http://localhost:3001/v1/embeddings \
 #### 聊天补全
 
 ```bash
-curl -X POST http://localhost:3001/v1/chat/completions \
+curl -X POST http://localhost:17999/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "messages": [{"role": "user", "content": "Hello!"}],
@@ -85,7 +85,7 @@ curl -X POST http://localhost:3001/v1/chat/completions \
 #### 健康检查
 
 ```bash
-curl http://localhost:3001/health
+curl http://localhost:17999/health
 ```
 
 **响应示例**:
@@ -108,7 +108,7 @@ curl http://localhost:3001/health
 #### 批量上传记忆
 
 ```bash
-curl -X POST http://localhost:3001/api/v1/memories \
+curl -X POST http://localhost:17999/api/v1/memories \
   -H "Content-Type: application/json" \
   -d '{
     "memories": [
@@ -124,7 +124,7 @@ curl -X POST http://localhost:3001/api/v1/memories \
 #### 搜索记忆
 
 ```bash
-curl -X POST http://localhost:3001/api/v1/memories/search \
+curl -X POST http://localhost:17999/api/v1/memories/search \
   -H "Content-Type: application/json" \
   -d '{
     "query": "search text",
@@ -143,7 +143,7 @@ curl -X POST http://localhost:3001/api/v1/memories/search \
 
 | 变量名 | 默认值 | 说明 |
 |---------|--------|------|
-| `WRAPPER_PORT` | 3001 | 服务端口 |
+| `WRAPPER_PORT` | 17999 | 服务端口 |
 | `WRAPPER_HOST` | 0.0.0.0 | 监听地址 |
 | `WRAPPER_EMBEDDING_SERVICE_URL` | http://localhost:18000 | Embedding服务地址 |
 | `WRAPPER_LLM_SERVICE_URL` | http://localhost:18001 | LLM服务地址 |
@@ -171,19 +171,19 @@ curl -X POST http://localhost:3001/api/v1/memories/search \
 
 **使用 uvicorn 多进程模式**:
 ```bash
-uvicorn src.main:app --host 0.0.0.0 --port 3001 --workers 4
+uvicorn src.main:app --host 0.0.0.0 --port 17999 --workers 4
 ```
 
 **使用 gunicorn + uvicorn worker**:
 ```bash
-gunicorn src.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:3001
+gunicorn src.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:17999
 ```
 
 ## 故障排查
 
 ### 服务启动失败
 
-1. **检查端口是否被占用**: `netstat -an | grep 3001`
+1. **检查端口是否被占用**: `netstat -an | grep 17999`
 2. **检查后端服务是否可达**: `curl http://localhost:18000/health`
 3. **查看日志**: 设置 `WRAPPER_LOG_LEVEL=DEBUG`
 

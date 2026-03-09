@@ -366,7 +366,7 @@ Python客户端库，方便其他应用调用包装层服务。
 class WrapperClient:
     """包装层服务客户端"""
     
-    def __init__(self, base_url: str = "http://localhost:3001"):
+    def __init__(self, base_url: str = "http://localhost:17999"):
         """初始化客户端"""
         self.base_url = base_url
         self.session = httpx.AsyncClient()

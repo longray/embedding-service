@@ -267,7 +267,7 @@ class Settings(BaseSettings):
     """应用配置（从环境变量加载）"""
     
     # 服务配置
-    wrapper_port: int = 3001
+    wrapper_port: int = 17999
     wrapper_host: str = "0.0.0.0"
     
     # 后端服务配置

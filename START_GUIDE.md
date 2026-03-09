@@ -30,7 +30,7 @@ uv run python start_services.py --with-llm --no-wrapper
    └── 等待就绪（约10-30秒）
 
 3. 启动包装层服务（推荐）
-   ├── 端口：3001
+   ├── 端口：17999
    └── 等待就绪（<5秒）
 ```
 
@@ -40,7 +40,7 @@ uv run python start_services.py --with-llm --no-wrapper
 
 | 服务 | 地址 | 说明 |
 |------|------|------|
-| **包装层** | http://localhost:3001 | 推荐使用（带缓存、熔断器） |
+| **包装层** | http://localhost:17999 | 推荐使用（带缓存、熔断器） |
 | Embedding | http://localhost:18000 | 直接访问后端 |
 | LLM | http://localhost:18001 | 直接访问后端 |
 
@@ -51,7 +51,7 @@ uv run python start_services.py --with-llm --no-wrapper
 ### 依赖关系
 
 ```
-包装层服务 (3001)
+包装层服务 (17999)
     ├── 必须依赖：Embedding 服务 (18000)
     └── 可选依赖：LLM 服务 (18001)
 ```
@@ -70,7 +70,7 @@ uv run python start_services.py --with-llm --no-wrapper
 
 **问题3：包装层服务启动失败**
 - 确保后端服务已启动
-- 检查端口3001是否被占用
+- 检查端口17999是否被占用
 - 检查环境变量配置
 
 ## 📝 手动启动（不推荐）
@@ -118,7 +118,7 @@ export EMB_CACHE_SIZE=1000
 export LLM_CACHE_SIZE=100
 
 # 包装层服务
-export WRAPPER_PORT=3001
+export WRAPPER_PORT=17999
 export WRAPPER_CACHE_MAX_SIZE=1000
 export WRAPPER_CACHE_TTL=3600
 ```
