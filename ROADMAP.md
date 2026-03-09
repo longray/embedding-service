@@ -23,13 +23,15 @@
 **目标**: 一键启动所有服务
 
 **任务清单**:
-- [ ] 创建 docker-compose.yml
-- [ ] 为 embedding-service 创建 Dockerfile
-- [ ] 为 llm-service 创建 Dockerfile
-- [ ] 为 wrapper-service 创建 Dockerfile
-- [ ] 配置 SurrealDB 服务
-- [ ] 配置网络和卷
-- [ ] 编写启动脚本
+- [x] 创建 docker-compose.yml
+- [x] 为 embedding-service 创建 Dockerfile
+- [x] 为 llm-service 创建 Dockerfile
+- [x] 为 wrapper-service 创建 Dockerfile
+- [x] 配置 SurrealDB 服务
+- [x] 配置网络和卷
+- [x] 编写启动脚本
+
+**状态**: ✅ 已完成 (2026-03-09)
 
 **预期收益**:
 - 开发环境标准化
@@ -49,10 +51,12 @@
 **目标**: HNSW索引 O(log n)，延迟 <50ms
 
 **任务清单**:
-- [ ] 在 SurrealDB 创建 HNSW 索引
-- [ ] 修改 search_memories 使用索引
+- [x] 在 SurrealDB 创建 HNSW 索引
+- [x] 修改 search_memories 使用索引
 - [ ] 添加性能基准测试
 - [ ] 对比测试（暴力 vs HNSW）
+
+**状态**: ✅ 核心功能已完成 (2026-03-09)
 
 **技术方案**:
 ```sql
