@@ -1,156 +1,69 @@
-# Embedding Service 项目
+# Embedding Service (OpenCode Memory Stack)
 
-基于 Qwen3 的文本嵌入和大语言模型服务，包含包装层服务提供统一入口和增强功能。
-
-## 项目概述
-
-本项目提供两层服务架构：
-
-1. **后端服务层**：
-   - Embedding 服务（端口 18000）- 基于 Qwen3-Embedding-0.6B
-   - LLM 服务（端口 18001）- 基于 MiniCPM4-0.5B
-
-2. **包装层服务**（端口 3001）：
-   - 统一入口和API代理
-   - 熔断器保护，防止级联故障
-   - 智能缓存，提高响应速度
-   - 连接池管理，优化资源利用
-   - 完整的监控和日志
-
-## 项目结构
-
-```
-embedding_service/
-├── src/qwen3_embedding_service/    # 后端服务
-│   ├── embedding_service.py        # Embedding 服务
-│   └── llm_service.py               # LLM 服务
-├── wrapper-service/                 # 包装层服务
-│   ├── src/
-│   │   ├── main.py                  # 主服务程序
-│   │   ├── config.py                # 配置管理
-│   │   └── utils/                   # 工具模块
-│   │       ├── cache.py             # 线程安全缓存
-│   │       ├── circuit_breaker.py   # 熔断器
-│   │       ├── http_pool.py         # HTTP连接池
-│   │       ├── logging.py           # 结构化日志
-│   │       ├── metrics.py           # Prometheus指标
-│   │       └── exceptions.py        # 异常处理
-│   └── tests/                       # 测试文件
-├── WRAPPER_SERVICE_DESIGN.md        # 包装服务设计文档
-└── WRAPPER_SERVICE_REVIEW.md        # 包装服务评审文档
-```
-
-## 快速开始
-
-### 1. 启动后端服务
-
-```bash
-# 启动 Embedding 服务
-python src/qwen3_embedding_service/embedding_service.py
-
-# 启动 LLM 服务
-python src/qwen3_embedding_service/llm_service.py
-```
-
-### 2. 启动包装层服务
-
-```bash
-cd wrapper-service
-pip install -r requirements.txt
-python -m src.main
-```
-
-### 3. 测试服务
-
-```bash
-# 健康检查
-curl http://localhost:3001/health
-
-# 创建文本嵌入
-curl -X POST http://localhost:3001/v1/embeddings \
-  -H "Content-Type: application/json" \
-  -d '{"input": "Hello, world!", "model": "Qwen3-Embedding-0.6B"}'
-```
-
-## 核心功能
-
-### 包装层服务特性
-
-- ✅ **熔断器保护**：三状态保护机制，防止级联故障
-- ✅ **智能缓存**：线程安全的LRU缓存，支持TTL
-- ✅ **连接池管理**：HTTP连接复用，提高性能
-- ✅ **结构化日志**：structlog支持，便于监控和调试
-- ✅ **Prometheus指标**：完整的监控指标收集
-- ✅ **统一异常处理**：标准化错误响应
-
-### API端点
-
-| 端点 | 方法 | 功能 | 端口 |
-|------|------|------|------|
-| `/v1/embeddings` | POST | 文本嵌入（带缓存+熔断） | 3001 |
-| `/v1/chat/completions` | POST | 聊天补全（带熔断） | 3001 |
-| `/health` | GET | 健康检查+熔断器状态 | 3001 |
-| `/metrics` | GET | Prometheus指标 | 3001 |
-
-## 配置说明
-
-包装层服务支持通过环境变量配置：
-
-```bash
-export WRAPPER_PORT=3001
-export WRAPPER_EMBEDDING_SERVICE_URL=http://localhost:18000
-export WRAPPER_LLM_SERVICE_URL=http://localhost:18001
-export WRAPPER_LOG_LEVEL=INFO
-export WRAPPER_CACHE_MAX_SIZE=1000
-export WRAPPER_CACHE_TTL=3600
-```
-
-完整配置说明见 [wrapper-service/README.md](wrapper-service/README.md)
-
-## 监控
-
-访问 `http://localhost:3001/metrics` 获取 Prometheus 指标。
-
-主要指标：
-- 请求总数和延迟
-- 缓存命中率
-- 熔断器状态
-- 后端错误数
-
-## 文档
-
-- [包装服务设计文档](WRAPPER_SERVICE_DESIGN.md) - 完整的设计方案和实施状态
-- [包装服务评审文档](WRAPPER_SERVICE_REVIEW.md) - 深度分析和重构建议
-- [包装服务使用指南](wrapper-service/README.md) - API使用、配置和部署
+版本与路线图
+- 当前版本: v1.0.0
+- 实施阶段: P0 + P1 + P2 已完成，进入 P3 优化阶段
+- 详细路线见 ROADMAP.md
 
 ## 开发状态
 
-**当前版本**: v0.1.0 (项目版本) / Embedding服务 v2.0.1
-**实施阶段**: P0 + P1 核心功能已完成
+**当前版本**: v1.0.0
+**实施阶段**: P0 + P1 + P2 已完成，进入 P3 优化阶段
 
-### 已完成
-- ✅ P0级别Bug修复（配置管理、缓存、异常处理）
-- ✅ P1级别功能（熔断器、连接池、日志、监控）
-- ✅ 主服务程序和API端点
-- ✅ 完整的测试和验证
+### 已完成 ✅
+- ✅ P0 核心功能（Embedding + LLM + 包装层）
+- ✅ P1 增强功能（熔断器、缓存、监控、测试套件）
+- ✅ P2 生产就绪（API认证授权、CI/CD、完整文档）
 
-### 待实现（P2）
-- ⏳ API认证授权
-- ⏳ API限流机制
-- ⏳ 分布式追踪
-- ⏳ 完善监控告警
+### P3 优化路线图 🚀
 
-## 技术栈
+| 优先级 | 功能 | 预期收益 | 状态 |
+|--------|------|----------|------|
+| P3-1 | Docker Compose | 一键部署 | ⏳ 待开始 |
+| P3-2 | HNSW向量索引 | 搜索10x加速 | ⏳ 待开始 |
+| P3-3 | 监控告警 | 自动告警 | ⏳ 待开始 |
+| P3-4 | Kubernetes | 云原生部署 | ⏳ 待开始 |
+| P3-5 | 审计日志 | 合规审计 | ⏳ 待开始 |
 
-- **后端服务**: Python 3.11+, Qwen3 模型
-- **包装层**: FastAPI, httpx, structlog, prometheus-client
-- **配置管理**: pydantic-settings
-- **监控**: Prometheus + Grafana
+查看 [ROADMAP.md](ROADMAP.md) 了解详细计划。
 
-## 许可证
+## API端点
 
-[待添加]
+### API端点
 
-## 贡献
+| 端点 | 方法 | 功能 | 认证 |
+|------|------|------|------|
+| `/v1/embeddings` | POST | 文本嵌入 | 🔐 read |
+| `/v1/chat/completions` | POST | 聊天补全 | 🔐 read |
+| `/api/v1/memories` | POST | 上传记忆 | 🔐 write |
+| `/api/v1/memories/search` | POST | 搜索记忆 | 🔐 read |
+| `/health` | GET | 健康检查 | 🌍 公开 |
+| `/metrics` | GET | Prometheus指标 | 🌍 公开 |
 
-[待添加]
+🔐 = 需要API Key认证, 🌍 = 公开访问
+
+认证启用方式：
+```bash
+export WRAPPER_AUTH_ENABLED=true
+export WRAPPER_API_KEYS="your_key:read;write"
+```
+
+### 核心功能
+- ✅ **记忆管理**：SurrealDB向量存储，支持混合搜索
+- ✅ **API认证**：API Key认证和权限控制
+- ✅ **CI/CD**：GitHub Actions自动测试
+- 其他现有核心功能保持向后兼容
+
+## 技术要求与兼容性
+- 保持向后兼容及现有接口
+- 认证开关可通过环境变量控制
+- 兼容现有文档结构，方便跳转至 ROADMAP.md
+
+## 文件位置
+D:\embedding_service\README.md
+
+## 验证
+- Markdown 语法正确性检查
+- 通过浏览器打开或在 CI 中渲染 README.md
+
+<!-- OMO_INTERNAL_INITIATOR -->
