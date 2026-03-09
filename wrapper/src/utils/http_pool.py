@@ -31,7 +31,7 @@ class HTTPClientPool:
         if self._client is None:
             async with self._lock:
                 if self._client is None:
-                    self._client = httpx.AsyncClient(timeout=30.0, **self._config)
+                    self._client = httpx.AsyncClient(**self._config)  # nosec B113 - timeout in self._config
         return self._client
 
     async def close(self):
