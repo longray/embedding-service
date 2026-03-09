@@ -154,3 +154,64 @@ class SurrealDBClient:
         except Exception as e:
             logger.error("SurrealDB健康检查失败", extra={"error": str(e)})
             return False
+
+    async def create_hnsw_index(self) -> bool:
+        """创建 HNSW 向量索引
+
+        HNSW (Hierarchical Navigable Small World) 是一种近似最近邻搜索算法
+        相比暴力搜索 O(n)，HNSW 的时间复杂度为 O(log n)
+        预期性能提升: 10-100 倍
+        """
+        try:
+            # 读取初始化脚本
+            import os
+
+            script_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "init_hnsw_index.surql")
+
+            if os.path.exists(script_path):
+                with open(script_path, "r", encoding="utf-8") as f:
+                    query = f.read()
+
+                await self._conn.query(query)
+                logger.info("hnsw_index_created")
+                return True
+            else:
+                logger.warning("hnsw_init_script_not_found", path=script_path)
+                return False
+
+        except Exception as e:
+            logger.error("hnsw_index_creation_failed", error=str(e))
+            return False
+
+    async def search_by_vector_hnsw(
+        self,
+        embedding: list[float],
+        limit: int = 10,
+        threshold: float = 0.7,
+    ) -> list[dict[str, Any]]:
+        """使用 HNSW 索引进行向量搜索
+
+        比暴力搜索快 10-100 倍，但可能有轻微精度损失
+        """
+        try:
+            # 使用 HNSW 近似搜索语法
+            query = """
+                SELECT id, content, metadata, entities, created_at,
+                       vector::similarity::cosine(embedding, $embedding) AS score
+                FROM memory 
+                WHERE embedding <|<|> $limit, $embedding
+                AND vector::similarity::cosine(embedding, $embedding) > $threshold
+                ORDER BY score DESC
+                LIMIT $limit
+            """
+
+            results = await self._conn.query(
+                query,
+                {"embedding": embedding, "threshold": threshold, "limit": limit},
+            )
+            return results[0]["result"] if results else []
+
+        except Exception as e:
+            # HNSW 失败时回退到暴力搜索
+            logger.warning("hnsw_search_failed_fallback", error=str(e))
+            return await self.search_by_vector(embedding, limit, threshold)
