@@ -2,8 +2,8 @@
 
 **服务名称**: Embedding Wrapper Service  
 **版本**: 1.0.0  
-**默认端口**: 17999  
-**基础URL**: http://localhost:17999
+**默认端口**: 3001  
+**基础URL**: http://localhost:3001
 
 ---
 
@@ -115,7 +115,7 @@
 
 **请求示例**：
 ```bash
-curl http://localhost:17999/health
+curl http://localhost:3001/health
 ```
 
 **响应示例**：
@@ -186,7 +186,7 @@ curl http://localhost:17999/health
 
 单个文本：
 ```bash
-curl -X POST http://localhost:17999/v1/embeddings \
+curl -X POST http://localhost:3001/v1/embeddings \
   -H "Content-Type: application/json" \
   -d '{
     "input": "Hello, world!",
@@ -196,7 +196,7 @@ curl -X POST http://localhost:17999/v1/embeddings \
 
 批量文本：
 ```bash
-curl -X POST http://localhost:17999/v1/embeddings \
+curl -X POST http://localhost:3001/v1/embeddings \
   -H "Content-Type: application/json" \
   -d '{
     "input": ["First text", "Second text", "Third text"],
@@ -292,7 +292,7 @@ curl -X POST http://localhost:17999/v1/embeddings \
 
 简单对话：
 ```bash
-curl -X POST http://localhost:17999/v1/chat/completions \
+curl -X POST http://localhost:3001/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "messages": [
@@ -304,7 +304,7 @@ curl -X POST http://localhost:17999/v1/chat/completions \
 
 多轮对话：
 ```bash
-curl -X POST http://localhost:17999/v1/chat/completions \
+curl -X POST http://localhost:3001/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "messages": [
@@ -375,7 +375,7 @@ curl -X POST http://localhost:17999/v1/chat/completions \
 
 **请求示例**：
 ```bash
-curl http://localhost:17999/metrics
+curl http://localhost:3001/metrics
 ```
 
 **响应格式**：
@@ -463,7 +463,7 @@ Prometheus 文本格式
 
 **查看缓存命中率**：
 ```bash
-curl http://localhost:17999/health | jq '.cache_stats.hit_rate'
+curl http://localhost:3001/health | jq '.cache_stats.hit_rate'
 ```
 
 **预期值**：
@@ -475,7 +475,7 @@ curl http://localhost:17999/health | jq '.cache_stats.hit_rate'
 
 **查看熔断器状态**：
 ```bash
-curl http://localhost:17999/health | jq '.circuit_breakers'
+curl http://localhost:3001/health | jq '.circuit_breakers'
 ```
 
 **状态说明**：
@@ -518,7 +518,7 @@ rate(wrapper_cache_hits_total[5m])
 
 **生产环境**：
 ```bash
-WRAPPER_PORT=17999
+WRAPPER_PORT=3001
 WRAPPER_LOG_LEVEL=INFO
 WRAPPER_JSON_LOGS=true
 WRAPPER_CACHE_ENABLED=true
@@ -529,7 +529,7 @@ WRAPPER_CIRCUIT_BREAKER_ENABLED=true
 
 **开发环境**：
 ```bash
-WRAPPER_PORT=17999
+WRAPPER_PORT=3001
 WRAPPER_LOG_LEVEL=DEBUG
 WRAPPER_JSON_LOGS=false
 WRAPPER_CACHE_ENABLED=true

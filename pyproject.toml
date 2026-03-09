@@ -8,10 +8,6 @@ dependencies = [
     "uvicorn[standard]>=0.32.0,<0.33.0",
     "pydantic>=2.9.0,<2.10.0",
     "python-multipart>=0.0.9,<0.0.10",
-    "httpx>=0.26.0,<0.27.0",
-    
-    # === 数据库 ===
-    "surrealdb>=1.0.8,<1.1.0",
     
     # === 模型推理（ModelScope 方式）===
     "modelscope>=1.17.0,<1.18.0",

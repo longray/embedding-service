@@ -2,7 +2,7 @@
 
 **生成时间**: 2026-03-03  
 **基准项目**: D:\embedding_service  
-**升级目标**: 统一包装层服务（端口 17999）
+**升级目标**: 统一包装层服务（端口 3001）
 
 ---
 
@@ -233,7 +233,7 @@
 │                                                                         │
 │  ┌─────────────────────────────────────────────────────────────────┐   │
 │  │                Express HTTP Wrapper Service                      │   │
-│  │                 (端口: 17999, 独立进程)                     │   │
+│  │                 (端口: 3001, 独立进程)                     │   │
 │  │                                                                 │   │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐        │   │
 │  │  │/api/health  │  │/api/search  │  │/api/upload │        │   │
@@ -295,7 +295,7 @@ from pathlib import Path
 
 class Settings(BaseSettings):
     # 服务端口
-    wrapper_port: int = 17999
+    wrapper_port: int = 3001
     embedding_port: int = 18000
     llm_port: int = 18001
     
@@ -898,7 +898,7 @@ if __name__ == '__main__':
     
     # 端口配置
     host = sys.argv[1] if len(sys.argv) > 1 else "0.0.0.0"
-    port = sys.argv[2] if len(sys.argv) > 2 else 17999
+    port = sys.argv[2] if len(sys.argv) > 2 else 3001
     
     # 启动服务
     uvicorn.run(app, host=host, port=port, workers=1)
@@ -919,7 +919,7 @@ set "PROJECT_DIR=D:\embedding_service"
 set "UV_PATH=C:\Users\Longray\.local\bin\uv.exe"
 set "PYTHON_PATH=%PROJECT_DIR%\.venv\Scripts\python.exe"
 set "SCRIPT_PATH=%PROJECT_DIR%\wrapper-service\src\main.py"
-set "PORT=17999"
+set "PORT=3001"
 
 :: ==================== 颜色定义 ====================
 set "GREEN=[92m"
@@ -1125,7 +1125,7 @@ import asyncio
 import httpx
 
 # 测试配置
-BASE_URL = "http://localhost:17999"
+BASE_URL = "http://localhost:3001"
 
 async def test_health_check():
     """测试统一健康检查"""
@@ -1286,7 +1286,7 @@ if __name__ == '__main__':
 **新增变量**:
 | 变量名 | 默认值 | 说明 |
 |----------|----------|------|
-| `WRAPPER_PORT` | `17999` | 包装服务端口 | 新增 |
+| `WRAPPER_PORT` | `3001` | 包装服务端口 | 新增 |
 | `UPLOAD_BATCH_SIZE` | `10` | 上传批量大小 | 新增 |
 | `CACHE_SIZE` | `1000` | 缓存大小 | 新增 |
 | `SEARCH_LIMIT` | `10` | 搜索结果限制 | 新增 |
@@ -1341,7 +1341,7 @@ if __name__ == '__main__':
 - [ ] 性能测试
 
 ### Phase 5: 更新 OpenCode Memory Plugin（2h）
-- [ ] 更新 NetworkChecker 的 wrapper_url 到 `http://localhost:17999/api/health`
+- [ ] 更新 NetworkChecker 的 wrapper_url 到 `http://localhost:3001/api/health`
 - [ ] 在 `vector_memory_search` 工具中优先使用远程服务
 - [ ] 添加 `memory_upload` 工具（可选）
 
@@ -1378,7 +1378,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # 服务端口
-    wrapper_port: int = 17999
+    wrapper_port: int = 3001
     embedding_port: int = 18000
     llm_port: int = 18001
     
@@ -1449,7 +1449,7 @@ config = Config()
 
 | 新增变量 | 默认值 | 说明 |
 |------------|----------|--------|------|
-| `WRAPPER_PORT` | `wrapper_port` | 17999 | 包装服务端口 | 新增 |
+| `WRAPPER_PORT` | `wrapper_port` | 3001 | 包装服务端口 | 新增 |
 | `MEMORY_DIR` | `memory_dir` | `~/.opencode/memory` | 记忆目录 | 新增 |
 | `UPLOAD_BATCH_SIZE` | `upload_batch_size` | 10 | 上传批量大小 | 新增 |
 | `CACHE_SIZE` | `cache_size` | 1000 | 缓存大小 | 新增 |
@@ -1470,7 +1470,7 @@ D:\embedding_service\
 │   ├── embedding_service.py      # 端口 18000, 包含所有端点
 │   └── llm_service.py           # 端口 18001, 包含所有端点
 ├── wrapper-service\
-│   ├── src/main.py             # 端口 17999, 新增端点
+│   ├── src/main.py             # 端口 3001, 新增端点
 │   ├── shared/
 │   │   ├── config.py
 │   │   ├── health.py
@@ -1544,7 +1544,7 @@ services:
   wrapper:
     build: .
     ports:
-      - "17999:17999"
+      - "3001:3001"
     environment:
       - SEARCH_LIMIT: 10
       - SEARCH_THRESHOLD: 0.3
@@ -1611,7 +1611,7 @@ docker-compose up -d
 - `LLM_CACHE_SIZE`
 
 **新增环境变量**:
-- `WRAPPER_PORT` (默认: 17999)
+- `WRAPPER_PORT` (默认: 3001)
 - `MEMORY_DIR` (默认: ~/.opencode/memory)
 - `UPLOAD_BATCH_SIZE` (默认: 10)
 - `CACHE_SIZE` (默认: 1000)
@@ -1663,7 +1663,7 @@ docker-compose up -d
 
 | 风险 | 影响 | 概率 | 缓解措施 |
 |------|------|------|----------|
-| **端口冲突** | 服务启动失败 | 中 | ✅ 使用不同端口（18000/18001/17999） |
+| **端口冲突** | 服务启动失败 | 中 | ✅ 使用不同端口（18000/18001/3001） |
 | **性能下降** | 多层封装增加延迟 | 中 | ✅ 异步调用 + 缓存优化 |
 | **向后兼容性破坏** | 现有功能失效 | 低 | ✅ 渐进式集成 + 充分测试 |
 | **数据不一致** | 多服务数据不一致 | 低 | ✅ 统一配置管理 |
