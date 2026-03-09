@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     """应用配置（从环境变量加载）"""
 
     # 服务配置
-    port: int = 3001
+    port: int = 17999
     wrapper_host: str = "0.0.0.0"  # nosec B104
 
     # 后端服务配置

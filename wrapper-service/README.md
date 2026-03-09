@@ -8,7 +8,6 @@
 - ✅ **连接池管理**：提高性能和资源利用
 - ✅ **智能缓存**：线程安全的LRU缓存
 - ✅ **结构化日志**：便于监控和调试
-- ✅ **Prometheus指标**：完整的监控支持
 - ✅ **统一异常处理**：标准化错误响应
 
 ## 快速开始
@@ -41,7 +40,6 @@ python -m src.main
 - `POST /v1/chat/completions` - 聊天补全
 - `POST /api/v1/memories` - 批量上传记忆
 - `POST /api/v1/memories/search` - 搜索记忆
-- `GET /metrics` - Prometheus指标
 
 ### API使用示例
 
@@ -180,18 +178,6 @@ uvicorn src.main:app --host 0.0.0.0 --port 3001 --workers 4
 ```bash
 gunicorn src.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:3001
 ```
-
-## 监控
-
-### Prometheus 指标
-
-访问 `http://localhost:3001/metrics` 获取指标。
-
-**主要指标**:
-- `wrapper_requests_total` - 请求总数
-- `wrapper_request_duration_seconds` - 请求延迟
-- `wrapper_cache_hits_total` - 缓存命中数
-- `wrapper_circuit_breaker_state` - 熔断器状态
 
 ## 故障排查
 

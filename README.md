@@ -38,7 +38,6 @@
 | `/api/v1/memories` | POST | 上传记忆 | 🔐 write |
 | `/api/v1/memories/search` | POST | 搜索记忆 | 🔐 read |
 | `/health` | GET | 健康检查 | 🌍 公开 |
-| `/metrics` | GET | Prometheus指标 | 🌍 公开 |
 
 🔐 = 需要API Key认证, 🌍 = 公开访问
 

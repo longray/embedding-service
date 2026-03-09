@@ -4,7 +4,6 @@
 
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.responses import JSONResponse
-from prometheus_client import make_asgi_app
 from contextlib import asynccontextmanager
 import httpx
 
@@ -21,7 +20,6 @@ from .utils.exceptions import (
     PermissionDeniedError,
 )
 from .utils.auth import require_auth, require_permission, Permission
-from .utils import metrics
 from .utils.connection_pool import SurrealDBConnectionPool
 from .utils.memory_manager import MemoryManager
 
@@ -48,13 +46,6 @@ async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动
     logger.info("wrapper_service_starting", port=settings.port)
-    metrics.service_info.info(
-        {
-            "version": "1.0.0",
-            "embedding_url": settings.embedding_service_url,
-            "llm_url": settings.llm_service_url,
-        }
-    )
     # 初始化SurrealDB连接池
     global surrealdb_pool, memory_manager
     surrealdb_pool = SurrealDBConnectionPool(
@@ -87,10 +78,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Embedding Wrapper Service", version="1.0.0", lifespan=lifespan)
-
-# 挂载Prometheus指标端点
-metrics_app = make_asgi_app()
-app.mount("/metrics", metrics_app)
 
 
 @app.exception_handler(WrapperServiceError)
@@ -135,7 +122,6 @@ async def health_check():
 
 
 @app.post("/v1/embeddings")
-@metrics.track_request("POST", "/v1/embeddings")
 async def create_embeddings(
     request: Request,
     permissions: list[str] = Depends(require_auth),
@@ -159,11 +145,8 @@ async def create_embeddings(
     cache_key = f"emb:{text}"
     cached = cache.get(cache_key)
     if cached:
-        metrics.cache_hits.inc()
         logger.debug("cache_hit", key=cache_key)
         return cached
-
-    metrics.cache_misses.inc()
 
     # 调用后端服务（带熔断保护）
     try:
@@ -185,12 +168,10 @@ async def create_embeddings(
         raise ServiceUnavailableError("Embedding service unavailable")
     except httpx.HTTPError as e:
         logger.error("backend_error", service="embedding", error=str(e))
-        metrics.backend_errors.labels(service="embedding", error_type=type(e).__name__).inc()
         raise ServiceUnavailableError(f"Embedding service error: {str(e)}")
 
 
 @app.post("/v1/chat/completions")
-@metrics.track_request("POST", "/v1/chat/completions")
 async def create_chat_completion(
     request: Request,
     permissions: list[str] = Depends(require_auth),
@@ -226,12 +207,10 @@ async def create_chat_completion(
         raise ServiceUnavailableError("LLM service unavailable")
     except httpx.HTTPError as e:
         logger.error("backend_error", service="llm", error=str(e))
-        metrics.backend_errors.labels(service="llm", error_type=type(e).__name__).inc()
         raise ServiceUnavailableError(f"LLM service error: {str(e)}")
 
 
 @app.post("/api/v1/memories")
-@metrics.track_request("POST", "/api/v1/memories")
 async def upload_memories(
     request: Request,
     permissions: list[str] = Depends(require_auth),
@@ -268,7 +247,6 @@ async def upload_memories(
 
 
 @app.post("/api/v1/memories/search")
-@metrics.track_request("POST", "/api/v1/memories/search")
 async def search_memories(
     request: Request,
     permissions: list[str] = Depends(require_auth),
