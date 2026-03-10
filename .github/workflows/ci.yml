@@ -30,3 +30,7 @@ jobs:
         run: uv run bandit -r src/ -f json -o bandit-report.json || true
       - name: Test with pytest
         run: uv run pytest tests/ -v --tb=short
+      - name: Memory search accuracy gate (optional)
+        if: ${{ env.ENABLE_SEARCH_GATE == 'true' }}
+        run: |
+          uv run pytest tests/test_memory_search_gate.py -v --tb=short

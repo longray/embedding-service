@@ -21,3 +21,6 @@ wrapper-service/.coverage
 # 运行时
 *.pyc
 .DS_Store
+
+# 环境变量（不提交）
+.env

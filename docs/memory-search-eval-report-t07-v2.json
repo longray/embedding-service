@@ -1,0 +1,558 @@
+{
+  "eval_id": "eval_3b44839afc",
+  "base_url": "http://localhost:17999",
+  "dataset_size": 36,
+  "query_size": 63,
+  "topk": 5,
+  "threshold": 0.7,
+  "upload_result": {
+    "total": 36,
+    "success": 36,
+    "failed": 0,
+    "memory_ids": [
+      "memory:t33vguio4oglp0sr6c80",
+      "memory:9k329fine8omlbz3xhda",
+      "memory:yiotnprj9g0jl2u46wtr",
+      "memory:myqg8pqa2fqoo6m6i79d",
+      "memory:dvyl4e5mm88igoicdt88",
+      "memory:6c13oufveulpjkhda0pu",
+      "memory:bmehccjmjlfk2w7vfqsa",
+      "memory:44qs7kjap0fwbe2112s9",
+      "memory:7ye7n24bp8jcpqo55snk",
+      "memory:3rak7rwfukyvw227kj9n",
+      "memory:dj3isnjhe9e09c1iojfj",
+      "memory:efy1tdy1h30f2ew1g6xt",
+      "memory:gimipus718as669gnl0v",
+      "memory:4yy9pojbycfbo6a94ha0",
+      "memory:9d785vk7by4tjywj18ra",
+      "memory:dn0z3jfvtu1ois1jfh4v",
+      "memory:h22ehwmirsyzepc96k31",
+      "memory:0hqu2xnyx0zn4ph4zcl7",
+      "memory:s14xm3w6efupw27e3koy",
+      "memory:p6w0l8omyj6nwuz0p6k1",
+      "memory:6z5jjmhvytvw3b2qsqul",
+      "memory:9m3oyiwlvg5frzhu7nki",
+      "memory:0nv7mamwufyhycs65y90",
+      "memory:0gzkhanbp4mao9ot4nxi",
+      "memory:9jdt2wtapzndyntb4ms4",
+      "memory:q3q8fvj50d8saonf7klv",
+      "memory:e5gv028ehsou4chtyp9m",
+      "memory:i6odziomr1312qkcx7fp",
+      "memory:v5zfwncxpvqeun0g4qa7",
+      "memory:nvxrksc0i3okku2nz91a",
+      "memory:elhm6ouav116wf44wm2o",
+      "memory:z0ijejmnxtlxy08fl00a",
+      "memory:4v83fku9aaqlznuupjph",
+      "memory:e5b1y3ogqc4cazmcx3kn",
+      "memory:2t8pxoiqnfwsy21liyef",
+      "memory:e3ytr6lty56b1txwgxgt"
+    ]
+  },
+  "upload_elapsed_ms": 2715.97,
+  "modes": {
+    "vector": {
+      "query_count": 63,
+      "should_find_count": 48,
+      "should_not_find_count": 15,
+      "hit_rate_should_find": 0.9167,
+      "precision_at_5_should_find": 0.1833,
+      "recall_at_5_should_find": 0.3056,
+      "mrr_should_find": 0.9167,
+      "false_positive_rate_eval_should_not_find": 0.0,
+      "false_positive_rate_total_should_not_find": 0.0,
+      "non_eval_contamination_at5": 0.5746,
+      "avg_eval_returned": 1.397,
+      "avg_total_returned": 6.905,
+      "median_eval_returned": 2.0,
+      "median_total_returned": 10.0
+    },
+    "keyword": {
+      "query_count": 63,
+      "should_find_count": 48,
+      "should_not_find_count": 15,
+      "hit_rate_should_find": 0.25,
+      "precision_at_5_should_find": 0.0583,
+      "recall_at_5_should_find": 0.0972,
+      "mrr_should_find": 0.25,
+      "false_positive_rate_eval_should_not_find": 0.0,
+      "false_positive_rate_total_should_not_find": 0.0,
+      "non_eval_contamination_at5": 0.146,
+      "avg_eval_returned": 0.286,
+      "avg_total_returned": 1.429,
+      "median_eval_returned": 0.0,
+      "median_total_returned": 0.0
+    },
+    "hybrid": {
+      "query_count": 63,
+      "should_find_count": 48,
+      "should_not_find_count": 15,
+      "hit_rate_should_find": 0.9792,
+      "precision_at_5_should_find": 0.1958,
+      "recall_at_5_should_find": 0.3264,
+      "mrr_should_find": 0.9792,
+      "false_positive_rate_eval_should_not_find": 0.0,
+      "false_positive_rate_total_should_not_find": 0.0,
+      "non_eval_contamination_at5": 0.6127,
+      "avg_eval_returned": 1.476,
+      "avg_total_returned": 7.302,
+      "median_eval_returned": 2.0,
+      "median_total_returned": 10.0
+    }
+  },
+  "failures": [
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_26",
+      "query": "medical_diag 场景下的核心实践与经验",
+      "latency_ms": 36.0,
+      "preview": [
+        {
+          "id": "memory:y1qm1hpx6wv4t56gz0qj",
+          "intent": "medical_diag",
+          "score": 0.7901129988705244,
+          "content": "临床决策支持系统应提供可解释依据以辅助医生。 关键线索:临床 评估批次:eval_8198996094 样本:medical_diag_2",
+          "is_eval": false
+        },
+        {
+          "id": "memory:hp9pat7wptvf21gp4q45",
+          "intent": "medical_diag",
+          "score": 0.7885988454941131,
+          "content": "模型在医疗场景需关注误诊成本和召回率平衡。 关键线索:临床 评估批次:eval_9e197309cc 样本:medical_diag_3",
+          "is_eval": false
+        },
+        {
+          "id": "memory:glm7aes5g1ckpellvp3t",
+          "intent": "medical_diag",
+          "score": 0.788569740731183,
+          "content": "模型在医疗场景需关注误诊成本和召回率平衡。 关键线索:临床 评估批次:eval_37e0760eea 样本:medical_diag_3",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 2
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_44",
+      "query": "传感器",
+      "latency_ms": 113.14,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_8",
+      "query": "React",
+      "latency_ms": 99.82,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_36",
+      "query": "Spring",
+      "latency_ms": 108.17,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_27",
+      "query": "医学影像 临床 具体怎么做",
+      "latency_ms": 17.08,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_22",
+      "query": "finance_report 场景下的核心实践与经验",
+      "latency_ms": 28.71,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_39",
+      "query": "JWT 权限控制 具体怎么做",
+      "latency_ms": 13.09,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_33",
+      "query": "请检索与 Spring 和 事务 相关的技术记忆",
+      "latency_ms": 12.31,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_30",
+      "query": "nlp_rag 场景下的核心实践与经验",
+      "latency_ms": 11.37,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_41",
+      "query": "请检索与 传感器 和 时序数据 相关的技术记忆",
+      "latency_ms": 9.7,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_25",
+      "query": "请检索与 医学影像 和 诊断辅助 相关的技术记忆",
+      "latency_ms": 10.2,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_43",
+      "query": "传感器 边缘计算 具体怎么做",
+      "latency_ms": 10.26,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_9",
+      "query": "请检索与 SurrealDB 和 向量检索 相关的技术记忆",
+      "latency_ms": 10.25,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_38",
+      "query": "security_auth 场景下的核心实践与经验",
+      "latency_ms": 8.2,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_21",
+      "query": "请检索与 财务报表 和 现金流 相关的技术记忆",
+      "latency_ms": 10.54,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_7",
+      "query": "React hooks 具体怎么做",
+      "latency_ms": 10.49,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_2",
+      "query": "python_api 场景下的核心实践与经验",
+      "latency_ms": 10.02,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_35",
+      "query": "Spring 微服务 具体怎么做",
+      "latency_ms": 10.33,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_23",
+      "query": "财务报表 利润率 具体怎么做",
+      "latency_ms": 10.84,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_42",
+      "query": "iot_sensor 场景下的核心实践与经验",
+      "latency_ms": 10.62,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_3",
+      "query": "FastAPI 异步接口 具体怎么做",
+      "latency_ms": 10.12,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_31",
+      "query": "RAG 上下文 具体怎么做",
+      "latency_ms": 10.02,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_15",
+      "query": "Docker 容器编排 具体怎么做",
+      "latency_ms": 11.15,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_45",
+      "query": "请检索与 个性化学习 和 题目推荐 相关的技术记忆",
+      "latency_ms": 11.09,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_6",
+      "query": "react_ui 场景下的核心实践与经验",
+      "latency_ms": 12.04,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_18",
+      "query": "k8s_deploy 场景下的核心实践与经验",
+      "latency_ms": 11.25,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_13",
+      "query": "请检索与 Docker 和 Compose 相关的技术记忆",
+      "latency_ms": 11.73,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_29",
+      "query": "请检索与 RAG 和 检索增强 相关的技术记忆",
+      "latency_ms": 11.58,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_5",
+      "query": "请检索与 React 和 组件状态 相关的技术记忆",
+      "latency_ms": 9.91,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_26",
+      "query": "medical_diag 场景下的核心实践与经验",
+      "latency_ms": 12.73,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_17",
+      "query": "请检索与 Kubernetes 和 Deployment 相关的技术记忆",
+      "latency_ms": 9.49,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_11",
+      "query": "SurrealDB cosine 具体怎么做",
+      "latency_ms": 10.55,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_1",
+      "query": "请检索与 FastAPI 和 Pydantic 相关的技术记忆",
+      "latency_ms": 11.35,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_47",
+      "query": "个性化学习 学习路径 具体怎么做",
+      "latency_ms": 10.09,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_14",
+      "query": "docker_ops 场景下的核心实践与经验",
+      "latency_ms": 9.56,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_10",
+      "query": "surreal_vector 场景下的核心实践与经验",
+      "latency_ms": 10.55,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_19",
+      "query": "Kubernetes HPA 具体怎么做",
+      "latency_ms": 11.5,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_34",
+      "query": "java_backend 场景下的核心实践与经验",
+      "latency_ms": 11.34,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_37",
+      "query": "请检索与 JWT 和 鉴权 相关的技术记忆",
+      "latency_ms": 12.41,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_46",
+      "query": "education_ai 场景下的核心实践与经验",
+      "latency_ms": 13.24,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_26",
+      "query": "medical_diag 场景下的核心实践与经验",
+      "latency_ms": 38.04,
+      "preview": [
+        {
+          "id": "memory:y1qm1hpx6wv4t56gz0qj",
+          "intent": "medical_diag",
+          "score": 0.7901129988705244,
+          "content": "临床决策支持系统应提供可解释依据以辅助医生。 关键线索:临床 评估批次:eval_8198996094 样本:medical_diag_2",
+          "is_eval": false
+        },
+        {
+          "id": "memory:hp9pat7wptvf21gp4q45",
+          "intent": "medical_diag",
+          "score": 0.7885988454941131,
+          "content": "模型在医疗场景需关注误诊成本和召回率平衡。 关键线索:临床 评估批次:eval_9e197309cc 样本:medical_diag_3",
+          "is_eval": false
+        },
+        {
+          "id": "memory:glm7aes5g1ckpellvp3t",
+          "intent": "medical_diag",
+          "score": 0.788569740731183,
+          "content": "模型在医疗场景需关注误诊成本和召回率平衡。 关键线索:临床 评估批次:eval_37e0760eea 样本:medical_diag_3",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 2
+    }
+  ]
+}

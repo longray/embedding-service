@@ -6,14 +6,16 @@
 """
 
 import asyncio
+import inspect
+from datetime import datetime
 from contextlib import asynccontextmanager
 from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from surrealdb import Surreal
 import uvicorn
-from surrealdb import AsyncSurreal
 
 from .config import config
 from .utils.cache import ThreadSafeLRUCache, hash_text
@@ -44,7 +46,8 @@ class MemorySearchRequest(BaseModel):
     query: str = Field(..., description="搜索查询")
     mode: str = Field(default="hybrid", description="搜索模式")
     limit: int = Field(default=10, ge=1, le=100)
-    threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+    threshold: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    metadata_filters: Optional[dict[str, Any]] = Field(default=None, description="元数据精确过滤条件")
 
 
 # ==================== SurrealDB 管理器 ====================
@@ -52,7 +55,7 @@ class MemorySearchRequest(BaseModel):
 
 class SurrealDBManager:
     _instance = None
-    _db: Optional[AsyncSurreal] = None
+    _db: Optional[Any] = None
     _lock = asyncio.Lock()
 
     @classmethod
@@ -65,19 +68,29 @@ class SurrealDBManager:
 
     async def connect(self):
         if self._db is None:
-            self._db = AsyncSurreal(config.surrealdb.url)
-            await self._db.connect()
-            await self._db.signin(
+            db: Any = Surreal(config.surrealdb.url)
+            if hasattr(db, "connect"):
+                connect_result = db.connect(config.surrealdb.url)
+                if inspect.isawaitable(connect_result):
+                    await connect_result
+            signin_result = db.signin(
                 {
                     "username": config.surrealdb.username,
                     "password": config.surrealdb.password,
                 }
             )
-            await self._db.use(config.surrealdb.namespace, config.surrealdb.database)
+            if inspect.isawaitable(signin_result):
+                await signin_result
+            use_result = db.use(config.surrealdb.namespace, config.surrealdb.database)
+            if inspect.isawaitable(use_result):
+                await use_result
+            self._db = db
 
     async def disconnect(self):
         if self._db:
-            await self._db.close()
+            close_result = self._db.close()
+            if inspect.isawaitable(close_result):
+                await close_result
             self._db = None
 
     @property
@@ -132,6 +145,17 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Minimal Wrapper Service", version="2.0.0", lifespan=lifespan)
 
 
+@app.middleware("http")
+async def access_log_middleware(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path == "/favicon.ico":
+        return response
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    http_version = request.scope.get("http_version", "1.1")
+    print(f'[{timestamp}] "{request.method} {request.url.path} HTTP/{http_version}" {response.status_code}')
+    return response
+
+
 # ==================== 异常处理 ====================
 
 
@@ -181,6 +205,11 @@ async def health_check():
         "port": config.port,
         "embedding_service": embedding_health or {"status": "unhealthy"},
         "surrealdb": surrealdb_health,
+        "search_thresholds": {
+            "vector": config.search.vector_threshold,
+            "hybrid": config.search.hybrid_threshold,
+            "keyword": config.search.keyword_threshold,
+        },
     }
 
     if embedding_cache:
@@ -238,11 +267,21 @@ async def search_memories(request: MemorySearchRequest):
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
 
     try:
+        if request.threshold is not None:
+            resolved_threshold = request.threshold
+        elif request.mode == "vector":
+            resolved_threshold = config.search.vector_threshold
+        elif request.mode == "hybrid":
+            resolved_threshold = config.search.hybrid_threshold
+        else:
+            resolved_threshold = config.search.keyword_threshold
+
         result = await memory_manager.search_memories(
             query=request.query,
             mode=request.mode,
             limit=request.limit,
-            threshold=request.threshold,
+            threshold=resolved_threshold,
+            metadata_filters=request.metadata_filters,
         )
         return result
     except ValidationError as e:
@@ -252,4 +291,4 @@ async def search_memories(request: MemorySearchRequest):
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host=config.host, port=config.port)
+    uvicorn.run(app, host=config.host, port=config.port, access_log=False)

@@ -1,0 +1,1424 @@
+{
+  "eval_id": "eval_9e197309cc",
+  "base_url": "http://localhost:17999",
+  "dataset_size": 36,
+  "query_size": 51,
+  "topk": 5,
+  "threshold": 0.5,
+  "upload_result": {
+    "total": 36,
+    "success": 36,
+    "failed": 0,
+    "memory_ids": [
+      "memory:e8nasnqa937tokz2mhg3",
+      "memory:6qyr20s98x4wz5k6t53o",
+      "memory:nluppnf6dm47s4ikm8qk",
+      "memory:i0fr14gkw72k0wd7gm8g",
+      "memory:m3o1p5qsgmhtyt3qjf9y",
+      "memory:512r3zvs7dcse55vvi7x",
+      "memory:7gf7g82302jjb392t5gl",
+      "memory:0l0dv25ghszjm1229a34",
+      "memory:q1o7pxwrw27jjf8lxaff",
+      "memory:iyt4mkrjrn561zk255g9",
+      "memory:oba73ncgehvf04pcn5i2",
+      "memory:kifunztzp32wp5b9itxc",
+      "memory:yhxne880wb3ferwxsrsw",
+      "memory:mbyfxgottsbb8rhv4pne",
+      "memory:jgqb0abikvn3o1j72sgm",
+      "memory:f9evi50wv752nuwfjyfl",
+      "memory:d65gte0otmcpcvyms631",
+      "memory:oehcuohocjwkkheztuv5",
+      "memory:4gj2fxbvwuks2vwmq2yv",
+      "memory:1ov4k8jtivlerzqq9u4n",
+      "memory:hp9pat7wptvf21gp4q45",
+      "memory:mm1mk70dsa4cxr0uffyi",
+      "memory:yzhwnnsr7fjb8hi7u4vp",
+      "memory:xi1528da9t4bugh56737",
+      "memory:lpvzaos59j5wzpowqdcw",
+      "memory:jevjutb25ic7ddr1tgzv",
+      "memory:9zhfc496igznox2bj3iu",
+      "memory:vq0csus67xex3xxfzchx",
+      "memory:nvb30oni4wbxji3xjwdb",
+      "memory:42rj43j6ivzc2fung3jp",
+      "memory:m4ihieqeszkvjpfdi4m9",
+      "memory:cgj4w329lwonwxvfxtkv",
+      "memory:lkfqu0jkio8n2npzsrv1",
+      "memory:ase6j3i6kldliyl6yxsz",
+      "memory:weoq3xmp7ye47zg9tzq5",
+      "memory:tqtoyhec2lj5j465hmt0"
+    ]
+  },
+  "upload_elapsed_ms": 2699.27,
+  "modes": {
+    "vector": {
+      "query_count": 51,
+      "should_find_count": 36,
+      "should_not_find_count": 15,
+      "hit_rate_should_find": 1.0,
+      "precision_at_5_should_find": 0.5722,
+      "recall_at_5_should_find": 0.9537,
+      "mrr_should_find": 1.0,
+      "false_positive_rate_eval_should_not_find": 1.0,
+      "false_positive_rate_total_should_not_find": 1.0,
+      "non_eval_contamination_at5": 0.0118,
+      "avg_eval_returned": 9.765,
+      "avg_total_returned": 10.0,
+      "median_eval_returned": 10.0,
+      "median_total_returned": 10.0
+    },
+    "keyword": {
+      "query_count": 51,
+      "should_find_count": 36,
+      "should_not_find_count": 15,
+      "hit_rate_should_find": 0.0,
+      "precision_at_5_should_find": 0.0,
+      "recall_at_5_should_find": 0.0,
+      "mrr_should_find": 0.0,
+      "false_positive_rate_eval_should_not_find": 0.0,
+      "false_positive_rate_total_should_not_find": 0.0,
+      "non_eval_contamination_at5": 0.0,
+      "avg_eval_returned": 0.0,
+      "avg_total_returned": 0.0,
+      "median_eval_returned": 0.0,
+      "median_total_returned": 0.0
+    },
+    "hybrid": {
+      "query_count": 51,
+      "should_find_count": 36,
+      "should_not_find_count": 15,
+      "hit_rate_should_find": 1.0,
+      "precision_at_5_should_find": 0.5722,
+      "recall_at_5_should_find": 0.9537,
+      "mrr_should_find": 1.0,
+      "false_positive_rate_eval_should_not_find": 1.0,
+      "false_positive_rate_total_should_not_find": 1.0,
+      "non_eval_contamination_at5": 0.0118,
+      "avg_eval_returned": 9.765,
+      "avg_total_returned": 10.0,
+      "median_eval_returned": 10.0,
+      "median_total_returned": 10.0
+    }
+  },
+  "failures": [
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_5",
+      "query": "请检索：围棋官子收束手筋",
+      "latency_ms": 90.3,
+      "preview": [
+        {
+          "id": "memory:yzhwnnsr7fjb8hi7u4vp",
+          "intent": "nlp_rag",
+          "score": 0.6707907644024976,
+          "content": "检索阶段需要高召回，生成阶段需要上下文压缩。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:weoq3xmp7ye47zg9tzq5",
+          "intent": "education_ai",
+          "score": 0.6620785212527738,
+          "content": "题目推荐需平衡难度、知识点覆盖和反馈及时性。 关键线索:题目推荐 评估批次:eval_9e197309cc 样本:education_ai_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:nvb30oni4wbxji3xjwdb",
+          "intent": "security_auth",
+          "score": 0.662045657552052,
+          "content": "权限控制应区分 read/write/admin 等细粒度能力。 关键线索:权限控制 评估批次:eval_9e197309cc 样本:security_auth_2",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_2",
+      "query": "请检索：古典吉他尼龙弦保养",
+      "latency_ms": 97.35,
+      "preview": [
+        {
+          "id": "memory:weoq3xmp7ye47zg9tzq5",
+          "intent": "education_ai",
+          "score": 0.5882614666880085,
+          "content": "题目推荐需平衡难度、知识点覆盖和反馈及时性。 关键线索:题目推荐 评估批次:eval_9e197309cc 样本:education_ai_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:yzhwnnsr7fjb8hi7u4vp",
+          "intent": "nlp_rag",
+          "score": 0.5876992351571753,
+          "content": "检索阶段需要高召回，生成阶段需要上下文压缩。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:mm1mk70dsa4cxr0uffyi",
+          "intent": "nlp_rag",
+          "score": 0.5864673563208085,
+          "content": "RAG 先检索再生成，用外部知识增强回答可靠性。 关键线索:RAG 评估批次:eval_9e197309cc 样本:nlp_rag_1",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_8",
+      "query": "请检索：雪崩搜救信标定位",
+      "latency_ms": 133.83,
+      "preview": [
+        {
+          "id": "memory:yzhwnnsr7fjb8hi7u4vp",
+          "intent": "nlp_rag",
+          "score": 0.6644730951619543,
+          "content": "检索阶段需要高召回，生成阶段需要上下文压缩。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:q1o7pxwrw27jjf8lxaff",
+          "intent": "surreal_vector",
+          "score": 0.6559455038342078,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_9e197309cc 样本:surreal_vector_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:xi1528da9t4bugh56737",
+          "intent": "nlp_rag",
+          "score": 0.6466689126453066,
+          "content": "向量检索和关键词检索融合可提升复杂问答效果。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_14",
+      "query": "请检索：古筝指法勾托抹挑",
+      "latency_ms": 85.32,
+      "preview": [
+        {
+          "id": "memory:weoq3xmp7ye47zg9tzq5",
+          "intent": "education_ai",
+          "score": 0.605898985990297,
+          "content": "题目推荐需平衡难度、知识点覆盖和反馈及时性。 关键线索:题目推荐 评估批次:eval_9e197309cc 样本:education_ai_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:tqtoyhec2lj5j465hmt0",
+          "intent": "education_ai",
+          "score": 0.6011636192724309,
+          "content": "AI 助教可基于错题模式提供针对性讲解。 关键线索:题目推荐 评估批次:eval_9e197309cc 样本:education_ai_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:yzhwnnsr7fjb8hi7u4vp",
+          "intent": "nlp_rag",
+          "score": 0.5950462517856672,
+          "content": "检索阶段需要高召回，生成阶段需要上下文压缩。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_2",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_6",
+      "query": "请检索：咖啡豆日晒水洗风味差异",
+      "latency_ms": 105.32,
+      "preview": [
+        {
+          "id": "memory:vq0csus67xex3xxfzchx",
+          "intent": "security_auth",
+          "score": 0.6129266962677442,
+          "content": "JWT 常用于无状态鉴权，需设置合理过期时间。 关键线索:鉴权 评估批次:eval_9e197309cc 样本:security_auth_1",
+          "is_eval": true
+        },
+        {
+          "id": "memory:xi1528da9t4bugh56737",
+          "intent": "nlp_rag",
+          "score": 0.610078380064798,
+          "content": "向量检索和关键词检索融合可提升复杂问答效果。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:yzhwnnsr7fjb8hi7u4vp",
+          "intent": "nlp_rag",
+          "score": 0.609566294430893,
+          "content": "检索阶段需要高召回，生成阶段需要上下文压缩。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_2",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_3",
+      "query": "请检索：海洋潮汐发电叶轮腐蚀",
+      "latency_ms": 98.59,
+      "preview": [
+        {
+          "id": "memory:mbyfxgottsbb8rhv4pne",
+          "intent": "k8s_deploy",
+          "score": 0.6079814973040071,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_9e197309cc 样本:k8s_deploy_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:jgqb0abikvn3o1j72sgm",
+          "intent": "k8s_deploy",
+          "score": 0.6059223094875082,
+          "content": "服务暴露常配合 Service 与 Ingress 实现流量入口。 关键线索:HPA 评估批次:eval_9e197309cc 样本:k8s_deploy_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:0l0dv25ghszjm1229a34",
+          "intent": "surreal_vector",
+          "score": 0.6017730440379956,
+          "content": "记忆系统将文本 embedding 存入 SurrealDB 以支持语义搜索。 关键线索:cosine 评估批次:eval_9e197309cc 样本:surreal_vector",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_12",
+      "query": "请检索：航海六分仪校准",
+      "latency_ms": 128.31,
+      "preview": [
+        {
+          "id": "memory:kifunztzp32wp5b9itxc",
+          "intent": "docker_ops",
+          "score": 0.6501137350397196,
+          "content": "编排配置中应显式声明依赖顺序和健康检查。 关键线索:容器编排 评估批次:eval_9e197309cc 样本:docker_ops_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:weoq3xmp7ye47zg9tzq5",
+          "intent": "education_ai",
+          "score": 0.6473922283328373,
+          "content": "题目推荐需平衡难度、知识点覆盖和反馈及时性。 关键线索:题目推荐 评估批次:eval_9e197309cc 样本:education_ai_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:q1o7pxwrw27jjf8lxaff",
+          "intent": "surreal_vector",
+          "score": 0.637664462121516,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_9e197309cc 样本:surreal_vector_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_7",
+      "query": "请检索：古希腊悲剧三一律",
+      "latency_ms": 87.52,
+      "preview": [
+        {
+          "id": "memory:yzhwnnsr7fjb8hi7u4vp",
+          "intent": "nlp_rag",
+          "score": 0.6537478705303895,
+          "content": "检索阶段需要高召回，生成阶段需要上下文压缩。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:q1o7pxwrw27jjf8lxaff",
+          "intent": "surreal_vector",
+          "score": 0.6511872896225352,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_9e197309cc 样本:surreal_vector_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:mm1mk70dsa4cxr0uffyi",
+          "intent": "nlp_rag",
+          "score": 0.6437388576545664,
+          "content": "RAG 先检索再生成，用外部知识增强回答可靠性。 关键线索:RAG 评估批次:eval_9e197309cc 样本:nlp_rag_1",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_15",
+      "query": "请检索：陨石镍铁相鉴定",
+      "latency_ms": 99.85,
+      "preview": [
+        {
+          "id": "memory:yzhwnnsr7fjb8hi7u4vp",
+          "intent": "nlp_rag",
+          "score": 0.6201864509730158,
+          "content": "检索阶段需要高召回，生成阶段需要上下文压缩。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:0l0dv25ghszjm1229a34",
+          "intent": "surreal_vector",
+          "score": 0.6161978085976546,
+          "content": "记忆系统将文本 embedding 存入 SurrealDB 以支持语义搜索。 关键线索:cosine 评估批次:eval_9e197309cc 样本:surreal_vector",
+          "is_eval": true
+        },
+        {
+          "id": "memory:q1o7pxwrw27jjf8lxaff",
+          "intent": "surreal_vector",
+          "score": 0.6116904821804033,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_9e197309cc 样本:surreal_vector_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_11",
+      "query": "请检索：油画罩染层修复",
+      "latency_ms": 92.91,
+      "preview": [
+        {
+          "id": "memory:yzhwnnsr7fjb8hi7u4vp",
+          "intent": "nlp_rag",
+          "score": 0.5993137640747388,
+          "content": "检索阶段需要高召回，生成阶段需要上下文压缩。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:weoq3xmp7ye47zg9tzq5",
+          "intent": "education_ai",
+          "score": 0.5914958095063781,
+          "content": "题目推荐需平衡难度、知识点覆盖和反馈及时性。 关键线索:题目推荐 评估批次:eval_9e197309cc 样本:education_ai_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:xi1528da9t4bugh56737",
+          "intent": "nlp_rag",
+          "score": 0.586193063305071,
+          "content": "向量检索和关键词检索融合可提升复杂问答效果。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_13",
+      "query": "请检索：马术障碍赛路线",
+      "latency_ms": 84.92,
+      "preview": [
+        {
+          "id": "memory:ase6j3i6kldliyl6yxsz",
+          "intent": "education_ai",
+          "score": 0.6590443377491947,
+          "content": "教育推荐系统根据学习行为生成个性化学习路径。 关键线索:学习路径 评估批次:eval_9e197309cc 样本:education_ai_1",
+          "is_eval": true
+        },
+        {
+          "id": "memory:weoq3xmp7ye47zg9tzq5",
+          "intent": "education_ai",
+          "score": 0.6545835173095335,
+          "content": "题目推荐需平衡难度、知识点覆盖和反馈及时性。 关键线索:题目推荐 评估批次:eval_9e197309cc 样本:education_ai_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:q1o7pxwrw27jjf8lxaff",
+          "intent": "surreal_vector",
+          "score": 0.6356072805610936,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_9e197309cc 样本:surreal_vector_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_9",
+      "query": "请检索：火山岩浆黏度测量",
+      "latency_ms": 88.47,
+      "preview": [
+        {
+          "id": "memory:q1o7pxwrw27jjf8lxaff",
+          "intent": "surreal_vector",
+          "score": 0.6302464638344911,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_9e197309cc 样本:surreal_vector_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:7gf7g82302jjb392t5gl",
+          "intent": "surreal_vector",
+          "score": 0.6129168724507497,
+          "content": "SurrealDB 支持向量相似度检索，常见使用 cosine 相似度。 关键线索:SurrealDB 评估批次:eval_9e197309cc 样本:surreal_vector",
+          "is_eval": true
+        },
+        {
+          "id": "memory:xi1528da9t4bugh56737",
+          "intent": "nlp_rag",
+          "score": 0.6071406894144138,
+          "content": "向量检索和关键词检索融合可提升复杂问答效果。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_4",
+      "query": "请检索：考古陶片热释光断代",
+      "latency_ms": 112.32,
+      "preview": [
+        {
+          "id": "memory:yzhwnnsr7fjb8hi7u4vp",
+          "intent": "nlp_rag",
+          "score": 0.6257358854352176,
+          "content": "检索阶段需要高召回，生成阶段需要上下文压缩。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:lkfqu0jkio8n2npzsrv1",
+          "intent": "iot_sensor",
+          "score": 0.6239241142982139,
+          "content": "传感器数据质量需关注漂移与缺失值修复。 关键线索:时序数据 评估批次:eval_9e197309cc 样本:iot_sensor_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:q1o7pxwrw27jjf8lxaff",
+          "intent": "surreal_vector",
+          "score": 0.617450714095782,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_9e197309cc 样本:surreal_vector_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_1",
+      "query": "请检索：天体物理中的脉冲星时钟漂移",
+      "latency_ms": 89.91,
+      "preview": [
+        {
+          "id": "memory:lkfqu0jkio8n2npzsrv1",
+          "intent": "iot_sensor",
+          "score": 0.6772434622031276,
+          "content": "传感器数据质量需关注漂移与缺失值修复。 关键线索:时序数据 评估批次:eval_9e197309cc 样本:iot_sensor_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:q1o7pxwrw27jjf8lxaff",
+          "intent": "surreal_vector",
+          "score": 0.6406498661301843,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_9e197309cc 样本:surreal_vector_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:mbyfxgottsbb8rhv4pne",
+          "intent": "k8s_deploy",
+          "score": 0.6249797482731928,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_9e197309cc 样本:k8s_deploy_2",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_10",
+      "query": "请检索：昆虫复眼成像机理",
+      "latency_ms": 97.68,
+      "preview": [
+        {
+          "id": "memory:4gj2fxbvwuks2vwmq2yv",
+          "intent": "medical_diag",
+          "score": 0.6431327993134845,
+          "content": "医学影像辅助诊断用于提高早期筛查效率。 关键线索:临床 评估批次:eval_9e197309cc 样本:medical_diag_1",
+          "is_eval": true
+        },
+        {
+          "id": "memory:cgj4w329lwonwxvfxtkv",
+          "intent": "iot_sensor",
+          "score": 0.6176670348804406,
+          "content": "边缘计算可在本地完成预处理，降低云端压力。 关键线索:传感器 评估批次:eval_9e197309cc 样本:iot_sensor_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:xi1528da9t4bugh56737",
+          "intent": "nlp_rag",
+          "score": 0.6095996278787859,
+          "content": "向量检索和关键词检索融合可提升复杂问答效果。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_12",
+      "query": "Docker 容器编排 具体怎么做",
+      "latency_ms": 6.61,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_13",
+      "query": "请检索与 Kubernetes 和 Deployment 相关的技术记忆",
+      "latency_ms": 4.32,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_21",
+      "query": "医学影像 临床 具体怎么做",
+      "latency_ms": 4.06,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_20",
+      "query": "medical_diag 场景下的核心实践与经验",
+      "latency_ms": 4.11,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_6",
+      "query": "React hooks 具体怎么做",
+      "latency_ms": 4.23,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_29",
+      "query": "security_auth 场景下的核心实践与经验",
+      "latency_ms": 4.97,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_5",
+      "query": "react_ui 场景下的核心实践与经验",
+      "latency_ms": 4.54,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_22",
+      "query": "请检索与 RAG 和 检索增强 相关的技术记忆",
+      "latency_ms": 4.45,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_2",
+      "query": "python_api 场景下的核心实践与经验",
+      "latency_ms": 5.1,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_23",
+      "query": "nlp_rag 场景下的核心实践与经验",
+      "latency_ms": 8.07,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_30",
+      "query": "JWT 权限控制 具体怎么做",
+      "latency_ms": 4.86,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_32",
+      "query": "iot_sensor 场景下的核心实践与经验",
+      "latency_ms": 5.27,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_16",
+      "query": "请检索与 财务报表 和 现金流 相关的技术记忆",
+      "latency_ms": 4.5,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_31",
+      "query": "请检索与 传感器 和 时序数据 相关的技术记忆",
+      "latency_ms": 5.4,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_27",
+      "query": "Spring 微服务 具体怎么做",
+      "latency_ms": 5.57,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_9",
+      "query": "SurrealDB cosine 具体怎么做",
+      "latency_ms": 4.33,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_7",
+      "query": "请检索与 SurrealDB 和 向量检索 相关的技术记忆",
+      "latency_ms": 5.47,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_25",
+      "query": "请检索与 Spring 和 事务 相关的技术记忆",
+      "latency_ms": 4.92,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_35",
+      "query": "education_ai 场景下的核心实践与经验",
+      "latency_ms": 5.86,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_18",
+      "query": "财务报表 利润率 具体怎么做",
+      "latency_ms": 5.51,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_33",
+      "query": "传感器 边缘计算 具体怎么做",
+      "latency_ms": 4.55,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_24",
+      "query": "RAG 上下文 具体怎么做",
+      "latency_ms": 4.54,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_15",
+      "query": "Kubernetes HPA 具体怎么做",
+      "latency_ms": 4.36,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_3",
+      "query": "FastAPI 异步接口 具体怎么做",
+      "latency_ms": 4.96,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_26",
+      "query": "java_backend 场景下的核心实践与经验",
+      "latency_ms": 4.5,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_17",
+      "query": "finance_report 场景下的核心实践与经验",
+      "latency_ms": 5.67,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_4",
+      "query": "请检索与 React 和 组件状态 相关的技术记忆",
+      "latency_ms": 4.39,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_11",
+      "query": "docker_ops 场景下的核心实践与经验",
+      "latency_ms": 4.89,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_8",
+      "query": "surreal_vector 场景下的核心实践与经验",
+      "latency_ms": 5.06,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_36",
+      "query": "个性化学习 学习路径 具体怎么做",
+      "latency_ms": 5.52,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_1",
+      "query": "请检索与 FastAPI 和 Pydantic 相关的技术记忆",
+      "latency_ms": 4.66,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_14",
+      "query": "k8s_deploy 场景下的核心实践与经验",
+      "latency_ms": 5.48,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_10",
+      "query": "请检索与 Docker 和 Compose 相关的技术记忆",
+      "latency_ms": 4.6,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_19",
+      "query": "请检索与 医学影像 和 诊断辅助 相关的技术记忆",
+      "latency_ms": 6.14,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_34",
+      "query": "请检索与 个性化学习 和 题目推荐 相关的技术记忆",
+      "latency_ms": 4.67,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_28",
+      "query": "请检索与 JWT 和 鉴权 相关的技术记忆",
+      "latency_ms": 5.08,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_5",
+      "query": "请检索：围棋官子收束手筋",
+      "latency_ms": 34.49,
+      "preview": [
+        {
+          "id": "memory:yzhwnnsr7fjb8hi7u4vp",
+          "intent": "nlp_rag",
+          "score": 0.6707907644024976,
+          "content": "检索阶段需要高召回，生成阶段需要上下文压缩。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:weoq3xmp7ye47zg9tzq5",
+          "intent": "education_ai",
+          "score": 0.6620785212527738,
+          "content": "题目推荐需平衡难度、知识点覆盖和反馈及时性。 关键线索:题目推荐 评估批次:eval_9e197309cc 样本:education_ai_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:nvb30oni4wbxji3xjwdb",
+          "intent": "security_auth",
+          "score": 0.662045657552052,
+          "content": "权限控制应区分 read/write/admin 等细粒度能力。 关键线索:权限控制 评估批次:eval_9e197309cc 样本:security_auth_2",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_2",
+      "query": "请检索：古典吉他尼龙弦保养",
+      "latency_ms": 52.36,
+      "preview": [
+        {
+          "id": "memory:weoq3xmp7ye47zg9tzq5",
+          "intent": "education_ai",
+          "score": 0.5882614666880085,
+          "content": "题目推荐需平衡难度、知识点覆盖和反馈及时性。 关键线索:题目推荐 评估批次:eval_9e197309cc 样本:education_ai_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:yzhwnnsr7fjb8hi7u4vp",
+          "intent": "nlp_rag",
+          "score": 0.5876992351571753,
+          "content": "检索阶段需要高召回，生成阶段需要上下文压缩。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:mm1mk70dsa4cxr0uffyi",
+          "intent": "nlp_rag",
+          "score": 0.5864673563208085,
+          "content": "RAG 先检索再生成，用外部知识增强回答可靠性。 关键线索:RAG 评估批次:eval_9e197309cc 样本:nlp_rag_1",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_8",
+      "query": "请检索：雪崩搜救信标定位",
+      "latency_ms": 37.59,
+      "preview": [
+        {
+          "id": "memory:yzhwnnsr7fjb8hi7u4vp",
+          "intent": "nlp_rag",
+          "score": 0.6644730951619543,
+          "content": "检索阶段需要高召回，生成阶段需要上下文压缩。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:q1o7pxwrw27jjf8lxaff",
+          "intent": "surreal_vector",
+          "score": 0.6559455038342078,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_9e197309cc 样本:surreal_vector_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:xi1528da9t4bugh56737",
+          "intent": "nlp_rag",
+          "score": 0.6466689126453066,
+          "content": "向量检索和关键词检索融合可提升复杂问答效果。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_14",
+      "query": "请检索：古筝指法勾托抹挑",
+      "latency_ms": 35.02,
+      "preview": [
+        {
+          "id": "memory:weoq3xmp7ye47zg9tzq5",
+          "intent": "education_ai",
+          "score": 0.605898985990297,
+          "content": "题目推荐需平衡难度、知识点覆盖和反馈及时性。 关键线索:题目推荐 评估批次:eval_9e197309cc 样本:education_ai_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:tqtoyhec2lj5j465hmt0",
+          "intent": "education_ai",
+          "score": 0.6011636192724309,
+          "content": "AI 助教可基于错题模式提供针对性讲解。 关键线索:题目推荐 评估批次:eval_9e197309cc 样本:education_ai_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:yzhwnnsr7fjb8hi7u4vp",
+          "intent": "nlp_rag",
+          "score": 0.5950462517856672,
+          "content": "检索阶段需要高召回，生成阶段需要上下文压缩。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_2",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_6",
+      "query": "请检索：咖啡豆日晒水洗风味差异",
+      "latency_ms": 27.74,
+      "preview": [
+        {
+          "id": "memory:vq0csus67xex3xxfzchx",
+          "intent": "security_auth",
+          "score": 0.6129266962677442,
+          "content": "JWT 常用于无状态鉴权，需设置合理过期时间。 关键线索:鉴权 评估批次:eval_9e197309cc 样本:security_auth_1",
+          "is_eval": true
+        },
+        {
+          "id": "memory:xi1528da9t4bugh56737",
+          "intent": "nlp_rag",
+          "score": 0.610078380064798,
+          "content": "向量检索和关键词检索融合可提升复杂问答效果。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:yzhwnnsr7fjb8hi7u4vp",
+          "intent": "nlp_rag",
+          "score": 0.609566294430893,
+          "content": "检索阶段需要高召回，生成阶段需要上下文压缩。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_2",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_3",
+      "query": "请检索：海洋潮汐发电叶轮腐蚀",
+      "latency_ms": 27.96,
+      "preview": [
+        {
+          "id": "memory:mbyfxgottsbb8rhv4pne",
+          "intent": "k8s_deploy",
+          "score": 0.6079814973040071,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_9e197309cc 样本:k8s_deploy_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:jgqb0abikvn3o1j72sgm",
+          "intent": "k8s_deploy",
+          "score": 0.6059223094875082,
+          "content": "服务暴露常配合 Service 与 Ingress 实现流量入口。 关键线索:HPA 评估批次:eval_9e197309cc 样本:k8s_deploy_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:0l0dv25ghszjm1229a34",
+          "intent": "surreal_vector",
+          "score": 0.6017730440379956,
+          "content": "记忆系统将文本 embedding 存入 SurrealDB 以支持语义搜索。 关键线索:cosine 评估批次:eval_9e197309cc 样本:surreal_vector",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_12",
+      "query": "请检索：航海六分仪校准",
+      "latency_ms": 29.86,
+      "preview": [
+        {
+          "id": "memory:kifunztzp32wp5b9itxc",
+          "intent": "docker_ops",
+          "score": 0.6501137350397196,
+          "content": "编排配置中应显式声明依赖顺序和健康检查。 关键线索:容器编排 评估批次:eval_9e197309cc 样本:docker_ops_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:weoq3xmp7ye47zg9tzq5",
+          "intent": "education_ai",
+          "score": 0.6473922283328373,
+          "content": "题目推荐需平衡难度、知识点覆盖和反馈及时性。 关键线索:题目推荐 评估批次:eval_9e197309cc 样本:education_ai_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:q1o7pxwrw27jjf8lxaff",
+          "intent": "surreal_vector",
+          "score": 0.637664462121516,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_9e197309cc 样本:surreal_vector_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_7",
+      "query": "请检索：古希腊悲剧三一律",
+      "latency_ms": 47.06,
+      "preview": [
+        {
+          "id": "memory:yzhwnnsr7fjb8hi7u4vp",
+          "intent": "nlp_rag",
+          "score": 0.6537478705303895,
+          "content": "检索阶段需要高召回，生成阶段需要上下文压缩。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:q1o7pxwrw27jjf8lxaff",
+          "intent": "surreal_vector",
+          "score": 0.6511872896225352,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_9e197309cc 样本:surreal_vector_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:mm1mk70dsa4cxr0uffyi",
+          "intent": "nlp_rag",
+          "score": 0.6437388576545664,
+          "content": "RAG 先检索再生成，用外部知识增强回答可靠性。 关键线索:RAG 评估批次:eval_9e197309cc 样本:nlp_rag_1",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_15",
+      "query": "请检索：陨石镍铁相鉴定",
+      "latency_ms": 33.21,
+      "preview": [
+        {
+          "id": "memory:yzhwnnsr7fjb8hi7u4vp",
+          "intent": "nlp_rag",
+          "score": 0.6201864509730158,
+          "content": "检索阶段需要高召回，生成阶段需要上下文压缩。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:0l0dv25ghszjm1229a34",
+          "intent": "surreal_vector",
+          "score": 0.6161978085976546,
+          "content": "记忆系统将文本 embedding 存入 SurrealDB 以支持语义搜索。 关键线索:cosine 评估批次:eval_9e197309cc 样本:surreal_vector",
+          "is_eval": true
+        },
+        {
+          "id": "memory:q1o7pxwrw27jjf8lxaff",
+          "intent": "surreal_vector",
+          "score": 0.6116904821804033,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_9e197309cc 样本:surreal_vector_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_11",
+      "query": "请检索：油画罩染层修复",
+      "latency_ms": 27.29,
+      "preview": [
+        {
+          "id": "memory:yzhwnnsr7fjb8hi7u4vp",
+          "intent": "nlp_rag",
+          "score": 0.5993137640747388,
+          "content": "检索阶段需要高召回，生成阶段需要上下文压缩。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:weoq3xmp7ye47zg9tzq5",
+          "intent": "education_ai",
+          "score": 0.5914958095063781,
+          "content": "题目推荐需平衡难度、知识点覆盖和反馈及时性。 关键线索:题目推荐 评估批次:eval_9e197309cc 样本:education_ai_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:xi1528da9t4bugh56737",
+          "intent": "nlp_rag",
+          "score": 0.586193063305071,
+          "content": "向量检索和关键词检索融合可提升复杂问答效果。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_13",
+      "query": "请检索：马术障碍赛路线",
+      "latency_ms": 25.69,
+      "preview": [
+        {
+          "id": "memory:ase6j3i6kldliyl6yxsz",
+          "intent": "education_ai",
+          "score": 0.6590443377491947,
+          "content": "教育推荐系统根据学习行为生成个性化学习路径。 关键线索:学习路径 评估批次:eval_9e197309cc 样本:education_ai_1",
+          "is_eval": true
+        },
+        {
+          "id": "memory:weoq3xmp7ye47zg9tzq5",
+          "intent": "education_ai",
+          "score": 0.6545835173095335,
+          "content": "题目推荐需平衡难度、知识点覆盖和反馈及时性。 关键线索:题目推荐 评估批次:eval_9e197309cc 样本:education_ai_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:q1o7pxwrw27jjf8lxaff",
+          "intent": "surreal_vector",
+          "score": 0.6356072805610936,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_9e197309cc 样本:surreal_vector_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_9",
+      "query": "请检索：火山岩浆黏度测量",
+      "latency_ms": 38.59,
+      "preview": [
+        {
+          "id": "memory:q1o7pxwrw27jjf8lxaff",
+          "intent": "surreal_vector",
+          "score": 0.6302464638344911,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_9e197309cc 样本:surreal_vector_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:7gf7g82302jjb392t5gl",
+          "intent": "surreal_vector",
+          "score": 0.6129168724507497,
+          "content": "SurrealDB 支持向量相似度检索，常见使用 cosine 相似度。 关键线索:SurrealDB 评估批次:eval_9e197309cc 样本:surreal_vector",
+          "is_eval": true
+        },
+        {
+          "id": "memory:xi1528da9t4bugh56737",
+          "intent": "nlp_rag",
+          "score": 0.6071406894144138,
+          "content": "向量检索和关键词检索融合可提升复杂问答效果。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_4",
+      "query": "请检索：考古陶片热释光断代",
+      "latency_ms": 36.94,
+      "preview": [
+        {
+          "id": "memory:yzhwnnsr7fjb8hi7u4vp",
+          "intent": "nlp_rag",
+          "score": 0.6257358854352176,
+          "content": "检索阶段需要高召回，生成阶段需要上下文压缩。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:lkfqu0jkio8n2npzsrv1",
+          "intent": "iot_sensor",
+          "score": 0.6239241142982139,
+          "content": "传感器数据质量需关注漂移与缺失值修复。 关键线索:时序数据 评估批次:eval_9e197309cc 样本:iot_sensor_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:q1o7pxwrw27jjf8lxaff",
+          "intent": "surreal_vector",
+          "score": 0.617450714095782,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_9e197309cc 样本:surreal_vector_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_1",
+      "query": "请检索：天体物理中的脉冲星时钟漂移",
+      "latency_ms": 35.05,
+      "preview": [
+        {
+          "id": "memory:lkfqu0jkio8n2npzsrv1",
+          "intent": "iot_sensor",
+          "score": 0.6772434622031276,
+          "content": "传感器数据质量需关注漂移与缺失值修复。 关键线索:时序数据 评估批次:eval_9e197309cc 样本:iot_sensor_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:q1o7pxwrw27jjf8lxaff",
+          "intent": "surreal_vector",
+          "score": 0.6406498661301843,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_9e197309cc 样本:surreal_vector_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:mbyfxgottsbb8rhv4pne",
+          "intent": "k8s_deploy",
+          "score": 0.6249797482731928,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_9e197309cc 样本:k8s_deploy_2",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_10",
+      "query": "请检索：昆虫复眼成像机理",
+      "latency_ms": 30.93,
+      "preview": [
+        {
+          "id": "memory:4gj2fxbvwuks2vwmq2yv",
+          "intent": "medical_diag",
+          "score": 0.6431327993134845,
+          "content": "医学影像辅助诊断用于提高早期筛查效率。 关键线索:临床 评估批次:eval_9e197309cc 样本:medical_diag_1",
+          "is_eval": true
+        },
+        {
+          "id": "memory:cgj4w329lwonwxvfxtkv",
+          "intent": "iot_sensor",
+          "score": 0.6176670348804406,
+          "content": "边缘计算可在本地完成预处理，降低云端压力。 关键线索:传感器 评估批次:eval_9e197309cc 样本:iot_sensor_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:xi1528da9t4bugh56737",
+          "intent": "nlp_rag",
+          "score": 0.6095996278787859,
+          "content": "向量检索和关键词检索融合可提升复杂问答效果。 关键线索:上下文 评估批次:eval_9e197309cc 样本:nlp_rag_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    }
+  ]
+}

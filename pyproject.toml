@@ -72,7 +72,7 @@ ignore = [
     "S104",   # 绑定到所有接口（服务设计需要）
 ]
 [tool.pytest.ini_options]
-testpaths = ["wrapper-service/tests"]
+testpaths = ["tests"]
 python_files = "test_*.py"
 python_classes = "Test*"
 addopts = "-v --strict-markers --tb=short"
@@ -81,7 +81,7 @@ markers = [
     "slow: marks tests as slow",
 ]
 [tool.coverage.run]
-source = ["src", "wrapper-service/src"]
+source = ["src", "wrapper/src"]
 branch = true
 omit = ["*/tests/*", "*/__init__.py", "*/scripts/*"]
 [tool.coverage.report]
@@ -98,7 +98,7 @@ show_missing = true
 skip_covered = true
 [tool.bandit]
 exclude_dirs = ["tests", ".venv", "venv", "build", "dist", "src/qwen3_embedding_service/models", "scripts"]
-skips = ["B101"]  # Skip assert_used test (pytest uses assert)
+skips = ["B101", "B608"]  # B101: assert, B608: SurrealQL 参数化查询误报
 severity = "low"
 
 [tool.pyright]

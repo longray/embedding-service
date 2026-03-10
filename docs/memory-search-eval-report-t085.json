@@ -1,0 +1,1034 @@
+{
+  "eval_id": "eval_8198996094",
+  "base_url": "http://localhost:17999",
+  "dataset_size": 36,
+  "query_size": 51,
+  "topk": 5,
+  "threshold": 0.85,
+  "upload_result": {
+    "total": 36,
+    "success": 36,
+    "failed": 0,
+    "memory_ids": [
+      "memory:4a1a2x414bhu1ubpocmh",
+      "memory:py691qhtgig0okabfm0y",
+      "memory:vjrto12wd6piwuzc6ezb",
+      "memory:3d4buexr129quf1uz9ks",
+      "memory:x2fiuolhwnysm5i9kvs2",
+      "memory:77da9iy7rsuk62ya7ja4",
+      "memory:elxesfxaboviammqoigr",
+      "memory:xoco08geyxs4eyp21se6",
+      "memory:8zpwarxv8bs7r4iw4ybx",
+      "memory:kx4eo81624mkkxn44d4k",
+      "memory:uwrt5e45y46coc991cya",
+      "memory:zyxo2ha7yzhf6cwhd8qv",
+      "memory:kbzyfjvcnct8v1thqioe",
+      "memory:yhaaq1nv6qcsr8zno7cv",
+      "memory:sjygk4vifjfjbe6jsf2x",
+      "memory:0v8uk7woiqs675nhgzt0",
+      "memory:escqez2juz519m907714",
+      "memory:sd8dgxh3c594ttdb5b10",
+      "memory:5wsrwngju1mezxg7ws48",
+      "memory:y1qm1hpx6wv4t56gz0qj",
+      "memory:eafe8hjjxgvhuxpveno0",
+      "memory:fcg8vnsf23p63geu6102",
+      "memory:8jg3p42e1fimn8qyqihk",
+      "memory:hekvyr30lxytd01thoq0",
+      "memory:njx2ij3aa4aabuisnmnj",
+      "memory:h1z1otjznecggclidu3d",
+      "memory:fvfh9fnwwb81x4i2ukib",
+      "memory:bysptgl4d3lzfcvfxv0h",
+      "memory:d4uyqvgyb6li1886qn4o",
+      "memory:au5v78bfqh2caoeysdfb",
+      "memory:0m9k249x4ipxfw0jjy6z",
+      "memory:2gkurcad0tp39c461o9s",
+      "memory:pxq7mm0b9t6sl5100a15",
+      "memory:ucgevas50dta8uq5465i",
+      "memory:g8gq5axfdttyl0q3bnv0",
+      "memory:go5kbxmxf54ghamx3tck"
+    ]
+  },
+  "upload_elapsed_ms": 2692.19,
+  "modes": {
+    "vector": {
+      "query_count": 51,
+      "should_find_count": 36,
+      "should_not_find_count": 15,
+      "hit_rate_should_find": 0.25,
+      "precision_at_5_should_find": 0.0611,
+      "recall_at_5_should_find": 0.1019,
+      "mrr_should_find": 0.25,
+      "false_positive_rate_eval_should_not_find": 0.0,
+      "false_positive_rate_total_should_not_find": 0.0,
+      "non_eval_contamination_at5": 0.0863,
+      "avg_eval_returned": 0.235,
+      "avg_total_returned": 0.725,
+      "median_eval_returned": 0.0,
+      "median_total_returned": 0.0
+    },
+    "keyword": {
+      "query_count": 51,
+      "should_find_count": 36,
+      "should_not_find_count": 15,
+      "hit_rate_should_find": 0.0,
+      "precision_at_5_should_find": 0.0,
+      "recall_at_5_should_find": 0.0,
+      "mrr_should_find": 0.0,
+      "false_positive_rate_eval_should_not_find": 0.0,
+      "false_positive_rate_total_should_not_find": 0.0,
+      "non_eval_contamination_at5": 0.0,
+      "avg_eval_returned": 0.0,
+      "avg_total_returned": 0.0,
+      "median_eval_returned": 0.0,
+      "median_total_returned": 0.0
+    },
+    "hybrid": {
+      "query_count": 51,
+      "should_find_count": 36,
+      "should_not_find_count": 15,
+      "hit_rate_should_find": 0.25,
+      "precision_at_5_should_find": 0.0611,
+      "recall_at_5_should_find": 0.1019,
+      "mrr_should_find": 0.25,
+      "false_positive_rate_eval_should_not_find": 0.0,
+      "false_positive_rate_total_should_not_find": 0.0,
+      "non_eval_contamination_at5": 0.0863,
+      "avg_eval_returned": 0.235,
+      "avg_total_returned": 0.725,
+      "median_eval_returned": 0.0,
+      "median_total_returned": 0.0
+    }
+  },
+  "failures": [
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_12",
+      "query": "Docker 容器编排 具体怎么做",
+      "latency_ms": 23.41,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_13",
+      "query": "请检索与 Kubernetes 和 Deployment 相关的技术记忆",
+      "latency_ms": 18.8,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_21",
+      "query": "医学影像 临床 具体怎么做",
+      "latency_ms": 19.41,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_20",
+      "query": "medical_diag 场景下的核心实践与经验",
+      "latency_ms": 20.45,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_6",
+      "query": "React hooks 具体怎么做",
+      "latency_ms": 17.91,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_29",
+      "query": "security_auth 场景下的核心实践与经验",
+      "latency_ms": 17.56,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_5",
+      "query": "react_ui 场景下的核心实践与经验",
+      "latency_ms": 18.42,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_2",
+      "query": "python_api 场景下的核心实践与经验",
+      "latency_ms": 21.19,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_30",
+      "query": "JWT 权限控制 具体怎么做",
+      "latency_ms": 24.71,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_32",
+      "query": "iot_sensor 场景下的核心实践与经验",
+      "latency_ms": 22.96,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_16",
+      "query": "请检索与 财务报表 和 现金流 相关的技术记忆",
+      "latency_ms": 23.77,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_31",
+      "query": "请检索与 传感器 和 时序数据 相关的技术记忆",
+      "latency_ms": 25.63,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_27",
+      "query": "Spring 微服务 具体怎么做",
+      "latency_ms": 21.21,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_25",
+      "query": "请检索与 Spring 和 事务 相关的技术记忆",
+      "latency_ms": 22.82,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_35",
+      "query": "education_ai 场景下的核心实践与经验",
+      "latency_ms": 19.47,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_18",
+      "query": "财务报表 利润率 具体怎么做",
+      "latency_ms": 23.4,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_33",
+      "query": "传感器 边缘计算 具体怎么做",
+      "latency_ms": 27.24,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_24",
+      "query": "RAG 上下文 具体怎么做",
+      "latency_ms": 22.38,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_15",
+      "query": "Kubernetes HPA 具体怎么做",
+      "latency_ms": 22.74,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_3",
+      "query": "FastAPI 异步接口 具体怎么做",
+      "latency_ms": 25.22,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_26",
+      "query": "java_backend 场景下的核心实践与经验",
+      "latency_ms": 33.33,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_17",
+      "query": "finance_report 场景下的核心实践与经验",
+      "latency_ms": 23.72,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_11",
+      "query": "docker_ops 场景下的核心实践与经验",
+      "latency_ms": 25.82,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_8",
+      "query": "surreal_vector 场景下的核心实践与经验",
+      "latency_ms": 23.5,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_36",
+      "query": "个性化学习 学习路径 具体怎么做",
+      "latency_ms": 19.32,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_10",
+      "query": "请检索与 Docker 和 Compose 相关的技术记忆",
+      "latency_ms": 23.12,
+      "preview": [
+        {
+          "id": "memory:iyt4mkrjrn561zk255g9",
+          "intent": "docker_ops",
+          "score": 0.852217037343642,
+          "content": "Docker Compose 可以一键启动多服务开发环境。 关键线索:Compose 评估批次:eval_9e197309cc 样本:docker_ops_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:4cakh4o7ejazkg9ommyh",
+          "intent": "docker_ops",
+          "score": 0.8513826766303914,
+          "content": "Docker Compose 可以一键启动多服务开发环境。 关键线索:Compose 评估批次:eval_37e0760eea 样本:docker_ops_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 2,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_34",
+      "query": "请检索与 个性化学习 和 题目推荐 相关的技术记忆",
+      "latency_ms": 18.55,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_12",
+      "query": "Docker 容器编排 具体怎么做",
+      "latency_ms": 7.61,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_13",
+      "query": "请检索与 Kubernetes 和 Deployment 相关的技术记忆",
+      "latency_ms": 7.44,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_21",
+      "query": "医学影像 临床 具体怎么做",
+      "latency_ms": 7.11,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_20",
+      "query": "medical_diag 场景下的核心实践与经验",
+      "latency_ms": 8.27,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_6",
+      "query": "React hooks 具体怎么做",
+      "latency_ms": 7.8,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_29",
+      "query": "security_auth 场景下的核心实践与经验",
+      "latency_ms": 8.63,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_5",
+      "query": "react_ui 场景下的核心实践与经验",
+      "latency_ms": 8.72,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_22",
+      "query": "请检索与 RAG 和 检索增强 相关的技术记忆",
+      "latency_ms": 8.06,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_2",
+      "query": "python_api 场景下的核心实践与经验",
+      "latency_ms": 6.8,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_23",
+      "query": "nlp_rag 场景下的核心实践与经验",
+      "latency_ms": 8.18,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_30",
+      "query": "JWT 权限控制 具体怎么做",
+      "latency_ms": 8.08,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_32",
+      "query": "iot_sensor 场景下的核心实践与经验",
+      "latency_ms": 8.34,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_16",
+      "query": "请检索与 财务报表 和 现金流 相关的技术记忆",
+      "latency_ms": 9.13,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_31",
+      "query": "请检索与 传感器 和 时序数据 相关的技术记忆",
+      "latency_ms": 7.14,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_27",
+      "query": "Spring 微服务 具体怎么做",
+      "latency_ms": 7.74,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_9",
+      "query": "SurrealDB cosine 具体怎么做",
+      "latency_ms": 6.72,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_7",
+      "query": "请检索与 SurrealDB 和 向量检索 相关的技术记忆",
+      "latency_ms": 8.65,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_25",
+      "query": "请检索与 Spring 和 事务 相关的技术记忆",
+      "latency_ms": 7.68,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_35",
+      "query": "education_ai 场景下的核心实践与经验",
+      "latency_ms": 7.21,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_18",
+      "query": "财务报表 利润率 具体怎么做",
+      "latency_ms": 7.75,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_33",
+      "query": "传感器 边缘计算 具体怎么做",
+      "latency_ms": 8.73,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_24",
+      "query": "RAG 上下文 具体怎么做",
+      "latency_ms": 7.56,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_15",
+      "query": "Kubernetes HPA 具体怎么做",
+      "latency_ms": 7.83,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_3",
+      "query": "FastAPI 异步接口 具体怎么做",
+      "latency_ms": 7.56,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_26",
+      "query": "java_backend 场景下的核心实践与经验",
+      "latency_ms": 7.74,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_17",
+      "query": "finance_report 场景下的核心实践与经验",
+      "latency_ms": 8.03,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_4",
+      "query": "请检索与 React 和 组件状态 相关的技术记忆",
+      "latency_ms": 8.2,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_11",
+      "query": "docker_ops 场景下的核心实践与经验",
+      "latency_ms": 7.26,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_8",
+      "query": "surreal_vector 场景下的核心实践与经验",
+      "latency_ms": 7.75,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_36",
+      "query": "个性化学习 学习路径 具体怎么做",
+      "latency_ms": 9.79,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_1",
+      "query": "请检索与 FastAPI 和 Pydantic 相关的技术记忆",
+      "latency_ms": 7.81,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_14",
+      "query": "k8s_deploy 场景下的核心实践与经验",
+      "latency_ms": 9.57,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_10",
+      "query": "请检索与 Docker 和 Compose 相关的技术记忆",
+      "latency_ms": 9.22,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_19",
+      "query": "请检索与 医学影像 和 诊断辅助 相关的技术记忆",
+      "latency_ms": 7.38,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_34",
+      "query": "请检索与 个性化学习 和 题目推荐 相关的技术记忆",
+      "latency_ms": 7.58,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_28",
+      "query": "请检索与 JWT 和 鉴权 相关的技术记忆",
+      "latency_ms": 7.11,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_12",
+      "query": "Docker 容器编排 具体怎么做",
+      "latency_ms": 24.65,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_13",
+      "query": "请检索与 Kubernetes 和 Deployment 相关的技术记忆",
+      "latency_ms": 38.97,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_21",
+      "query": "医学影像 临床 具体怎么做",
+      "latency_ms": 36.24,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_20",
+      "query": "medical_diag 场景下的核心实践与经验",
+      "latency_ms": 30.75,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_6",
+      "query": "React hooks 具体怎么做",
+      "latency_ms": 32.16,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_29",
+      "query": "security_auth 场景下的核心实践与经验",
+      "latency_ms": 25.83,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_5",
+      "query": "react_ui 场景下的核心实践与经验",
+      "latency_ms": 21.13,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_2",
+      "query": "python_api 场景下的核心实践与经验",
+      "latency_ms": 20.22,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_30",
+      "query": "JWT 权限控制 具体怎么做",
+      "latency_ms": 21.47,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_32",
+      "query": "iot_sensor 场景下的核心实践与经验",
+      "latency_ms": 22.07,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_16",
+      "query": "请检索与 财务报表 和 现金流 相关的技术记忆",
+      "latency_ms": 23.51,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_31",
+      "query": "请检索与 传感器 和 时序数据 相关的技术记忆",
+      "latency_ms": 27.61,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_27",
+      "query": "Spring 微服务 具体怎么做",
+      "latency_ms": 23.44,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_25",
+      "query": "请检索与 Spring 和 事务 相关的技术记忆",
+      "latency_ms": 21.32,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_35",
+      "query": "education_ai 场景下的核心实践与经验",
+      "latency_ms": 24.02,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_18",
+      "query": "财务报表 利润率 具体怎么做",
+      "latency_ms": 24.58,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_33",
+      "query": "传感器 边缘计算 具体怎么做",
+      "latency_ms": 27.76,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_24",
+      "query": "RAG 上下文 具体怎么做",
+      "latency_ms": 28.25,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_15",
+      "query": "Kubernetes HPA 具体怎么做",
+      "latency_ms": 20.71,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_3",
+      "query": "FastAPI 异步接口 具体怎么做",
+      "latency_ms": 24.54,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_26",
+      "query": "java_backend 场景下的核心实践与经验",
+      "latency_ms": 25.59,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_17",
+      "query": "finance_report 场景下的核心实践与经验",
+      "latency_ms": 22.4,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_11",
+      "query": "docker_ops 场景下的核心实践与经验",
+      "latency_ms": 28.28,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_8",
+      "query": "surreal_vector 场景下的核心实践与经验",
+      "latency_ms": 26.68,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_36",
+      "query": "个性化学习 学习路径 具体怎么做",
+      "latency_ms": 23.41,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_10",
+      "query": "请检索与 Docker 和 Compose 相关的技术记忆",
+      "latency_ms": 36.73,
+      "preview": [
+        {
+          "id": "memory:iyt4mkrjrn561zk255g9",
+          "intent": "docker_ops",
+          "score": 0.852217037343642,
+          "content": "Docker Compose 可以一键启动多服务开发环境。 关键线索:Compose 评估批次:eval_9e197309cc 样本:docker_ops_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:4cakh4o7ejazkg9ommyh",
+          "intent": "docker_ops",
+          "score": 0.8513826766303914,
+          "content": "Docker Compose 可以一键启动多服务开发环境。 关键线索:Compose 评估批次:eval_37e0760eea 样本:docker_ops_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 2,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_34",
+      "query": "请检索与 个性化学习 和 题目推荐 相关的技术记忆",
+      "latency_ms": 23.7,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    }
+  ]
+}

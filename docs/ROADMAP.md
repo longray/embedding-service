@@ -8,16 +8,14 @@
 **核心功能**:
 - Embedding 服务（Qwen3-Embedding-0.6B）
 - LLM 服务（MiniCPM4-0.5B）
-- 最小化包装服务（端口 17999，无熔断器）
+- 最小化包装服务（端口 17999）
   - LRU 缓存
   - HTTP 连接池
   - SurrealDB 长期连接
-  - 三个核心 API：`/v1/embeddings`、`/api/v1/memories`、`/api/v1/memories/search`
-- 包装层服务（端口 3001，完整功能）
-- API 认证授权（API Key + 权限控制）
-- 记忆管理系统（SurrealDB + 向量搜索）
+  - 四个 API：`/health`、`/v1/embeddings`、`/api/v1/memories`、`/api/v1/memories/search`
+- 记忆管理系统（SurrealDB + 向量搜索 + HNSW 索引）
+- Docker Compose 一键部署
 - CI/CD（GitHub Actions）
-- **完整测试套件（150+ 测试用例）**
 
 ---
 
@@ -176,13 +174,3 @@ DEFINE INDEX memory_embedding_hnsw ON memory
 ## 许可证
 
 [MIT](LICENSE)
-```
-
-## 文件位置
-
-D:\embedding_service\ROADMAP.md
-
-## 验证
-
-检查 Markdown 语法正确。
-<!-- OMO_INTERNAL_INITIATOR -->

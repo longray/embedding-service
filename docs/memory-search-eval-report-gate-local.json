@@ -1,0 +1,1902 @@
+{
+  "eval_id": "eval_f3074f42ef",
+  "base_url": "http://localhost:17999",
+  "dataset_size": 36,
+  "query_size": 63,
+  "topk": 5,
+  "threshold": 0.7,
+  "upload_result": {
+    "total": 36,
+    "success": 36,
+    "failed": 0,
+    "memory_ids": [
+      "memory:e6vqlbzyuqs3eln1o22l",
+      "memory:eqznx91rbdivgzwjyg4f",
+      "memory:5ok96rx2gpdhgobqojyk",
+      "memory:whpy51gisqb70jg6cef3",
+      "memory:6s0cvpfts6jd0odhhwvy",
+      "memory:iww99f566imbc1ru7l4t",
+      "memory:a5v0ndpru1hptr5hl4j1",
+      "memory:rgfuays64p19l60qkhgo",
+      "memory:blakoryz9v52zbwadl8p",
+      "memory:0m90g6fhtse4blnqoj2s",
+      "memory:33ewe1pekyvx0fg0ews1",
+      "memory:fqc6qt8amsoc9c5fp3ms",
+      "memory:xnxopybyg9u8b4kzhvti",
+      "memory:1hmkm0extxb8or03ckom",
+      "memory:znz28pfc3yb39zaap6lc",
+      "memory:efor5j5733sfr75n6cov",
+      "memory:13oovgqmy8lomi6d5lfc",
+      "memory:racwrbjozs5dvkmx82wo",
+      "memory:8ogjkbogt9l6pm069jh9",
+      "memory:j4a8atindv1xjbj6b4a9",
+      "memory:m8jfpxyfoaxewch4hps4",
+      "memory:25toyar3fcjpzwbpmpj1",
+      "memory:s84z8u69fkud0ztm3684",
+      "memory:cs2q8wle9foc52hnmu79",
+      "memory:jfdtilhsmcdz6nwumtz9",
+      "memory:w238t5y018w5kw5zy8eu",
+      "memory:p7hkraswyayate8hvezm",
+      "memory:u29l90kfdsivhi50t5vg",
+      "memory:u51cvu70cp8wky6wjra0",
+      "memory:f5kpv0juykbpd7jo9lus",
+      "memory:ive210bb7kqz4bb3jvu1",
+      "memory:xtictcqf1hozstu2w5fd",
+      "memory:si9etpda7y40gvyn3kva",
+      "memory:cobht1xoqd2p4w0raoxo",
+      "memory:qugw229nfnggtsz79mte",
+      "memory:yhpkt4ylnt5x2b65qipm"
+    ]
+  },
+  "upload_elapsed_ms": 3719.42,
+  "modes": {
+    "vector": {
+      "query_count": 63,
+      "should_find_count": 48,
+      "should_not_find_count": 15,
+      "hit_rate_should_find": 0.5833,
+      "precision_at_5_should_find": 0.1167,
+      "recall_at_5_should_find": 0.1944,
+      "mrr_should_find": 0.5833,
+      "false_positive_rate_eval_should_not_find": 0.0,
+      "false_positive_rate_total_should_not_find": 0.0,
+      "non_eval_contamination_at5": 0.6254,
+      "avg_eval_returned": 0.81,
+      "avg_total_returned": 7.095,
+      "median_eval_returned": 1.0,
+      "median_total_returned": 10.0
+    },
+    "keyword": {
+      "query_count": 63,
+      "should_find_count": 48,
+      "should_not_find_count": 15,
+      "hit_rate_should_find": 0.1042,
+      "precision_at_5_should_find": 0.025,
+      "recall_at_5_should_find": 0.0417,
+      "mrr_should_find": 0.1042,
+      "false_positive_rate_eval_should_not_find": 0.0,
+      "false_positive_rate_total_should_not_find": 0.0,
+      "non_eval_contamination_at5": 0.1714,
+      "avg_eval_returned": 0.222,
+      "avg_total_returned": 1.81,
+      "median_eval_returned": 0.0,
+      "median_total_returned": 0.0
+    },
+    "hybrid": {
+      "query_count": 63,
+      "should_find_count": 48,
+      "should_not_find_count": 15,
+      "hit_rate_should_find": 0.5833,
+      "precision_at_5_should_find": 0.1167,
+      "recall_at_5_should_find": 0.1944,
+      "mrr_should_find": 0.5833,
+      "false_positive_rate_eval_should_not_find": 0.0,
+      "false_positive_rate_total_should_not_find": 0.0,
+      "non_eval_contamination_at5": 0.673,
+      "avg_eval_returned": 0.841,
+      "avg_total_returned": 7.556,
+      "median_eval_returned": 1.0,
+      "median_total_returned": 10.0
+    }
+  },
+  "failures": [
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_27",
+      "query": "医学影像 临床 具体怎么做",
+      "latency_ms": 85.81,
+      "preview": [
+        {
+          "id": "memory:h6p6egtue2n2o9noiyl3",
+          "intent": "medical_diag",
+          "score": 0.8215319548585511,
+          "content": "医学影像辅助诊断用于提高早期筛查效率。 关键线索:临床 评估批次:eval_c7ed2a7e57 样本:medical_diag_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:5wsrwngju1mezxg7ws48",
+          "intent": "medical_diag",
+          "score": 0.8203655639676031,
+          "content": "医学影像辅助诊断用于提高早期筛查效率。 关键线索:临床 评估批次:eval_8198996094 样本:medical_diag_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:gvdwvb0y5jhtvhm9xct2",
+          "intent": "medical_diag",
+          "score": 0.8200888602221033,
+          "content": "医学影像辅助诊断用于提高早期筛查效率。 关键线索:临床 评估批次:eval_37e0760eea 样本:medical_diag_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_39",
+      "query": "JWT 权限控制 具体怎么做",
+      "latency_ms": 57.97,
+      "preview": [
+        {
+          "id": "memory:d4uyqvgyb6li1886qn4o",
+          "intent": "security_auth",
+          "score": 0.837709373082552,
+          "content": "权限控制应区分 read/write/admin 等细粒度能力。 关键线索:权限控制 评估批次:eval_8198996094 样本:security_auth_2",
+          "is_eval": false
+        },
+        {
+          "id": "memory:v5zfwncxpvqeun0g4qa7",
+          "intent": "security_auth",
+          "score": 0.8362221167029098,
+          "content": "权限控制应区分 read/write/admin 等细粒度能力。 关键线索:权限控制 评估批次:eval_3b44839afc 样本:security_auth_2",
+          "is_eval": false
+        },
+        {
+          "id": "memory:lqkdhns4iyu0v2tmlg0y",
+          "intent": "security_auth",
+          "score": 0.8352943654299897,
+          "content": "权限控制应区分 read/write/admin 等细粒度能力。 关键线索:权限控制 评估批次:eval_37e0760eea 样本:security_auth_2",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 2
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_33",
+      "query": "请检索与 Spring 和 事务 相关的技术记忆",
+      "latency_ms": 54.61,
+      "preview": [
+        {
+          "id": "memory:h1z1otjznecggclidu3d",
+          "intent": "java_backend",
+          "score": 0.8049749952554788,
+          "content": "事务边界管理可降低并发写入时的数据不一致风险。 关键线索:Spring 评估批次:eval_8198996094 样本:java_backend_2",
+          "is_eval": false
+        },
+        {
+          "id": "memory:bxkg00phed8vpfkif349",
+          "intent": "java_backend",
+          "score": 0.8013155501051715,
+          "content": "事务边界管理可降低并发写入时的数据不一致风险。 关键线索:Spring 评估批次:eval_c7ed2a7e57 样本:java_backend_2",
+          "is_eval": false
+        },
+        {
+          "id": "memory:q3q8fvj50d8saonf7klv",
+          "intent": "java_backend",
+          "score": 0.8012943587903354,
+          "content": "事务边界管理可降低并发写入时的数据不一致风险。 关键线索:Spring 评估批次:eval_3b44839afc 样本:java_backend_2",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_41",
+      "query": "请检索与 传感器 和 时序数据 相关的技术记忆",
+      "latency_ms": 83.41,
+      "preview": [
+        {
+          "id": "memory:lkfqu0jkio8n2npzsrv1",
+          "intent": "iot_sensor",
+          "score": 0.8117254333335591,
+          "content": "传感器数据质量需关注漂移与缺失值修复。 关键线索:时序数据 评估批次:eval_9e197309cc 样本:iot_sensor_3",
+          "is_eval": false
+        },
+        {
+          "id": "memory:k8a9dtehggh903upmdoo",
+          "intent": "iot_sensor",
+          "score": 0.8103770769859063,
+          "content": "传感器数据质量需关注漂移与缺失值修复。 关键线索:时序数据 评估批次:eval_37e0760eea 样本:iot_sensor_3",
+          "is_eval": false
+        },
+        {
+          "id": "memory:rarr3sjj89bl6cwg5rpw",
+          "intent": "iot_sensor",
+          "score": 0.810027655357466,
+          "content": "传感器数据质量需关注漂移与缺失值修复。 关键线索:时序数据 评估批次:eval_4cb5645f11 样本:iot_sensor_3",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_25",
+      "query": "请检索与 医学影像 和 诊断辅助 相关的技术记忆",
+      "latency_ms": 52.79,
+      "preview": [
+        {
+          "id": "memory:h6p6egtue2n2o9noiyl3",
+          "intent": "medical_diag",
+          "score": 0.8558271238091798,
+          "content": "医学影像辅助诊断用于提高早期筛查效率。 关键线索:临床 评估批次:eval_c7ed2a7e57 样本:medical_diag_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:s14xm3w6efupw27e3koy",
+          "intent": "medical_diag",
+          "score": 0.8542005562063613,
+          "content": "医学影像辅助诊断用于提高早期筛查效率。 关键线索:临床 评估批次:eval_3b44839afc 样本:medical_diag_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:0998q4i7ajpzdu3o7v7f",
+          "intent": "medical_diag",
+          "score": 0.8525555293154498,
+          "content": "医学影像辅助诊断用于提高早期筛查效率。 关键线索:临床 评估批次:eval_f964a79b6c 样本:medical_diag_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_24",
+      "query": "财务报表",
+      "latency_ms": 58.76,
+      "preview": [
+        {
+          "id": "memory:sd8dgxh3c594ttdb5b10",
+          "intent": "finance_report",
+          "score": 0.7640977602368767,
+          "content": "成本控制和收入增长共同影响净利润变化趋势。 关键线索:财务报表 评估批次:eval_8198996094 样本:finance_report_3",
+          "is_eval": false
+        },
+        {
+          "id": "memory:oehcuohocjwkkheztuv5",
+          "intent": "finance_report",
+          "score": 0.7635891692124641,
+          "content": "成本控制和收入增长共同影响净利润变化趋势。 关键线索:财务报表 评估批次:eval_9e197309cc 样本:finance_report_3",
+          "is_eval": false
+        },
+        {
+          "id": "memory:f6tgrq5jic46hqle52jw",
+          "intent": "finance_report",
+          "score": 0.759784918649076,
+          "content": "成本控制和收入增长共同影响净利润变化趋势。 关键线索:财务报表 评估批次:eval_37e0760eea 样本:finance_report_3",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_48",
+      "query": "个性化学习",
+      "latency_ms": 82.83,
+      "preview": [
+        {
+          "id": "memory:ucgevas50dta8uq5465i",
+          "intent": "education_ai",
+          "score": 0.7520228717379823,
+          "content": "教育推荐系统根据学习行为生成个性化学习路径。 关键线索:学习路径 评估批次:eval_8198996094 样本:education_ai_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:svq2lvdm79lghtr0v8r9",
+          "intent": "education_ai",
+          "score": 0.7509345489821196,
+          "content": "教育推荐系统根据学习行为生成个性化学习路径。 关键线索:学习路径 评估批次:eval_37e0760eea 样本:education_ai_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:e5b1y3ogqc4cazmcx3kn",
+          "intent": "education_ai",
+          "score": 0.7507278680630405,
+          "content": "教育推荐系统根据学习行为生成个性化学习路径。 关键线索:学习路径 评估批次:eval_3b44839afc 样本:education_ai_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_2",
+      "query": "python_api 场景下的核心实践与经验",
+      "latency_ms": 89.91,
+      "preview": [
+        {
+          "id": "memory:py691qhtgig0okabfm0y",
+          "intent": "python_api",
+          "score": 0.7565713857566925,
+          "content": "Python 后端以 FastAPI 提供 REST API，依赖注入用于配置管理。 关键线索:FastAPI 评估批次:eval_8198996094 样本:python_api",
+          "is_eval": false
+        },
+        {
+          "id": "memory:ql1pjeuw1a1az8zrbozt",
+          "intent": "python_api",
+          "score": 0.7549551348913004,
+          "content": "Python 后端以 FastAPI 提供 REST API，依赖注入用于配置管理。 关键线索:FastAPI 评估批次:eval_c7ed2a7e57 样本:python_api",
+          "is_eval": false
+        },
+        {
+          "id": "memory:9k329fine8omlbz3xhda",
+          "intent": "python_api",
+          "score": 0.7537454109945332,
+          "content": "Python 后端以 FastAPI 提供 REST API，依赖注入用于配置管理。 关键线索:FastAPI 评估批次:eval_3b44839afc 样本:python_api",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_35",
+      "query": "Spring 微服务 具体怎么做",
+      "latency_ms": 73.74,
+      "preview": [
+        {
+          "id": "memory:njx2ij3aa4aabuisnmnj",
+          "intent": "java_backend",
+          "score": 0.8213254984633317,
+          "content": "Spring Boot 常用于构建企业级微服务后端。 关键线索:Spring 评估批次:eval_8198996094 样本:java_backend_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:49mbqodfzj9gxrrx2wpp",
+          "intent": "java_backend",
+          "score": 0.8198800208140781,
+          "content": "Spring Boot 常用于构建企业级微服务后端。 关键线索:Spring 评估批次:eval_c7ed2a7e57 样本:java_backend_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:3wtaxzfjjikyzntdpxzr",
+          "intent": "java_backend",
+          "score": 0.8198388880422084,
+          "content": "Spring Boot 常用于构建企业级微服务后端。 关键线索:Spring 评估批次:eval_37e0760eea 样本:java_backend_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_23",
+      "query": "财务报表 利润率 具体怎么做",
+      "latency_ms": 72.02,
+      "preview": [
+        {
+          "id": "memory:j6mel3uzvxp5l5kd3jmf",
+          "intent": "finance_report",
+          "score": 0.8264511194911967,
+          "content": "财务分析关注利润率、毛利率和现金流健康度。 关键线索:利润率 评估批次:eval_37e0760eea 样本:finance_report_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:z3b6bpkubttzmhf5v8zw",
+          "intent": "finance_report",
+          "score": 0.8245795109387825,
+          "content": "财务分析关注利润率、毛利率和现金流健康度。 关键线索:利润率 评估批次:eval_c7ed2a7e57 样本:finance_report_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:f9evi50wv752nuwfjyfl",
+          "intent": "finance_report",
+          "score": 0.8233374593211545,
+          "content": "财务分析关注利润率、毛利率和现金流健康度。 关键线索:利润率 评估批次:eval_9e197309cc 样本:finance_report_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_42",
+      "query": "iot_sensor 场景下的核心实践与经验",
+      "latency_ms": 67.71,
+      "preview": [
+        {
+          "id": "memory:0m9k249x4ipxfw0jjy6z",
+          "intent": "iot_sensor",
+          "score": 0.7775762701575846,
+          "content": "IoT 设备持续上报时序数据，需要高吞吐写入。 关键线索:边缘计算 评估批次:eval_8198996094 样本:iot_sensor_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:elhm6ouav116wf44wm2o",
+          "intent": "iot_sensor",
+          "score": 0.7773634808496649,
+          "content": "IoT 设备持续上报时序数据，需要高吞吐写入。 关键线索:边缘计算 评估批次:eval_3b44839afc 样本:iot_sensor_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:ero47j7wj55ny5w63o47",
+          "intent": "iot_sensor",
+          "score": 0.7758068954034819,
+          "content": "IoT 设备持续上报时序数据，需要高吞吐写入。 关键线索:边缘计算 评估批次:eval_4cb5645f11 样本:iot_sensor_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_18",
+      "query": "k8s_deploy 场景下的核心实践与经验",
+      "latency_ms": 90.31,
+      "preview": [
+        {
+          "id": "memory:bab3if86ja0qlxlaonb8",
+          "intent": "k8s_deploy",
+          "score": 0.8573763351533641,
+          "content": "Kubernetes Deployment 负责副本声明与滚动更新。 关键线索:Deployment 评估批次:eval_c7ed2a7e57 样本:k8s_deploy_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:gimipus718as669gnl0v",
+          "intent": "k8s_deploy",
+          "score": 0.8569087741438374,
+          "content": "Kubernetes Deployment 负责副本声明与滚动更新。 关键线索:Deployment 评估批次:eval_3b44839afc 样本:k8s_deploy_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:kbzyfjvcnct8v1thqioe",
+          "intent": "k8s_deploy",
+          "score": 0.8563919804175828,
+          "content": "Kubernetes Deployment 负责副本声明与滚动更新。 关键线索:Deployment 评估批次:eval_8198996094 样本:k8s_deploy_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_26",
+      "query": "medical_diag 场景下的核心实践与经验",
+      "latency_ms": 68.86,
+      "preview": [
+        {
+          "id": "memory:y1qm1hpx6wv4t56gz0qj",
+          "intent": "medical_diag",
+          "score": 0.7901129988705244,
+          "content": "临床决策支持系统应提供可解释依据以辅助医生。 关键线索:临床 评估批次:eval_8198996094 样本:medical_diag_2",
+          "is_eval": false
+        },
+        {
+          "id": "memory:60czatusccu4os68jc2v",
+          "intent": "medical_diag",
+          "score": 0.7887856715669176,
+          "content": "模型在医疗场景需关注误诊成本和召回率平衡。 关键线索:临床 评估批次:eval_c7ed2a7e57 样本:medical_diag_3",
+          "is_eval": false
+        },
+        {
+          "id": "memory:hp9pat7wptvf21gp4q45",
+          "intent": "medical_diag",
+          "score": 0.7885988454941131,
+          "content": "模型在医疗场景需关注误诊成本和召回率平衡。 关键线索:临床 评估批次:eval_9e197309cc 样本:medical_diag_3",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_17",
+      "query": "请检索与 Kubernetes 和 Deployment 相关的技术记忆",
+      "latency_ms": 74.63,
+      "preview": [
+        {
+          "id": "memory:bab3if86ja0qlxlaonb8",
+          "intent": "k8s_deploy",
+          "score": 0.8504677287957593,
+          "content": "Kubernetes Deployment 负责副本声明与滚动更新。 关键线索:Deployment 评估批次:eval_c7ed2a7e57 样本:k8s_deploy_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:gimipus718as669gnl0v",
+          "intent": "k8s_deploy",
+          "score": 0.8499164165738603,
+          "content": "Kubernetes Deployment 负责副本声明与滚动更新。 关键线索:Deployment 评估批次:eval_3b44839afc 样本:k8s_deploy_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:yhxne880wb3ferwxsrsw",
+          "intent": "k8s_deploy",
+          "score": 0.8488697504152807,
+          "content": "Kubernetes Deployment 负责副本声明与滚动更新。 关键线索:Deployment 评估批次:eval_9e197309cc 样本:k8s_deploy_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_44",
+      "query": "传感器",
+      "latency_ms": 52.08,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_8",
+      "query": "React",
+      "latency_ms": 63.68,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_36",
+      "query": "Spring",
+      "latency_ms": 43.77,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_47",
+      "query": "个性化学习 学习路径 具体怎么做",
+      "latency_ms": 74.73,
+      "preview": [
+        {
+          "id": "memory:svq2lvdm79lghtr0v8r9",
+          "intent": "education_ai",
+          "score": 0.837044050182023,
+          "content": "教育推荐系统根据学习行为生成个性化学习路径。 关键线索:学习路径 评估批次:eval_37e0760eea 样本:education_ai_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:d10gr6bv5psdaokyrmbw",
+          "intent": "education_ai",
+          "score": 0.8369282549164966,
+          "content": "教育推荐系统根据学习行为生成个性化学习路径。 关键线索:学习路径 评估批次:eval_c7ed2a7e57 样本:education_ai_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:ucgevas50dta8uq5465i",
+          "intent": "education_ai",
+          "score": 0.8366663729175509,
+          "content": "教育推荐系统根据学习行为生成个性化学习路径。 关键线索:学习路径 评估批次:eval_8198996094 样本:education_ai_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_14",
+      "query": "docker_ops 场景下的核心实践与经验",
+      "latency_ms": 78.2,
+      "preview": [
+        {
+          "id": "memory:dj3isnjhe9e09c1iojfj",
+          "intent": "docker_ops",
+          "score": 0.8249933862437829,
+          "content": "容器化部署通过镜像统一运行环境，减少机器差异。 关键线索:Docker 评估批次:eval_3b44839afc 样本:docker_ops_2",
+          "is_eval": false
+        },
+        {
+          "id": "memory:uwrt5e45y46coc991cya",
+          "intent": "docker_ops",
+          "score": 0.8242611055432906,
+          "content": "容器化部署通过镜像统一运行环境，减少机器差异。 关键线索:Docker 评估批次:eval_8198996094 样本:docker_ops_2",
+          "is_eval": false
+        },
+        {
+          "id": "memory:hk3xcjpfysvpf34yquz7",
+          "intent": "docker_ops",
+          "score": 0.8225219886613228,
+          "content": "容器化部署通过镜像统一运行环境，减少机器差异。 关键线索:Docker 评估批次:eval_37e0760eea 样本:docker_ops_2",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 2
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_28",
+      "query": "医学影像",
+      "latency_ms": 65.01,
+      "preview": [
+        {
+          "id": "memory:h6p6egtue2n2o9noiyl3",
+          "intent": "medical_diag",
+          "score": 0.7674276398248924,
+          "content": "医学影像辅助诊断用于提高早期筛查效率。 关键线索:临床 评估批次:eval_c7ed2a7e57 样本:medical_diag_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:5wsrwngju1mezxg7ws48",
+          "intent": "medical_diag",
+          "score": 0.7665590532589706,
+          "content": "医学影像辅助诊断用于提高早期筛查效率。 关键线索:临床 评估批次:eval_8198996094 样本:medical_diag_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:0998q4i7ajpzdu3o7v7f",
+          "intent": "medical_diag",
+          "score": 0.765217574688829,
+          "content": "医学影像辅助诊断用于提高早期筛查效率。 关键线索:临床 评估批次:eval_f964a79b6c 样本:medical_diag_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 9,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_27",
+      "query": "医学影像 临床 具体怎么做",
+      "latency_ms": 35.0,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_22",
+      "query": "finance_report 场景下的核心实践与经验",
+      "latency_ms": 36.99,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_39",
+      "query": "JWT 权限控制 具体怎么做",
+      "latency_ms": 20.75,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_33",
+      "query": "请检索与 Spring 和 事务 相关的技术记忆",
+      "latency_ms": 19.29,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_30",
+      "query": "nlp_rag 场景下的核心实践与经验",
+      "latency_ms": 17.02,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_41",
+      "query": "请检索与 传感器 和 时序数据 相关的技术记忆",
+      "latency_ms": 18.48,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_25",
+      "query": "请检索与 医学影像 和 诊断辅助 相关的技术记忆",
+      "latency_ms": 19.75,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_43",
+      "query": "传感器 边缘计算 具体怎么做",
+      "latency_ms": 17.69,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_20",
+      "query": "Kubernetes",
+      "latency_ms": 17.39,
+      "preview": [
+        {
+          "id": "memory:2hv2ehdm0vrjpob9v6gl",
+          "intent": "k8s_deploy",
+          "score": 0.5,
+          "content": "Kubernetes Deployment 负责副本声明与滚动更新。 关键线索:Deployment 评估批次:eval_5f60c9129d 样本:k8s_deploy_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:bab3if86ja0qlxlaonb8",
+          "intent": "k8s_deploy",
+          "score": 0.5,
+          "content": "Kubernetes Deployment 负责副本声明与滚动更新。 关键线索:Deployment 评估批次:eval_c7ed2a7e57 样本:k8s_deploy_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:gimipus718as669gnl0v",
+          "intent": "k8s_deploy",
+          "score": 0.5,
+          "content": "Kubernetes Deployment 负责副本声明与滚动更新。 关键线索:Deployment 评估批次:eval_3b44839afc 样本:k8s_deploy_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 9,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_9",
+      "query": "请检索与 SurrealDB 和 向量检索 相关的技术记忆",
+      "latency_ms": 17.75,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_38",
+      "query": "security_auth 场景下的核心实践与经验",
+      "latency_ms": 16.42,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_21",
+      "query": "请检索与 财务报表 和 现金流 相关的技术记忆",
+      "latency_ms": 19.48,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_7",
+      "query": "React hooks 具体怎么做",
+      "latency_ms": 14.74,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_12",
+      "query": "SurrealDB",
+      "latency_ms": 31.24,
+      "preview": [
+        {
+          "id": "memory:0l0dv25ghszjm1229a34",
+          "intent": "surreal_vector",
+          "score": 0.5,
+          "content": "记忆系统将文本 embedding 存入 SurrealDB 以支持语义搜索。 关键线索:cosine 评估批次:eval_9e197309cc 样本:surreal_vector",
+          "is_eval": false
+        },
+        {
+          "id": "memory:1j66gfzmpcc0z90upq1b",
+          "intent": "surreal_vector",
+          "score": 0.5,
+          "content": "SurrealDB 支持向量相似度检索，常见使用 cosine 相似度。 关键线索:SurrealDB 评估批次:eval_5f60c9129d 样本:surreal_vector",
+          "is_eval": false
+        },
+        {
+          "id": "memory:1rtxcp14mlawbgju1ql6",
+          "intent": "surreal_vector",
+          "score": 0.5,
+          "content": "记忆系统将文本 embedding 存入 SurrealDB 以支持语义搜索。 关键线索:cosine 评估批次:eval_5f60c9129d 样本:surreal_vector",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 2
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_2",
+      "query": "python_api 场景下的核心实践与经验",
+      "latency_ms": 26.22,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_35",
+      "query": "Spring 微服务 具体怎么做",
+      "latency_ms": 22.1,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_23",
+      "query": "财务报表 利润率 具体怎么做",
+      "latency_ms": 20.4,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_42",
+      "query": "iot_sensor 场景下的核心实践与经验",
+      "latency_ms": 24.16,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_3",
+      "query": "FastAPI 异步接口 具体怎么做",
+      "latency_ms": 28.65,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_31",
+      "query": "RAG 上下文 具体怎么做",
+      "latency_ms": 31.64,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_15",
+      "query": "Docker 容器编排 具体怎么做",
+      "latency_ms": 25.28,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_45",
+      "query": "请检索与 个性化学习 和 题目推荐 相关的技术记忆",
+      "latency_ms": 34.92,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_6",
+      "query": "react_ui 场景下的核心实践与经验",
+      "latency_ms": 29.27,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_18",
+      "query": "k8s_deploy 场景下的核心实践与经验",
+      "latency_ms": 24.35,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_13",
+      "query": "请检索与 Docker 和 Compose 相关的技术记忆",
+      "latency_ms": 23.72,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_29",
+      "query": "请检索与 RAG 和 检索增强 相关的技术记忆",
+      "latency_ms": 25.26,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_5",
+      "query": "请检索与 React 和 组件状态 相关的技术记忆",
+      "latency_ms": 29.2,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_26",
+      "query": "medical_diag 场景下的核心实践与经验",
+      "latency_ms": 22.38,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_17",
+      "query": "请检索与 Kubernetes 和 Deployment 相关的技术记忆",
+      "latency_ms": 22.1,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_44",
+      "query": "传感器",
+      "latency_ms": 42.89,
+      "preview": [
+        {
+          "id": "memory:18xfzj5azgp66wrt8kqq",
+          "intent": "iot_sensor",
+          "score": 0.5,
+          "content": "边缘计算可在本地完成预处理，降低云端压力。 关键线索:传感器 评估批次:eval_4cb5645f11 样本:iot_sensor_2",
+          "is_eval": false
+        },
+        {
+          "id": "memory:202bcjw8n3rec0hy4dxd",
+          "intent": "iot_sensor",
+          "score": 0.5,
+          "content": "传感器数据质量需关注漂移与缺失值修复。 关键线索:时序数据 评估批次:eval_5f60c9129d 样本:iot_sensor_3",
+          "is_eval": false
+        },
+        {
+          "id": "memory:2gkurcad0tp39c461o9s",
+          "intent": "iot_sensor",
+          "score": 0.5,
+          "content": "边缘计算可在本地完成预处理，降低云端压力。 关键线索:传感器 评估批次:eval_8198996094 样本:iot_sensor_2",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_4",
+      "query": "FastAPI",
+      "latency_ms": 19.0,
+      "preview": [
+        {
+          "id": "memory:4a1a2x414bhu1ubpocmh",
+          "intent": "python_api",
+          "score": 0.5,
+          "content": "使用 FastAPI + Pydantic 构建异步接口，统一请求参数校验。 关键线索:FastAPI 评估批次:eval_8198996094 样本:python_api_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:4a52tnyag1nmsrdhzmae",
+          "intent": "python_api",
+          "score": 0.5,
+          "content": "使用 FastAPI + Pydantic 构建异步接口，统一请求参数校验。 关键线索:FastAPI 评估批次:eval_4cb5645f11 样本:python_api_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:6orpfcbwdol6oppylhl0",
+          "intent": "python_api",
+          "score": 0.5,
+          "content": "使用 FastAPI + Pydantic 构建异步接口，统一请求参数校验。 关键线索:FastAPI 评估批次:eval_f964a79b6c 样本:python_api_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 2
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_11",
+      "query": "SurrealDB cosine 具体怎么做",
+      "latency_ms": 15.93,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_8",
+      "query": "React",
+      "latency_ms": 17.64,
+      "preview": [
+        {
+          "id": "memory:1h3f6jzigglgg0jpfqqb",
+          "intent": "react_ui",
+          "score": 0.5,
+          "content": "React 组件通过 hooks 管理状态，避免类组件复杂生命周期。 关键线索:hooks 评估批次:eval_4cb5645f11 样本:react_ui_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:3d4buexr129quf1uz9ks",
+          "intent": "react_ui",
+          "score": 0.5,
+          "content": "React 组件通过 hooks 管理状态，避免类组件复杂生命周期。 关键线索:hooks 评估批次:eval_8198996094 样本:react_ui_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:5vxfbqvbnssfzhk3lf68",
+          "intent": "react_ui",
+          "score": 0.5,
+          "content": "React 组件通过 hooks 管理状态，避免类组件复杂生命周期。 关键线索:hooks 评估批次:eval_37e0760eea 样本:react_ui_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 9,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_36",
+      "query": "Spring",
+      "latency_ms": 21.69,
+      "preview": [
+        {
+          "id": "memory:0s51y6igxduyki05qx5g",
+          "intent": "java_backend",
+          "score": 0.5,
+          "content": "Spring Boot 常用于构建企业级微服务后端。 关键线索:Spring 评估批次:eval_f964a79b6c 样本:java_backend_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:3wtaxzfjjikyzntdpxzr",
+          "intent": "java_backend",
+          "score": 0.5,
+          "content": "Spring Boot 常用于构建企业级微服务后端。 关键线索:Spring 评估批次:eval_37e0760eea 样本:java_backend_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:49mbqodfzj9gxrrx2wpp",
+          "intent": "java_backend",
+          "score": 0.5,
+          "content": "Spring Boot 常用于构建企业级微服务后端。 关键线索:Spring 评估批次:eval_c7ed2a7e57 样本:java_backend_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_1",
+      "query": "请检索与 FastAPI 和 Pydantic 相关的技术记忆",
+      "latency_ms": 17.72,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_47",
+      "query": "个性化学习 学习路径 具体怎么做",
+      "latency_ms": 18.26,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_40",
+      "query": "JWT",
+      "latency_ms": 30.2,
+      "preview": [
+        {
+          "id": "memory:44e9t4fvkxeb763hu43a",
+          "intent": "security_auth",
+          "score": 0.5,
+          "content": "JWT 常用于无状态鉴权，需设置合理过期时间。 关键线索:鉴权 评估批次:eval_4cb5645f11 样本:security_auth_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:97y5rmu14zgqk7ooqyr3",
+          "intent": "security_auth",
+          "score": 0.5,
+          "content": "JWT 常用于无状态鉴权，需设置合理过期时间。 关键线索:鉴权 评估批次:eval_f964a79b6c 样本:security_auth_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:bysptgl4d3lzfcvfxv0h",
+          "intent": "security_auth",
+          "score": 0.5,
+          "content": "JWT 常用于无状态鉴权，需设置合理过期时间。 关键线索:鉴权 评估批次:eval_8198996094 样本:security_auth_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 9,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_14",
+      "query": "docker_ops 场景下的核心实践与经验",
+      "latency_ms": 22.22,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_10",
+      "query": "surreal_vector 场景下的核心实践与经验",
+      "latency_ms": 18.19,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_19",
+      "query": "Kubernetes HPA 具体怎么做",
+      "latency_ms": 21.31,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_34",
+      "query": "java_backend 场景下的核心实践与经验",
+      "latency_ms": 23.1,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_37",
+      "query": "请检索与 JWT 和 鉴权 相关的技术记忆",
+      "latency_ms": 30.63,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_46",
+      "query": "education_ai 场景下的核心实践与经验",
+      "latency_ms": 24.8,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_27",
+      "query": "医学影像 临床 具体怎么做",
+      "latency_ms": 63.95,
+      "preview": [
+        {
+          "id": "memory:h6p6egtue2n2o9noiyl3",
+          "intent": "medical_diag",
+          "score": 0.8215319548585511,
+          "content": "医学影像辅助诊断用于提高早期筛查效率。 关键线索:临床 评估批次:eval_c7ed2a7e57 样本:medical_diag_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:5wsrwngju1mezxg7ws48",
+          "intent": "medical_diag",
+          "score": 0.8203655639676031,
+          "content": "医学影像辅助诊断用于提高早期筛查效率。 关键线索:临床 评估批次:eval_8198996094 样本:medical_diag_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:gvdwvb0y5jhtvhm9xct2",
+          "intent": "medical_diag",
+          "score": 0.8200888602221033,
+          "content": "医学影像辅助诊断用于提高早期筛查效率。 关键线索:临床 评估批次:eval_37e0760eea 样本:medical_diag_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_39",
+      "query": "JWT 权限控制 具体怎么做",
+      "latency_ms": 77.51,
+      "preview": [
+        {
+          "id": "memory:d4uyqvgyb6li1886qn4o",
+          "intent": "security_auth",
+          "score": 0.837709373082552,
+          "content": "权限控制应区分 read/write/admin 等细粒度能力。 关键线索:权限控制 评估批次:eval_8198996094 样本:security_auth_2",
+          "is_eval": false
+        },
+        {
+          "id": "memory:v5zfwncxpvqeun0g4qa7",
+          "intent": "security_auth",
+          "score": 0.8362221167029098,
+          "content": "权限控制应区分 read/write/admin 等细粒度能力。 关键线索:权限控制 评估批次:eval_3b44839afc 样本:security_auth_2",
+          "is_eval": false
+        },
+        {
+          "id": "memory:lqkdhns4iyu0v2tmlg0y",
+          "intent": "security_auth",
+          "score": 0.8352943654299897,
+          "content": "权限控制应区分 read/write/admin 等细粒度能力。 关键线索:权限控制 评估批次:eval_37e0760eea 样本:security_auth_2",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 2
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_33",
+      "query": "请检索与 Spring 和 事务 相关的技术记忆",
+      "latency_ms": 74.98,
+      "preview": [
+        {
+          "id": "memory:h1z1otjznecggclidu3d",
+          "intent": "java_backend",
+          "score": 0.8049749952554788,
+          "content": "事务边界管理可降低并发写入时的数据不一致风险。 关键线索:Spring 评估批次:eval_8198996094 样本:java_backend_2",
+          "is_eval": false
+        },
+        {
+          "id": "memory:bxkg00phed8vpfkif349",
+          "intent": "java_backend",
+          "score": 0.8013155501051715,
+          "content": "事务边界管理可降低并发写入时的数据不一致风险。 关键线索:Spring 评估批次:eval_c7ed2a7e57 样本:java_backend_2",
+          "is_eval": false
+        },
+        {
+          "id": "memory:q3q8fvj50d8saonf7klv",
+          "intent": "java_backend",
+          "score": 0.8012943587903354,
+          "content": "事务边界管理可降低并发写入时的数据不一致风险。 关键线索:Spring 评估批次:eval_3b44839afc 样本:java_backend_2",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_41",
+      "query": "请检索与 传感器 和 时序数据 相关的技术记忆",
+      "latency_ms": 83.23,
+      "preview": [
+        {
+          "id": "memory:lkfqu0jkio8n2npzsrv1",
+          "intent": "iot_sensor",
+          "score": 0.8117254333335591,
+          "content": "传感器数据质量需关注漂移与缺失值修复。 关键线索:时序数据 评估批次:eval_9e197309cc 样本:iot_sensor_3",
+          "is_eval": false
+        },
+        {
+          "id": "memory:k8a9dtehggh903upmdoo",
+          "intent": "iot_sensor",
+          "score": 0.8103770769859063,
+          "content": "传感器数据质量需关注漂移与缺失值修复。 关键线索:时序数据 评估批次:eval_37e0760eea 样本:iot_sensor_3",
+          "is_eval": false
+        },
+        {
+          "id": "memory:rarr3sjj89bl6cwg5rpw",
+          "intent": "iot_sensor",
+          "score": 0.810027655357466,
+          "content": "传感器数据质量需关注漂移与缺失值修复。 关键线索:时序数据 评估批次:eval_4cb5645f11 样本:iot_sensor_3",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_25",
+      "query": "请检索与 医学影像 和 诊断辅助 相关的技术记忆",
+      "latency_ms": 64.1,
+      "preview": [
+        {
+          "id": "memory:h6p6egtue2n2o9noiyl3",
+          "intent": "medical_diag",
+          "score": 0.8558271238091798,
+          "content": "医学影像辅助诊断用于提高早期筛查效率。 关键线索:临床 评估批次:eval_c7ed2a7e57 样本:medical_diag_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:s14xm3w6efupw27e3koy",
+          "intent": "medical_diag",
+          "score": 0.8542005562063613,
+          "content": "医学影像辅助诊断用于提高早期筛查效率。 关键线索:临床 评估批次:eval_3b44839afc 样本:medical_diag_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:0998q4i7ajpzdu3o7v7f",
+          "intent": "medical_diag",
+          "score": 0.8525555293154498,
+          "content": "医学影像辅助诊断用于提高早期筛查效率。 关键线索:临床 评估批次:eval_f964a79b6c 样本:medical_diag_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_24",
+      "query": "财务报表",
+      "latency_ms": 60.45,
+      "preview": [
+        {
+          "id": "memory:sd8dgxh3c594ttdb5b10",
+          "intent": "finance_report",
+          "score": 0.7640977602368767,
+          "content": "成本控制和收入增长共同影响净利润变化趋势。 关键线索:财务报表 评估批次:eval_8198996094 样本:finance_report_3",
+          "is_eval": false
+        },
+        {
+          "id": "memory:oehcuohocjwkkheztuv5",
+          "intent": "finance_report",
+          "score": 0.7635891692124641,
+          "content": "成本控制和收入增长共同影响净利润变化趋势。 关键线索:财务报表 评估批次:eval_9e197309cc 样本:finance_report_3",
+          "is_eval": false
+        },
+        {
+          "id": "memory:f6tgrq5jic46hqle52jw",
+          "intent": "finance_report",
+          "score": 0.759784918649076,
+          "content": "成本控制和收入增长共同影响净利润变化趋势。 关键线索:财务报表 评估批次:eval_37e0760eea 样本:finance_report_3",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_48",
+      "query": "个性化学习",
+      "latency_ms": 72.1,
+      "preview": [
+        {
+          "id": "memory:ucgevas50dta8uq5465i",
+          "intent": "education_ai",
+          "score": 0.7520228717379823,
+          "content": "教育推荐系统根据学习行为生成个性化学习路径。 关键线索:学习路径 评估批次:eval_8198996094 样本:education_ai_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:svq2lvdm79lghtr0v8r9",
+          "intent": "education_ai",
+          "score": 0.7509345489821196,
+          "content": "教育推荐系统根据学习行为生成个性化学习路径。 关键线索:学习路径 评估批次:eval_37e0760eea 样本:education_ai_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:e5b1y3ogqc4cazmcx3kn",
+          "intent": "education_ai",
+          "score": 0.7507278680630405,
+          "content": "教育推荐系统根据学习行为生成个性化学习路径。 关键线索:学习路径 评估批次:eval_3b44839afc 样本:education_ai_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_2",
+      "query": "python_api 场景下的核心实践与经验",
+      "latency_ms": 107.64,
+      "preview": [
+        {
+          "id": "memory:py691qhtgig0okabfm0y",
+          "intent": "python_api",
+          "score": 0.7565713857566925,
+          "content": "Python 后端以 FastAPI 提供 REST API，依赖注入用于配置管理。 关键线索:FastAPI 评估批次:eval_8198996094 样本:python_api",
+          "is_eval": false
+        },
+        {
+          "id": "memory:ql1pjeuw1a1az8zrbozt",
+          "intent": "python_api",
+          "score": 0.7549551348913004,
+          "content": "Python 后端以 FastAPI 提供 REST API，依赖注入用于配置管理。 关键线索:FastAPI 评估批次:eval_c7ed2a7e57 样本:python_api",
+          "is_eval": false
+        },
+        {
+          "id": "memory:9k329fine8omlbz3xhda",
+          "intent": "python_api",
+          "score": 0.7537454109945332,
+          "content": "Python 后端以 FastAPI 提供 REST API，依赖注入用于配置管理。 关键线索:FastAPI 评估批次:eval_3b44839afc 样本:python_api",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_35",
+      "query": "Spring 微服务 具体怎么做",
+      "latency_ms": 95.02,
+      "preview": [
+        {
+          "id": "memory:njx2ij3aa4aabuisnmnj",
+          "intent": "java_backend",
+          "score": 0.8213254984633317,
+          "content": "Spring Boot 常用于构建企业级微服务后端。 关键线索:Spring 评估批次:eval_8198996094 样本:java_backend_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:49mbqodfzj9gxrrx2wpp",
+          "intent": "java_backend",
+          "score": 0.8198800208140781,
+          "content": "Spring Boot 常用于构建企业级微服务后端。 关键线索:Spring 评估批次:eval_c7ed2a7e57 样本:java_backend_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:3wtaxzfjjikyzntdpxzr",
+          "intent": "java_backend",
+          "score": 0.8198388880422084,
+          "content": "Spring Boot 常用于构建企业级微服务后端。 关键线索:Spring 评估批次:eval_37e0760eea 样本:java_backend_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_23",
+      "query": "财务报表 利润率 具体怎么做",
+      "latency_ms": 71.97,
+      "preview": [
+        {
+          "id": "memory:j6mel3uzvxp5l5kd3jmf",
+          "intent": "finance_report",
+          "score": 0.8264511194911967,
+          "content": "财务分析关注利润率、毛利率和现金流健康度。 关键线索:利润率 评估批次:eval_37e0760eea 样本:finance_report_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:z3b6bpkubttzmhf5v8zw",
+          "intent": "finance_report",
+          "score": 0.8245795109387825,
+          "content": "财务分析关注利润率、毛利率和现金流健康度。 关键线索:利润率 评估批次:eval_c7ed2a7e57 样本:finance_report_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:f9evi50wv752nuwfjyfl",
+          "intent": "finance_report",
+          "score": 0.8233374593211545,
+          "content": "财务分析关注利润率、毛利率和现金流健康度。 关键线索:利润率 评估批次:eval_9e197309cc 样本:finance_report_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_42",
+      "query": "iot_sensor 场景下的核心实践与经验",
+      "latency_ms": 92.83,
+      "preview": [
+        {
+          "id": "memory:0m9k249x4ipxfw0jjy6z",
+          "intent": "iot_sensor",
+          "score": 0.7775762701575846,
+          "content": "IoT 设备持续上报时序数据，需要高吞吐写入。 关键线索:边缘计算 评估批次:eval_8198996094 样本:iot_sensor_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:elhm6ouav116wf44wm2o",
+          "intent": "iot_sensor",
+          "score": 0.7773634808496649,
+          "content": "IoT 设备持续上报时序数据，需要高吞吐写入。 关键线索:边缘计算 评估批次:eval_3b44839afc 样本:iot_sensor_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:ero47j7wj55ny5w63o47",
+          "intent": "iot_sensor",
+          "score": 0.7758068954034819,
+          "content": "IoT 设备持续上报时序数据，需要高吞吐写入。 关键线索:边缘计算 评估批次:eval_4cb5645f11 样本:iot_sensor_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_18",
+      "query": "k8s_deploy 场景下的核心实践与经验",
+      "latency_ms": 73.92,
+      "preview": [
+        {
+          "id": "memory:bab3if86ja0qlxlaonb8",
+          "intent": "k8s_deploy",
+          "score": 0.8573763351533641,
+          "content": "Kubernetes Deployment 负责副本声明与滚动更新。 关键线索:Deployment 评估批次:eval_c7ed2a7e57 样本:k8s_deploy_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:gimipus718as669gnl0v",
+          "intent": "k8s_deploy",
+          "score": 0.8569087741438374,
+          "content": "Kubernetes Deployment 负责副本声明与滚动更新。 关键线索:Deployment 评估批次:eval_3b44839afc 样本:k8s_deploy_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:kbzyfjvcnct8v1thqioe",
+          "intent": "k8s_deploy",
+          "score": 0.8563919804175828,
+          "content": "Kubernetes Deployment 负责副本声明与滚动更新。 关键线索:Deployment 评估批次:eval_8198996094 样本:k8s_deploy_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_26",
+      "query": "medical_diag 场景下的核心实践与经验",
+      "latency_ms": 90.44,
+      "preview": [
+        {
+          "id": "memory:y1qm1hpx6wv4t56gz0qj",
+          "intent": "medical_diag",
+          "score": 0.7901129988705244,
+          "content": "临床决策支持系统应提供可解释依据以辅助医生。 关键线索:临床 评估批次:eval_8198996094 样本:medical_diag_2",
+          "is_eval": false
+        },
+        {
+          "id": "memory:60czatusccu4os68jc2v",
+          "intent": "medical_diag",
+          "score": 0.7887856715669176,
+          "content": "模型在医疗场景需关注误诊成本和召回率平衡。 关键线索:临床 评估批次:eval_c7ed2a7e57 样本:medical_diag_3",
+          "is_eval": false
+        },
+        {
+          "id": "memory:hp9pat7wptvf21gp4q45",
+          "intent": "medical_diag",
+          "score": 0.7885988454941131,
+          "content": "模型在医疗场景需关注误诊成本和召回率平衡。 关键线索:临床 评估批次:eval_9e197309cc 样本:medical_diag_3",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_17",
+      "query": "请检索与 Kubernetes 和 Deployment 相关的技术记忆",
+      "latency_ms": 84.75,
+      "preview": [
+        {
+          "id": "memory:bab3if86ja0qlxlaonb8",
+          "intent": "k8s_deploy",
+          "score": 0.8504677287957593,
+          "content": "Kubernetes Deployment 负责副本声明与滚动更新。 关键线索:Deployment 评估批次:eval_c7ed2a7e57 样本:k8s_deploy_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:gimipus718as669gnl0v",
+          "intent": "k8s_deploy",
+          "score": 0.8499164165738603,
+          "content": "Kubernetes Deployment 负责副本声明与滚动更新。 关键线索:Deployment 评估批次:eval_3b44839afc 样本:k8s_deploy_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:yhxne880wb3ferwxsrsw",
+          "intent": "k8s_deploy",
+          "score": 0.8488697504152807,
+          "content": "Kubernetes Deployment 负责副本声明与滚动更新。 关键线索:Deployment 评估批次:eval_9e197309cc 样本:k8s_deploy_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_44",
+      "query": "传感器",
+      "latency_ms": 79.94,
+      "preview": [
+        {
+          "id": "memory:18xfzj5azgp66wrt8kqq",
+          "intent": "iot_sensor",
+          "score": 0.5,
+          "content": "边缘计算可在本地完成预处理，降低云端压力。 关键线索:传感器 评估批次:eval_4cb5645f11 样本:iot_sensor_2",
+          "is_eval": false
+        },
+        {
+          "id": "memory:202bcjw8n3rec0hy4dxd",
+          "intent": "iot_sensor",
+          "score": 0.5,
+          "content": "传感器数据质量需关注漂移与缺失值修复。 关键线索:时序数据 评估批次:eval_5f60c9129d 样本:iot_sensor_3",
+          "is_eval": false
+        },
+        {
+          "id": "memory:2gkurcad0tp39c461o9s",
+          "intent": "iot_sensor",
+          "score": 0.5,
+          "content": "边缘计算可在本地完成预处理，降低云端压力。 关键线索:传感器 评估批次:eval_8198996094 样本:iot_sensor_2",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_8",
+      "query": "React",
+      "latency_ms": 72.11,
+      "preview": [
+        {
+          "id": "memory:1h3f6jzigglgg0jpfqqb",
+          "intent": "react_ui",
+          "score": 0.5,
+          "content": "React 组件通过 hooks 管理状态，避免类组件复杂生命周期。 关键线索:hooks 评估批次:eval_4cb5645f11 样本:react_ui_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:3d4buexr129quf1uz9ks",
+          "intent": "react_ui",
+          "score": 0.5,
+          "content": "React 组件通过 hooks 管理状态，避免类组件复杂生命周期。 关键线索:hooks 评估批次:eval_8198996094 样本:react_ui_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:5vxfbqvbnssfzhk3lf68",
+          "intent": "react_ui",
+          "score": 0.5,
+          "content": "React 组件通过 hooks 管理状态，避免类组件复杂生命周期。 关键线索:hooks 评估批次:eval_37e0760eea 样本:react_ui_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 9,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_36",
+      "query": "Spring",
+      "latency_ms": 62.73,
+      "preview": [
+        {
+          "id": "memory:0s51y6igxduyki05qx5g",
+          "intent": "java_backend",
+          "score": 0.5,
+          "content": "Spring Boot 常用于构建企业级微服务后端。 关键线索:Spring 评估批次:eval_f964a79b6c 样本:java_backend_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:3wtaxzfjjikyzntdpxzr",
+          "intent": "java_backend",
+          "score": 0.5,
+          "content": "Spring Boot 常用于构建企业级微服务后端。 关键线索:Spring 评估批次:eval_37e0760eea 样本:java_backend_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:49mbqodfzj9gxrrx2wpp",
+          "intent": "java_backend",
+          "score": 0.5,
+          "content": "Spring Boot 常用于构建企业级微服务后端。 关键线索:Spring 评估批次:eval_c7ed2a7e57 样本:java_backend_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_47",
+      "query": "个性化学习 学习路径 具体怎么做",
+      "latency_ms": 119.02,
+      "preview": [
+        {
+          "id": "memory:svq2lvdm79lghtr0v8r9",
+          "intent": "education_ai",
+          "score": 0.837044050182023,
+          "content": "教育推荐系统根据学习行为生成个性化学习路径。 关键线索:学习路径 评估批次:eval_37e0760eea 样本:education_ai_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:d10gr6bv5psdaokyrmbw",
+          "intent": "education_ai",
+          "score": 0.8369282549164966,
+          "content": "教育推荐系统根据学习行为生成个性化学习路径。 关键线索:学习路径 评估批次:eval_c7ed2a7e57 样本:education_ai_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:ucgevas50dta8uq5465i",
+          "intent": "education_ai",
+          "score": 0.8366663729175509,
+          "content": "教育推荐系统根据学习行为生成个性化学习路径。 关键线索:学习路径 评估批次:eval_8198996094 样本:education_ai_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_14",
+      "query": "docker_ops 场景下的核心实践与经验",
+      "latency_ms": 89.29,
+      "preview": [
+        {
+          "id": "memory:dj3isnjhe9e09c1iojfj",
+          "intent": "docker_ops",
+          "score": 0.8249933862437829,
+          "content": "容器化部署通过镜像统一运行环境，减少机器差异。 关键线索:Docker 评估批次:eval_3b44839afc 样本:docker_ops_2",
+          "is_eval": false
+        },
+        {
+          "id": "memory:uwrt5e45y46coc991cya",
+          "intent": "docker_ops",
+          "score": 0.8242611055432906,
+          "content": "容器化部署通过镜像统一运行环境，减少机器差异。 关键线索:Docker 评估批次:eval_8198996094 样本:docker_ops_2",
+          "is_eval": false
+        },
+        {
+          "id": "memory:hk3xcjpfysvpf34yquz7",
+          "intent": "docker_ops",
+          "score": 0.8225219886613228,
+          "content": "容器化部署通过镜像统一运行环境，减少机器差异。 关键线索:Docker 评估批次:eval_37e0760eea 样本:docker_ops_2",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 2
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_28",
+      "query": "医学影像",
+      "latency_ms": 64.92,
+      "preview": [
+        {
+          "id": "memory:h6p6egtue2n2o9noiyl3",
+          "intent": "medical_diag",
+          "score": 0.7674276398248924,
+          "content": "医学影像辅助诊断用于提高早期筛查效率。 关键线索:临床 评估批次:eval_c7ed2a7e57 样本:medical_diag_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:5wsrwngju1mezxg7ws48",
+          "intent": "medical_diag",
+          "score": 0.7665590532589706,
+          "content": "医学影像辅助诊断用于提高早期筛查效率。 关键线索:临床 评估批次:eval_8198996094 样本:medical_diag_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:0998q4i7ajpzdu3o7v7f",
+          "intent": "medical_diag",
+          "score": 0.765217574688829,
+          "content": "医学影像辅助诊断用于提高早期筛查效率。 关键线索:临床 评估批次:eval_f964a79b6c 样本:medical_diag_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 9,
+      "eval_returned": 1
+    }
+  ]
+}

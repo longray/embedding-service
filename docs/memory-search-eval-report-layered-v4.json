@@ -1,0 +1,472 @@
+{
+  "eval_id": "eval_a11dd5e4f6",
+  "base_url": "http://localhost:17999",
+  "dataset_size": 36,
+  "query_size": 68,
+  "topk": 5,
+  "threshold": 0.7,
+  "mode_thresholds": {
+    "vector": 0.82,
+    "keyword": 0.0,
+    "hybrid": 0.82
+  },
+  "upload_result": {
+    "total": 36,
+    "success": 36,
+    "failed": 0,
+    "memory_ids": [
+      "memory:5k46zjs902jtg3nr9pzx",
+      "memory:zz98hqt1d0zucavdntzr",
+      "memory:1m5fj9qombunxa7oxzul",
+      "memory:xgjgttfgv1on1lkiuol3",
+      "memory:7n31ewx9s4rr65iwqpvc",
+      "memory:byxu66x4kbhplquaosaw",
+      "memory:shatbxprseceeqz4afkj",
+      "memory:kpnytixm1kdq969bkucj",
+      "memory:r4lx18gendf12fxrbucg",
+      "memory:282jzd9wpsrxi3ymshbq",
+      "memory:0pqdznlqsqklfp8cb3r1",
+      "memory:s4yyeagf9yooz2nvflam",
+      "memory:wz6iwxyawqhlpdn926nh",
+      "memory:9s4yp8qdxy9petnibvyn",
+      "memory:uirb4u94padc5sqjc6r1",
+      "memory:r6e9yw8d3vkcq39kebrv",
+      "memory:jrdk4rwaocmxyxufc25k",
+      "memory:d3nplubimpzmpocmy4ue",
+      "memory:lv9uinisvy3fmvfj11k1",
+      "memory:vwq1xsgoqej22cfxk7lh",
+      "memory:ah9yjvs6u19v9rv44uhc",
+      "memory:vie9ahxras4nqqpf8yhc",
+      "memory:unyamhemd5vgu46lwch7",
+      "memory:t68joe821oi7wmbyh9f7",
+      "memory:5gxjn7iu47m8ucjdw7k3",
+      "memory:lce0s8nxhwhmnk7r2nop",
+      "memory:pm1mtxxbh3p83jfpksai",
+      "memory:v7qvthuhgin4l12oo7gn",
+      "memory:dbzxyu0upq3mr9epa2n1",
+      "memory:qf3zar9zolcqckj4kdp2",
+      "memory:1mg9ebr54p5pwjpn79g5",
+      "memory:19tnmijmbpdrz464bo4q",
+      "memory:ek6ru43oglib1axpenv0",
+      "memory:32pf45u328vlq93klnv2",
+      "memory:gkvyvurdlwf9wsjcv5y2",
+      "memory:dpuryscw8qlqduj2fu1e"
+    ]
+  },
+  "upload_elapsed_ms": 2678.15,
+  "modes": {
+    "vector": {
+      "query_count": 18,
+      "should_find_count": 12,
+      "should_not_find_count": 6,
+      "hit_rate_should_find": 0.25,
+      "precision_at_5_should_find": 0.0667,
+      "recall_at_5_should_find": 0.1111,
+      "mrr_should_find": 0.25,
+      "false_positive_rate_eval_should_not_find": 0.0,
+      "false_positive_rate_total_should_not_find": 0.0,
+      "non_eval_contamination_at5": 0.0,
+      "avg_eval_returned": 0.222,
+      "avg_total_returned": 0.222,
+      "median_eval_returned": 0.0,
+      "median_total_returned": 0.0,
+      "difficulty_metrics": {
+        "medium": {
+          "count": 12.0,
+          "hit_rate": 0.25,
+          "mrr": 0.25
+        },
+        "hard_negative": {
+          "count": 6.0,
+          "fp_eval_rate": 0.0
+        }
+      }
+    },
+    "keyword": {
+      "query_count": 32,
+      "should_find_count": 24,
+      "should_not_find_count": 8,
+      "hit_rate_should_find": 0.9167,
+      "precision_at_5_should_find": 0.2833,
+      "recall_at_5_should_find": 0.4722,
+      "mrr_should_find": 0.9167,
+      "false_positive_rate_eval_should_not_find": 0.0,
+      "false_positive_rate_total_should_not_find": 0.0,
+      "non_eval_contamination_at5": 0.0,
+      "avg_eval_returned": 1.094,
+      "avg_total_returned": 1.094,
+      "median_eval_returned": 1.0,
+      "median_total_returned": 1.0,
+      "difficulty_metrics": {
+        "easy": {
+          "count": 24.0,
+          "hit_rate": 0.9167,
+          "mrr": 0.9167
+        },
+        "hard_negative": {
+          "count": 8.0,
+          "fp_eval_rate": 0.0
+        }
+      }
+    },
+    "hybrid": {
+      "query_count": 68,
+      "should_find_count": 48,
+      "should_not_find_count": 20,
+      "hit_rate_should_find": 0.5625,
+      "precision_at_5_should_find": 0.1667,
+      "recall_at_5_should_find": 0.2778,
+      "mrr_should_find": 0.5521,
+      "false_positive_rate_eval_should_not_find": 0.0,
+      "false_positive_rate_total_should_not_find": 0.0,
+      "non_eval_contamination_at5": 0.0,
+      "avg_eval_returned": 0.603,
+      "avg_total_returned": 0.603,
+      "median_eval_returned": 0.0,
+      "median_total_returned": 0.0,
+      "difficulty_metrics": {
+        "easy": {
+          "count": 24.0,
+          "hit_rate": 0.9167,
+          "mrr": 0.8958
+        },
+        "medium": {
+          "count": 12.0,
+          "hit_rate": 0.25,
+          "mrr": 0.25
+        },
+        "hard": {
+          "count": 12.0,
+          "hit_rate": 0.1667,
+          "mrr": 0.1667
+        },
+        "hard_negative": {
+          "count": 20.0,
+          "fp_eval_rate": 0.0
+        }
+      }
+    }
+  },
+  "failures": [
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_47",
+      "query": "学习路径推荐 知识点覆盖",
+      "latency_ms": 54.98,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_31",
+      "query": "先检索后生成 外部知识增强",
+      "latency_ms": 56.32,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_3",
+      "query": "Python API 框架 请求参数校验",
+      "latency_ms": 54.86,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_15",
+      "query": "容器编排 镜像部署",
+      "latency_ms": 55.02,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_43",
+      "query": "边缘预处理 时序上报",
+      "latency_ms": 58.58,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_23",
+      "query": "经营现金流 利润率分析",
+      "latency_ms": 69.73,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_35",
+      "query": "企业级后端 事务一致性",
+      "latency_ms": 71.79,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_11",
+      "query": "语义向量搜索 相似度检索",
+      "latency_ms": 55.22,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "vector",
+      "query_id": "q_find_19",
+      "query": "自动扩缩容 滚动更新",
+      "latency_ms": 71.05,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_30",
+      "query": "检索增强",
+      "latency_ms": 22.45,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_26",
+      "query": "诊断辅助",
+      "latency_ms": 21.01,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_47",
+      "query": "学习路径推荐 知识点覆盖",
+      "latency_ms": 81.28,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_31",
+      "query": "先检索后生成 外部知识增强",
+      "latency_ms": 78.95,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_3",
+      "query": "Python API 框架 请求参数校验",
+      "latency_ms": 90.15,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_16",
+      "query": "Docer compose 容器依赖顺序",
+      "latency_ms": 70.84,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_15",
+      "query": "容器编排 镜像部署",
+      "latency_ms": 78.26,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_48",
+      "query": "学习路经 题目推介",
+      "latency_ms": 99.76,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_24",
+      "query": "现金硫 净利润趋势",
+      "latency_ms": 76.49,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_43",
+      "query": "边缘预处理 时序上报",
+      "latency_ms": 78.99,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_23",
+      "query": "经营现金流 利润率分析",
+      "latency_ms": 96.76,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_30",
+      "query": "检索增强",
+      "latency_ms": 71.48,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_32",
+      "query": "RAG问答 上下闻压缩",
+      "latency_ms": 72.55,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_35",
+      "query": "企业级后端 事务一致性",
+      "latency_ms": 83.5,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_26",
+      "query": "诊断辅助",
+      "latency_ms": 83.98,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_40",
+      "query": "JWt 过期 权限颗粒度",
+      "latency_ms": 74.47,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_4",
+      "query": "FastAPi Pydantric",
+      "latency_ms": 93.6,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_11",
+      "query": "语义向量搜索 相似度检索",
+      "latency_ms": 77.7,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_8",
+      "query": "Recat hooks 组件state提升",
+      "latency_ms": 78.92,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_19",
+      "query": "自动扩缩容 滚动更新",
+      "latency_ms": 75.8,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_36",
+      "query": "Sprng 事务 微服务限硫",
+      "latency_ms": 112.56,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_28",
+      "query": "影像诊段 临床可解释",
+      "latency_ms": 85.17,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_20",
+      "query": "Kubernets 副本 HPA扩容",
+      "latency_ms": 109.12,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    }
+  ]
+}

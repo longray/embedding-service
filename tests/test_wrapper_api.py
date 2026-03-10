@@ -614,6 +614,47 @@ class TestMemoriesSearchParams:
         data = response.json()
         assert len(data["results"]) <= 10
 
+    @pytest.mark.asyncio
+    async def test_default_threshold(self, client):
+        response = await client.post(f"{WRAPER_MINIMAL_URL}/api/v1/memories/search", json={"query": "测试查询"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["mode"] == "hybrid"
+
+    @pytest.mark.asyncio
+    async def test_metadata_filters_parameter(self, client):
+        uid = str(uuid.uuid4())[:8]
+        memories = [
+            {
+                "content": f"metadata过滤命中文本[{uid}]",
+                "metadata": {"test_id": uid, "tenant": "tenant_a", "scope": "project_x"},
+            },
+            {
+                "content": f"metadata过滤非命中文本[{uid}]",
+                "metadata": {"test_id": uid, "tenant": "tenant_b", "scope": "project_y"},
+            },
+        ]
+        upload_resp = await client.post(f"{WRAPER_MINIMAL_URL}/api/v1/memories", json={"memories": memories})
+        assert upload_resp.status_code == 200
+        assert upload_resp.json().get("success", 0) == 2
+
+        await asyncio.sleep(0.8)
+
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/search",
+            json={
+                "query": uid,
+                "mode": "keyword",
+                "limit": 10,
+                "metadata_filters": {"test_id": uid, "tenant": "tenant_a"},
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["mode"] == "keyword"
+        assert data["total"] >= 1
+        assert all(r.get("metadata", {}).get("tenant") == "tenant_a" for r in data.get("results", []))
+
 
 # ============================================================================
 # 测试类：Memories搜索边界条件

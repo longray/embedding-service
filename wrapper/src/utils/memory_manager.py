@@ -5,9 +5,10 @@
 """
 
 import asyncio
-from typing import Any, Optional
+import inspect
+import re
+from typing import Any, Optional, cast
 
-from surrealdb import AsyncSurreal
 
 from .http_pool import get_http_pool
 from .exceptions import EmbeddingError, DatabaseError, ValidationError
@@ -18,7 +19,7 @@ class MemoryManager:
 
     def __init__(
         self,
-        db: AsyncSurreal,
+        db: Any,
         embedding_service_url: str,
         batch_size: int = 10,
     ) -> None:
@@ -51,6 +52,13 @@ class MemoryManager:
         except Exception as e:
             raise EmbeddingError(f"Failed to get embeddings: {str(e)}")
 
+    async def _db_call(self, method_name: str, *args, **kwargs):
+        method = getattr(self._db, method_name)
+        result = method(*args, **kwargs)
+        if inspect.isawaitable(result):
+            return await result
+        return result
+
     async def upload_memories(self, memories: list[dict[str, Any]]) -> dict[str, Any]:
         """批量上传记忆"""
         if not memories:
@@ -76,7 +84,7 @@ class MemoryManager:
                     "embedding": embedding,
                     "metadata": memory.get("metadata", {}),
                 }
-                result = await self._db.create("memory", memory_data)
+                result = await self._db_call("create", "memory", memory_data)
                 if result:
                     if isinstance(result, list) and len(result) > 0:
                         memory_ids.append(str(result[0].get("id", "")))
@@ -96,7 +104,12 @@ class MemoryManager:
         return result
 
     async def search_memories(
-        self, query: str, mode: str = "hybrid", limit: int = 10, threshold: float = 0.7
+        self,
+        query: str,
+        mode: str = "hybrid",
+        limit: int = 10,
+        threshold: float = 0.7,
+        metadata_filters: Optional[dict[str, Any]] = None,
     ) -> dict[str, Any]:
         """搜索记忆"""
         if mode not in ("vector", "keyword", "hybrid"):
@@ -105,52 +118,95 @@ class MemoryManager:
         try:
             if mode == "vector":
                 embeddings = await self._get_embeddings([query])
-                results = await self._search_by_vector(embeddings[0], limit, threshold)
+                results = await self._search_by_vector(embeddings[0], limit, threshold, metadata_filters)
             elif mode == "keyword":
-                results = await self._search_by_keyword(query, limit)
+                results = await self._search_by_keyword(query, limit, metadata_filters)
             else:
                 embeddings = await self._get_embeddings([query])
-                results = await self._hybrid_search(query, embeddings[0], limit, threshold)
+                results = await self._hybrid_search(query, embeddings[0], limit, threshold, metadata_filters)
+
+            results = self._apply_metadata_filters(results, metadata_filters)
+            results = results[:limit]
 
             return {"results": results, "total": len(results), "mode": mode, "query": query}
         except Exception as e:
             raise DatabaseError(f"Search failed: {str(e)}")
 
-    async def _search_by_vector(self, embedding, limit, threshold):
-        q = """
+    def _apply_metadata_filters(
+        self,
+        results: list[dict[str, Any]],
+        metadata_filters: Optional[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        if not metadata_filters:
+            return results
+
+        filtered: list[dict[str, Any]] = []
+        for record in results:
+            metadata = record.get("metadata", {})
+            if not isinstance(metadata, dict):
+                continue
+            if all(metadata.get(key) == value for key, value in metadata_filters.items()):
+                filtered.append(record)
+        return filtered
+
+    def _build_metadata_filter_clause(self, metadata_filters: Optional[dict[str, Any]]) -> tuple[str, dict[str, Any]]:
+        if not metadata_filters:
+            return "", {}
+
+        clauses: list[str] = []
+        params: dict[str, Any] = {}
+        for idx, (key, value) in enumerate(metadata_filters.items()):
+            if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", str(key)):
+                raise ValidationError(f"Invalid metadata filter key: {key}")
+            value_param = f"meta_value_{idx}"
+            clauses.append(f"metadata.{key} = ${value_param}")
+            params[value_param] = value
+
+        return " AND " + " AND ".join(clauses), params
+
+    async def _search_by_vector(self, embedding, limit, threshold, metadata_filters=None):
+        filter_clause, filter_params = self._build_metadata_filter_clause(metadata_filters)
+        q = f"""  # nosec B608 - SurrealQL 参数化查询，非 SQL 注入风险
             SELECT id, content, metadata,
                    vector::similarity::cosine(embedding, $embedding) AS score
             FROM memory
-            WHERE vector::similarity::cosine(embedding, $embedding) > $threshold
+            WHERE vector::similarity::cosine(embedding, $embedding) > $threshold{filter_clause}
             ORDER BY score DESC LIMIT $limit
         """
-        result = await self._db.query(q, {"embedding": embedding, "threshold": threshold, "limit": limit})
+        params = {"embedding": embedding, "threshold": threshold, "limit": limit}
+        params.update(filter_params)
+        result = await self._db_call("query", q, params)
         return self._format_results(result)
 
-    async def _search_by_keyword(self, query_text, limit):
-        q = """
+    async def _search_by_keyword(self, query_text, limit, metadata_filters=None):
+        filter_clause, filter_params = self._build_metadata_filter_clause(metadata_filters)
+        q = f"""  # nosec B608 - SurrealQL 参数化查询，filter_clause 已验证
             SELECT id, content, metadata
-            FROM memory WHERE content CONTAINS $query LIMIT $limit
+            FROM memory WHERE content CONTAINS $query{filter_clause} LIMIT $limit
         """
-        result = await self._db.query(q, {"query": query_text, "limit": limit})
+        params = {"query": query_text, "limit": limit}
+        params.update(filter_params)
+        result = await self._db_call("query", q, params)
         return self._format_results(result, default_score=0.5)
 
-    async def _hybrid_search(self, query_text, embedding, limit, threshold):
+    async def _hybrid_search(self, query_text, embedding, limit, threshold, metadata_filters=None):
         tasks = [
-            self._search_by_vector(embedding, limit * 2, threshold),
-            self._search_by_keyword(query_text, limit * 2),
+            self._search_by_vector(embedding, limit * 2, threshold, metadata_filters),
+            self._search_by_keyword(query_text, limit * 2, metadata_filters),
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        vector_results = [] if isinstance(results[0], Exception) else results[0]
-        keyword_results = [] if isinstance(results[1], Exception) else results[1]
+        vector_raw = results[0]
+        keyword_raw = results[1]
+        vector_results = [] if isinstance(vector_raw, Exception) else cast(list[dict[str, Any]], vector_raw)
+        keyword_results = [] if isinstance(keyword_raw, Exception) else cast(list[dict[str, Any]], keyword_raw)
 
         seen = set()
         merged = []
-        for item in vector_results:
+        for item in cast(list[dict[str, Any]], vector_results):
             if item.get("id") not in seen:
                 seen.add(item["id"])
                 merged.append(item)
-        for item in keyword_results:
+        for item in cast(list[dict[str, Any]], keyword_results):
             if item.get("id") not in seen:
                 seen.add(item["id"])
                 item["score"] = 0.5

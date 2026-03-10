@@ -1,0 +1,798 @@
+{
+  "eval_id": "eval_617bfa61c2",
+  "base_url": "http://localhost:17999",
+  "dataset_size": 36,
+  "query_size": 68,
+  "topk": 5,
+  "threshold": 0.7,
+  "mode_thresholds": {
+    "vector": 0.64,
+    "keyword": 0.0,
+    "hybrid": 0.58
+  },
+  "upload_result": {
+    "total": 36,
+    "success": 36,
+    "failed": 0,
+    "memory_ids": [
+      "memory:avb8g3kd9l7qz6qrnsea",
+      "memory:kvppivb5sob75zkyud2d",
+      "memory:ish1mr95izju0mszzjo2",
+      "memory:ljvle9kjlxqqr809gc9x",
+      "memory:g7gc6gmqbk3zszv08rse",
+      "memory:v3euxkdjf1xpj2lg0mwu",
+      "memory:7ifd1ep17zq0rl61semm",
+      "memory:vkrp48frfjamo1xppr8g",
+      "memory:1v3whpgm69tfufmxye82",
+      "memory:jjooroyhuzwrrs9vo28d",
+      "memory:s56g9q06bu8zfur83uzn",
+      "memory:mpu5sjjw4mge5n377fvl",
+      "memory:a5a9r8nq9h5reur1gone",
+      "memory:8fgh26wvlrg2v3oimbnz",
+      "memory:x4waqc6rurf0tw1lwy1i",
+      "memory:vd3gjtizwb0wi9r0mvlz",
+      "memory:f889s225aqbnqj3k4syk",
+      "memory:ro48z0gwatrx3rfdur19",
+      "memory:3wq89y3jl8cgpjq5p0fh",
+      "memory:gvxxb0mt8aunmfb3xlxh",
+      "memory:z5i13ajgiluomxeb83su",
+      "memory:9h1hwgf198884jdrihil",
+      "memory:d8s6v3030wvqggpzjtui",
+      "memory:i4fdf4udge5ly6v01v5r",
+      "memory:38n6st5f1nfxlrzywqbz",
+      "memory:nj2dqhultpdw61gqj93a",
+      "memory:6ptegklrwost0u200xuw",
+      "memory:gy0nuvavtdmkmpo2azf1",
+      "memory:rg5pslnw0de6lr63a56r",
+      "memory:2m5p92nr4sh80nqz8r4d",
+      "memory:6pmf0rcp2hj0ir85dozi",
+      "memory:m7jgs5ypf16oz3csmvxs",
+      "memory:rqjvqj9vs7vwfytn9tyr",
+      "memory:c1osvig0qk89qw264sbo",
+      "memory:nxfjgnj5bcisiqb3zepe",
+      "memory:loeddrhpg8p5ic0jxb82"
+    ]
+  },
+  "upload_elapsed_ms": 2483.84,
+  "modes": {
+    "vector": {
+      "query_count": 18,
+      "should_find_count": 12,
+      "should_not_find_count": 6,
+      "hit_rate_should_find": 1.0,
+      "precision_at_5_should_find": 0.5667,
+      "recall_at_5_should_find": 0.9444,
+      "mrr_should_find": 1.0,
+      "false_positive_rate_eval_should_not_find": 0.8333,
+      "false_positive_rate_total_should_not_find": 0.8333,
+      "non_eval_contamination_at5": 0.0,
+      "avg_eval_returned": 6.389,
+      "avg_total_returned": 6.389,
+      "median_eval_returned": 7.0,
+      "median_total_returned": 7.0,
+      "difficulty_metrics": {
+        "medium": {
+          "count": 12.0,
+          "hit_rate": 1.0,
+          "mrr": 1.0
+        },
+        "hard_negative": {
+          "count": 6.0,
+          "fp_eval_rate": 0.8333
+        }
+      }
+    },
+    "keyword": {
+      "query_count": 32,
+      "should_find_count": 24,
+      "should_not_find_count": 8,
+      "hit_rate_should_find": 0.9167,
+      "precision_at_5_should_find": 0.2833,
+      "recall_at_5_should_find": 0.4722,
+      "mrr_should_find": 0.9167,
+      "false_positive_rate_eval_should_not_find": 0.0,
+      "false_positive_rate_total_should_not_find": 0.0,
+      "non_eval_contamination_at5": 0.0,
+      "avg_eval_returned": 1.094,
+      "avg_total_returned": 1.094,
+      "median_eval_returned": 1.0,
+      "median_total_returned": 1.0,
+      "difficulty_metrics": {
+        "easy": {
+          "count": 24.0,
+          "hit_rate": 0.9167,
+          "mrr": 0.9167
+        },
+        "hard_negative": {
+          "count": 8.0,
+          "fp_eval_rate": 0.0
+        }
+      }
+    },
+    "hybrid": {
+      "query_count": 68,
+      "should_find_count": 48,
+      "should_not_find_count": 20,
+      "hit_rate_should_find": 1.0,
+      "precision_at_5_should_find": 0.55,
+      "recall_at_5_should_find": 0.9167,
+      "mrr_should_find": 0.9392,
+      "false_positive_rate_eval_should_not_find": 0.75,
+      "false_positive_rate_total_should_not_find": 0.75,
+      "non_eval_contamination_at5": 0.0,
+      "avg_eval_returned": 8.324,
+      "avg_total_returned": 8.324,
+      "median_eval_returned": 10.0,
+      "median_total_returned": 10.0,
+      "difficulty_metrics": {
+        "easy": {
+          "count": 24.0,
+          "hit_rate": 1.0,
+          "mrr": 0.8785
+        },
+        "medium": {
+          "count": 12.0,
+          "hit_rate": 1.0,
+          "mrr": 1.0
+        },
+        "hard": {
+          "count": 12.0,
+          "hit_rate": 1.0,
+          "mrr": 1.0
+        },
+        "hard_negative": {
+          "count": 20.0,
+          "fp_eval_rate": 0.75
+        }
+      }
+    }
+  },
+  "failures": [
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_12",
+      "query": "pqlzx mvnrt aokwe",
+      "latency_ms": 125.99,
+      "preview": [
+        {
+          "id": "memory:8fgh26wvlrg2v3oimbnz",
+          "intent": "k8s_deploy",
+          "score": 0.7205897695356963,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_617bfa61c2 样本:k8s_deploy_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:1v3whpgm69tfufmxye82",
+          "intent": "surreal_vector",
+          "score": 0.7132693695214346,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_617bfa61c2 样本:surreal_vector_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:7ifd1ep17zq0rl61semm",
+          "intent": "surreal_vector",
+          "score": 0.7089748441063601,
+          "content": "SurrealDB 支持向量相似度检索，常见使用 cosine 相似度。 关键线索:SurrealDB 评估批次:eval_617bfa61c2 样本:surreal_vector",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_9",
+      "query": "zzqxv kptra nmdwu",
+      "latency_ms": 135.99,
+      "preview": [
+        {
+          "id": "memory:8fgh26wvlrg2v3oimbnz",
+          "intent": "k8s_deploy",
+          "score": 0.6650457919903834,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_617bfa61c2 样本:k8s_deploy_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:1v3whpgm69tfufmxye82",
+          "intent": "surreal_vector",
+          "score": 0.6409858111467805,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_617bfa61c2 样本:surreal_vector_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 2,
+      "eval_returned": 2
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_10",
+      "query": "qvrol xpmte aznkk",
+      "latency_ms": 127.03,
+      "preview": [
+        {
+          "id": "memory:8fgh26wvlrg2v3oimbnz",
+          "intent": "k8s_deploy",
+          "score": 0.6823234116896552,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_617bfa61c2 样本:k8s_deploy_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:1v3whpgm69tfufmxye82",
+          "intent": "surreal_vector",
+          "score": 0.6461109227901393,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_617bfa61c2 样本:surreal_vector_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:ro48z0gwatrx3rfdur19",
+          "intent": "finance_report",
+          "score": 0.6427411477787967,
+          "content": "成本控制和收入增长共同影响净利润变化趋势。 关键线索:财务报表 评估批次:eval_617bfa61c2 样本:finance_report_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 3,
+      "eval_returned": 3
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_11",
+      "query": "nvkqe tlrpa wzmou",
+      "latency_ms": 135.2,
+      "preview": [
+        {
+          "id": "memory:8fgh26wvlrg2v3oimbnz",
+          "intent": "k8s_deploy",
+          "score": 0.6772812466283117,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_617bfa61c2 样本:k8s_deploy_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:1v3whpgm69tfufmxye82",
+          "intent": "surreal_vector",
+          "score": 0.66921114025652,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_617bfa61c2 样本:surreal_vector_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:i4fdf4udge5ly6v01v5r",
+          "intent": "nlp_rag",
+          "score": 0.6527715430042881,
+          "content": "向量检索和关键词检索融合可提升复杂问答效果。 关键线索:上下文 评估批次:eval_617bfa61c2 样本:nlp_rag_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 7,
+      "eval_returned": 7
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_14",
+      "query": "rqplm znxte avkro",
+      "latency_ms": 125.43,
+      "preview": [
+        {
+          "id": "memory:8fgh26wvlrg2v3oimbnz",
+          "intent": "k8s_deploy",
+          "score": 0.7123227226016565,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_617bfa61c2 样本:k8s_deploy_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:9h1hwgf198884jdrihil",
+          "intent": "nlp_rag",
+          "score": 0.680893893426366,
+          "content": "RAG 先检索再生成，用外部知识增强回答可靠性。 关键线索:RAG 评估批次:eval_617bfa61c2 样本:nlp_rag_1",
+          "is_eval": true
+        },
+        {
+          "id": "memory:x4waqc6rurf0tw1lwy1i",
+          "intent": "k8s_deploy",
+          "score": 0.6704670454012793,
+          "content": "服务暴露常配合 Service 与 Ingress 实现流量入口。 关键线索:HPA 评估批次:eval_617bfa61c2 样本:k8s_deploy_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_30",
+      "query": "检索增强",
+      "latency_ms": 22.0,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_26",
+      "query": "诊断辅助",
+      "latency_ms": 19.02,
+      "preview": [],
+      "total_returned": 0,
+      "eval_returned": 0
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_13",
+      "query": "xxzzq yywwv vvttm",
+      "latency_ms": 83.05,
+      "preview": [
+        {
+          "id": "memory:8fgh26wvlrg2v3oimbnz",
+          "intent": "k8s_deploy",
+          "score": 0.6249980937104255,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_617bfa61c2 样本:k8s_deploy_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:i4fdf4udge5ly6v01v5r",
+          "intent": "nlp_rag",
+          "score": 0.6141226598047037,
+          "content": "向量检索和关键词检索融合可提升复杂问答效果。 关键线索:上下文 评估批次:eval_617bfa61c2 样本:nlp_rag_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:loeddrhpg8p5ic0jxb82",
+          "intent": "education_ai",
+          "score": 0.609713431183621,
+          "content": "AI 助教可基于错题模式提供针对性讲解。 关键线索:题目推荐 评估批次:eval_617bfa61c2 样本:education_ai_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_12",
+      "query": "pqlzx mvnrt aokwe",
+      "latency_ms": 91.23,
+      "preview": [
+        {
+          "id": "memory:8fgh26wvlrg2v3oimbnz",
+          "intent": "k8s_deploy",
+          "score": 0.7205897695356963,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_617bfa61c2 样本:k8s_deploy_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:1v3whpgm69tfufmxye82",
+          "intent": "surreal_vector",
+          "score": 0.7132693695214346,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_617bfa61c2 样本:surreal_vector_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:7ifd1ep17zq0rl61semm",
+          "intent": "surreal_vector",
+          "score": 0.7089748441063601,
+          "content": "SurrealDB 支持向量相似度检索，常见使用 cosine 相似度。 关键线索:SurrealDB 评估批次:eval_617bfa61c2 样本:surreal_vector",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_9",
+      "query": "zzqxv kptra nmdwu",
+      "latency_ms": 87.77,
+      "preview": [
+        {
+          "id": "memory:8fgh26wvlrg2v3oimbnz",
+          "intent": "k8s_deploy",
+          "score": 0.6650457919903834,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_617bfa61c2 样本:k8s_deploy_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:1v3whpgm69tfufmxye82",
+          "intent": "surreal_vector",
+          "score": 0.6409858111467805,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_617bfa61c2 样本:surreal_vector_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:7ifd1ep17zq0rl61semm",
+          "intent": "surreal_vector",
+          "score": 0.6366534306655846,
+          "content": "SurrealDB 支持向量相似度检索，常见使用 cosine 相似度。 关键线索:SurrealDB 评估批次:eval_617bfa61c2 样本:surreal_vector",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_1",
+      "query": "脉冲星时钟漂移",
+      "latency_ms": 159.31,
+      "preview": [
+        {
+          "id": "memory:rqjvqj9vs7vwfytn9tyr",
+          "intent": "iot_sensor",
+          "score": 0.6522242480139134,
+          "content": "传感器数据质量需关注漂移与缺失值修复。 关键线索:时序数据 评估批次:eval_617bfa61c2 样本:iot_sensor_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:8fgh26wvlrg2v3oimbnz",
+          "intent": "k8s_deploy",
+          "score": 0.5860335859131431,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_617bfa61c2 样本:k8s_deploy_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:6pmf0rcp2hj0ir85dozi",
+          "intent": "iot_sensor",
+          "score": 0.5830128028527909,
+          "content": "IoT 设备持续上报时序数据，需要高吞吐写入。 关键线索:边缘计算 评估批次:eval_617bfa61c2 样本:iot_sensor_1",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 3,
+      "eval_returned": 3
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_5",
+      "query": "围棋官子手筋",
+      "latency_ms": 143.26,
+      "preview": [
+        {
+          "id": "memory:loeddrhpg8p5ic0jxb82",
+          "intent": "education_ai",
+          "score": 0.5968047749968678,
+          "content": "AI 助教可基于错题模式提供针对性讲解。 关键线索:题目推荐 评估批次:eval_617bfa61c2 样本:education_ai_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:nxfjgnj5bcisiqb3zepe",
+          "intent": "education_ai",
+          "score": 0.5940289338391883,
+          "content": "题目推荐需平衡难度、知识点覆盖和反馈及时性。 关键线索:题目推荐 评估批次:eval_617bfa61c2 样本:education_ai_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:rg5pslnw0de6lr63a56r",
+          "intent": "security_auth",
+          "score": 0.5877410339532535,
+          "content": "权限控制应区分 read/write/admin 等细粒度能力。 关键线索:权限控制 评估批次:eval_617bfa61c2 样本:security_auth_2",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 4,
+      "eval_returned": 4
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_20",
+      "query": "hexagram basalt cello",
+      "latency_ms": 161.73,
+      "preview": [
+        {
+          "id": "memory:vkrp48frfjamo1xppr8g",
+          "intent": "surreal_vector",
+          "score": 0.6624964101237902,
+          "content": "记忆系统将文本 embedding 存入 SurrealDB 以支持语义搜索。 关键线索:cosine 评估批次:eval_617bfa61c2 样本:surreal_vector",
+          "is_eval": true
+        },
+        {
+          "id": "memory:1v3whpgm69tfufmxye82",
+          "intent": "surreal_vector",
+          "score": 0.6366867556207809,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_617bfa61c2 样本:surreal_vector_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:7ifd1ep17zq0rl61semm",
+          "intent": "surreal_vector",
+          "score": 0.6333424613008978,
+          "content": "SurrealDB 支持向量相似度检索，常见使用 cosine 相似度。 关键线索:SurrealDB 评估批次:eval_617bfa61c2 样本:surreal_vector",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 8,
+      "eval_returned": 8
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_15",
+      "query": "zzqxv 吉他弦 航海象限",
+      "latency_ms": 137.57,
+      "preview": [
+        {
+          "id": "memory:mpu5sjjw4mge5n377fvl",
+          "intent": "docker_ops",
+          "score": 0.6147300674427462,
+          "content": "编排配置中应显式声明依赖顺序和健康检查。 关键线索:容器编排 评估批次:eval_617bfa61c2 样本:docker_ops_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:8fgh26wvlrg2v3oimbnz",
+          "intent": "k8s_deploy",
+          "score": 0.6022921590094845,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_617bfa61c2 样本:k8s_deploy_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:1v3whpgm69tfufmxye82",
+          "intent": "surreal_vector",
+          "score": 0.5970551831742363,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_617bfa61c2 样本:surreal_vector_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_18",
+      "query": "xvnmq tide violin",
+      "latency_ms": 151.09,
+      "preview": [
+        {
+          "id": "memory:8fgh26wvlrg2v3oimbnz",
+          "intent": "k8s_deploy",
+          "score": 0.6815896334857121,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_617bfa61c2 样本:k8s_deploy_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:1v3whpgm69tfufmxye82",
+          "intent": "surreal_vector",
+          "score": 0.6677664773375325,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_617bfa61c2 样本:surreal_vector_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:x4waqc6rurf0tw1lwy1i",
+          "intent": "k8s_deploy",
+          "score": 0.6649551292458971,
+          "content": "服务暴露常配合 Service 与 Ingress 实现流量入口。 关键线索:HPA 评估批次:eval_617bfa61c2 样本:k8s_deploy_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_17",
+      "query": "ancient lyre niello",
+      "latency_ms": 151.52,
+      "preview": [
+        {
+          "id": "memory:vkrp48frfjamo1xppr8g",
+          "intent": "surreal_vector",
+          "score": 0.5875047900577546,
+          "content": "记忆系统将文本 embedding 存入 SurrealDB 以支持语义搜索。 关键线索:cosine 评估批次:eval_617bfa61c2 样本:surreal_vector",
+          "is_eval": true
+        },
+        {
+          "id": "memory:1v3whpgm69tfufmxye82",
+          "intent": "surreal_vector",
+          "score": 0.5846473030313359,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_617bfa61c2 样本:surreal_vector_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 2,
+      "eval_returned": 2
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_10",
+      "query": "qvrol xpmte aznkk",
+      "latency_ms": 87.3,
+      "preview": [
+        {
+          "id": "memory:8fgh26wvlrg2v3oimbnz",
+          "intent": "k8s_deploy",
+          "score": 0.6823234116896552,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_617bfa61c2 样本:k8s_deploy_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:1v3whpgm69tfufmxye82",
+          "intent": "surreal_vector",
+          "score": 0.6461109227901393,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_617bfa61c2 样本:surreal_vector_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:ro48z0gwatrx3rfdur19",
+          "intent": "finance_report",
+          "score": 0.6427411477787967,
+          "content": "成本控制和收入增长共同影响净利润变化趋势。 关键线索:财务报表 评估批次:eval_617bfa61c2 样本:finance_report_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_16",
+      "query": "pulsar qwerty magma",
+      "latency_ms": 166.04,
+      "preview": [
+        {
+          "id": "memory:vkrp48frfjamo1xppr8g",
+          "intent": "surreal_vector",
+          "score": 0.6791905830917367,
+          "content": "记忆系统将文本 embedding 存入 SurrealDB 以支持语义搜索。 关键线索:cosine 评估批次:eval_617bfa61c2 样本:surreal_vector",
+          "is_eval": true
+        },
+        {
+          "id": "memory:8fgh26wvlrg2v3oimbnz",
+          "intent": "k8s_deploy",
+          "score": 0.6788264682072713,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_617bfa61c2 样本:k8s_deploy_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:7ifd1ep17zq0rl61semm",
+          "intent": "surreal_vector",
+          "score": 0.6758905152333382,
+          "content": "SurrealDB 支持向量相似度检索，常见使用 cosine 相似度。 关键线索:SurrealDB 评估批次:eval_617bfa61c2 样本:surreal_vector",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_11",
+      "query": "nvkqe tlrpa wzmou",
+      "latency_ms": 100.45,
+      "preview": [
+        {
+          "id": "memory:8fgh26wvlrg2v3oimbnz",
+          "intent": "k8s_deploy",
+          "score": 0.6772812466283117,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_617bfa61c2 样本:k8s_deploy_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:1v3whpgm69tfufmxye82",
+          "intent": "surreal_vector",
+          "score": 0.66921114025652,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_617bfa61c2 样本:surreal_vector_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:i4fdf4udge5ly6v01v5r",
+          "intent": "nlp_rag",
+          "score": 0.6527715430042881,
+          "content": "向量检索和关键词检索融合可提升复杂问答效果。 关键线索:上下文 评估批次:eval_617bfa61c2 样本:nlp_rag_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_19",
+      "query": "qplzz meteor lute",
+      "latency_ms": 178.53,
+      "preview": [
+        {
+          "id": "memory:8fgh26wvlrg2v3oimbnz",
+          "intent": "k8s_deploy",
+          "score": 0.6872276962717607,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_617bfa61c2 样本:k8s_deploy_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:vkrp48frfjamo1xppr8g",
+          "intent": "surreal_vector",
+          "score": 0.6826880860956589,
+          "content": "记忆系统将文本 embedding 存入 SurrealDB 以支持语义搜索。 关键线索:cosine 评估批次:eval_617bfa61c2 样本:surreal_vector",
+          "is_eval": true
+        },
+        {
+          "id": "memory:1v3whpgm69tfufmxye82",
+          "intent": "surreal_vector",
+          "score": 0.677600611880924,
+          "content": "向量检索通常配合阈值过滤，避免低相关噪声结果。 关键线索:SurrealDB 评估批次:eval_617bfa61c2 样本:surreal_vector_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_14",
+      "query": "rqplm znxte avkro",
+      "latency_ms": 81.67,
+      "preview": [
+        {
+          "id": "memory:8fgh26wvlrg2v3oimbnz",
+          "intent": "k8s_deploy",
+          "score": 0.7123227226016565,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_617bfa61c2 样本:k8s_deploy_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:9h1hwgf198884jdrihil",
+          "intent": "nlp_rag",
+          "score": 0.680893893426366,
+          "content": "RAG 先检索再生成，用外部知识增强回答可靠性。 关键线索:RAG 评估批次:eval_617bfa61c2 样本:nlp_rag_1",
+          "is_eval": true
+        },
+        {
+          "id": "memory:x4waqc6rurf0tw1lwy1i",
+          "intent": "k8s_deploy",
+          "score": 0.6704670454012793,
+          "content": "服务暴露常配合 Service 与 Ingress 实现流量入口。 关键线索:HPA 评估批次:eval_617bfa61c2 样本:k8s_deploy_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 10
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_7",
+      "query": "航海六分仪校准",
+      "latency_ms": 163.68,
+      "preview": [
+        {
+          "id": "memory:8fgh26wvlrg2v3oimbnz",
+          "intent": "k8s_deploy",
+          "score": 0.5950245034405625,
+          "content": "HPA 根据 CPU 或自定义指标自动扩缩容。 关键线索:HPA 评估批次:eval_617bfa61c2 样本:k8s_deploy_2",
+          "is_eval": true
+        },
+        {
+          "id": "memory:mpu5sjjw4mge5n377fvl",
+          "intent": "docker_ops",
+          "score": 0.591864299317692,
+          "content": "编排配置中应显式声明依赖顺序和健康检查。 关键线索:容器编排 评估批次:eval_617bfa61c2 样本:docker_ops_3",
+          "is_eval": true
+        },
+        {
+          "id": "memory:rqjvqj9vs7vwfytn9tyr",
+          "intent": "iot_sensor",
+          "score": 0.5886830042090939,
+          "content": "传感器数据质量需关注漂移与缺失值修复。 关键线索:时序数据 评估批次:eval_617bfa61c2 样本:iot_sensor_3",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 3,
+      "eval_returned": 3
+    }
+  ]
+}

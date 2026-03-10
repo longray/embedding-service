@@ -15,7 +15,7 @@
 - [五、核心API端点](#五核心api端点)
   - [5.1 Embedding服务](#51-embedding服务端口-18000)
   - [5.2 LLM服务](#52-llm服务端口-18001)
-  - [5.3 包装层服务](#53-包装层服务端口-3001)
+  - [5.3 最小化包装服务](#53-最小化包装服务端口-17999)
 - [六、数据模型定义](#六数据模型定义)
 - [七、插件API规范](#七插件api规范)
 - [八、OpenAPI/Swagger文档](#八openapiswagger文档)
@@ -36,10 +36,10 @@
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              包装层服务 (端口 3001)                        │
-│  ┌─────────┐  ┌─────────┐  ┌─────────┐                │
-│  │ 缓存    │  │ 熔断器  │  │ 连接池  │                │
-│  └─────────┘  └─────────┘  └─────────┘                │
+│          最小化包装服务 (端口 17999)                       │
+│  ┌─────────┐  ┌─────────┐                                │
+│  │ LRU缓存 │  │ 连接池  │                                │
+│  └─────────┘  └─────────┘                                │
 └─────────────────────────────────────────────────────────────┘
                             │
                 ┌───────────┼───────────┐
@@ -48,8 +48,10 @@
         │Embedding│ │   LLM    │ │SurrealDB │
         │ 18000   │ │  18001   │ │  8000    │
         │(Qwen3)  │ │(MiniCPM) │ │          │
-        └──────────┘ └──────────┘ └──────────┘
+        └────────���─┘ └──────────┘ └──────────┘
 ```
+
+> **注意**：当前包装服务仅代理 Embedding 服务和 SurrealDB，不代理 LLM 服务。
 
 ### 1.2 服务列表
 
@@ -57,16 +59,14 @@
 |------|------|------|------|
 | Embedding服务 | 18000 | 文本→向量转换 | Qwen3-Embedding-0.6B |
 | LLM服务 | 18001 | 对话补全生成 | MiniCPM4-0.5B |
-| 包装层服务 | 3001 | 统一入口+增强功能 | - |
+| 包装层服务 | 17999 | 统一入口+缓存+记忆管理 | - |
 
 ### 1.3 核心特性
 
-- ✅ **熔断器保护**：防止级联故障
 - ✅ **智能缓存**：线程安全LRU缓存（TTL过期）
-- ✅ **连接池管理**：HTTP连接复用
-- ✅ **结构化日志**：structlog支持
-- ✅ **Prometheus指标**：完整监控
-- ✅ **记忆管理**：SurrealDB向量存储
+- ✅ **连接池管理**：HTTP连接复用（httpx）
+- ✅ **记忆管理**：SurrealDB向量存储 + HNSW 索引
+- ✅ **Docker 部署**：docker-compose 一键启动
 
 ---
 
@@ -125,11 +125,11 @@ Current (当前版本) → Supported (支持版本) → Deprecated (弃用版本
 
 ### 3.1 当前状态
 
-**⚠️ 注意**：当前项目**未实现**认证授权机制
+**ℹ️ 当前状态**：最小化包装服务（端口 17999）**未实现**认证授权机制
 
-- 所有端点均无API Key验证
-- CORS配置允许所有来源（`allow_origins=["*"]`）
-- 认证机制为P2待实现功能
+- 所有端点均无 API Key 验证（包装服务仅供内网使用）
+- 认证机制待未来迭代实现
+- 旧版包装服务（端口 3001）曾实现 API Key 认证，已归档
 
 ### 3.2 推荐的认证方案
 
@@ -139,7 +139,7 @@ Current (当前版本) → Supported (支持版本) → Deprecated (弃用版本
 
 ```http
 POST /v1/embeddings HTTP/1.1
-Host: localhost:3001
+Host: localhost:17999
 Authorization: Bearer sk-xxxxxxxxxxxxxxxxxxxx
 Content-Type: application/json
 ```
@@ -182,7 +182,7 @@ async def create_embeddings(
 
 ```http
 POST /v1/embeddings HTTP/1.1
-Host: localhost:3001
+Host: localhost:17999
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Content-Type: application/json
 ```
@@ -283,7 +283,7 @@ async def create_embeddings(request: Request):
 
 ### 4.3 统一异常类设计
 
-**当前实现**（参考 `wrapper-service/src/utils/exceptions.py`）：
+**当前实现**（参考 `wrapper/src/utils/exceptions.py`）：
 
 ```python
 class WrapperServiceError(Exception):
@@ -664,7 +664,7 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
 
 ---
 
-### 5.3 包装层服务（端口 3001）
+### 5.3 最小化包装服务（端口 17999）
 
 #### 5.3.1 健康检查（含SurrealDB状态）
 
@@ -675,22 +675,35 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
 ```json
 {
   "status": "healthy",
+  "service": "minimal-wrapper",
+  "version": "2.0.0",
+  "port": 17999,
+  "embedding_service": {
+    "status": "healthy",
+    "service": "embedding",
+    "model": "Qwen3-Embedding-0.6B"
+  },
+  "surrealdb": {
+    "status": "healthy"
+  },
+  "search_thresholds": {
+    "vector": 0.75,
+    "hybrid": 0.75,
+    "keyword": 0.0
+  },
   "cache_stats": {
     "max_size": 1000,
     "current_size": 42,
     "hits": 156,
     "misses": 23,
     "hit_rate": 87.15
-  },
-  "circuit_breakers": {
-    "embedding": "closed",
-    "llm": "closed"
-  },
-  "surrealdb": "healthy"
+  }
 }
 ```
 
-#### 5.3.2 创建文本嵌入（带缓存+熔断）
+当前包装服务仅提供以下 4 个端点（不代理 LLM 服务）：
+
+#### 5.3.2 创建文本嵌入（带缓存）
 
 **端点**：`POST /v1/embeddings`
 
@@ -698,19 +711,7 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
 
 **增强特性**：
 - ✅ 智能缓存（LRU + TTL）
-- ✅ 熔断器保护
 - ✅ 连接池复用
-
-#### 5.3.3 聊天补全（带熔断）
-
-**端点**：`POST /v1/chat/completions`
-
-**请求/响应格式**：与LLM服务相同
-
-**增强特性**：
-- ✅ 熔断器保护
-- ✅ 连接池复用
-
 #### 5.3.4 批量上传记忆
 
 **端点**：`POST /api/v1/memories`
@@ -776,7 +777,11 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
   "query": "TypeScript preferences",
   "mode": "hybrid",
   "limit": 10,
-  "threshold": 0.7
+  "threshold": 0.7,
+  "metadata_filters": {
+    "project": "embedding_service",
+    "session_id": "sess_20260310"
+  }
 }
 ```
 
@@ -785,9 +790,24 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
 | 参数 | 类型 | 必需 | 说明 |
 |------|------|------|------|
 | query | string | ✅ | 搜索查询 |
-| mode | string | ❌ | 搜索模式：vector \| keyword \| hybrid |
+| mode | string | ❌ | 搜索模式：vector \| keyword \| hybrid（默认：hybrid） |
 | limit | int | ❌ | 结果数量限制（默认：10） |
-| threshold | float | ❌ | 相似度阈值（0.0-1.0） |
+| threshold | float | ❌ | 相似度阈值（0.0-1.0）。不传时按 mode 使用服务默认值：vector=0.75，hybrid=0.75，keyword=0.0 |
+| metadata_filters | object | ❌ | 元数据精确过滤（AND 关系），例如 `{ "project": "embedding_service" }` |
+
+> 推荐生产策略：默认使用 `mode=hybrid`（服务默认阈值 0.75），并在多租户/多会话场景下配合 `metadata_filters`（如 `project`、`session_id`）减少跨上下文干扰。
+
+可通过环境变量调整默认阈值：
+
+- `WRAPPER_SEARCH_VECTOR_THRESHOLD`
+- `WRAPPER_SEARCH_HYBRID_THRESHOLD`
+- `WRAPPER_SEARCH_KEYWORD_THRESHOLD`
+
+支持在项目根目录 `.env` 或 `wrapper/.env` 中配置以上变量。读取优先级：
+
+1. 进程环境变量（最高）
+2. `.env` 文件
+3. 代码默认值
 
 **响应示例**：
 
@@ -807,24 +827,8 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
 }
 ```
 
-#### 5.3.6 Prometheus指标
-
-**端点**：`GET /metrics`
-
-**返回**：Prometheus格式的指标数据
-
-```
-# HELP wrapper_requests_total Total number of requests
-# TYPE wrapper_requests_total counter
-wrapper_requests_total{method="POST",endpoint="/v1/embeddings",status="200"} 1234
-
-# HELP wrapper_request_duration_seconds Request duration in seconds
-# TYPE wrapper_request_duration_seconds histogram
-wrapper_request_duration_seconds_bucket{le="0.1"} 100
-wrapper_request_duration_seconds_bucket{le="0.5"} 500
-wrapper_request_duration_seconds_bucket{le="1.0"} 800
-```
-
+> **注意**：当前最小化包装服务未集成 Prometheus 指标。`/metrics` 端点不可用。
+> 如需监控，可通过健康检查端点 `/health` 获取缓存统计和服务状态。
 ---
 
 ## 六、数据模型定义
@@ -955,7 +959,7 @@ class MemoryUploadResponse(BaseModel):
 
 ```http
 POST /api/v1/plugins/{plugin_id}/invoke HTTP/1.1
-Host: localhost:3001
+Host: localhost:17999
 Content-Type: application/json
 
 {
@@ -977,7 +981,7 @@ Content-Type: application/json
 **实现方式**：WebSocket + JSON
 
 ```javascript
-const ws = new WebSocket('ws://localhost:3001/ws/plugins');
+const ws = new WebSocket('ws://localhost:17999/ws/plugins');
 
 ws.onopen = () => {
   ws.send(JSON.stringify({
@@ -1158,7 +1162,7 @@ info:
     name: MIT
 
 servers:
-  - url: http://localhost:3001
+  - url: http://localhost:17999
     description: 本地开发环境
   - url: https://api.example.com
     description: 生产环境
@@ -1604,7 +1608,7 @@ async def test_full_workflow():
     async with httpx.AsyncClient() as client:
         # 1. 上传记忆
         upload_response = await client.post(
-            "http://localhost:3001/api/v1/memories",
+            "http://localhost:17999/api/v1/memories",
             json={
                 "memories": [{"content": "Test memory"}]
             }
@@ -1613,7 +1617,7 @@ async def test_full_workflow():
 
         # 2. 搜索记忆
         search_response = await client.post(
-            "http://localhost:3001/api/v1/memories/search",
+            "http://localhost:17999/api/v1/memories/search",
             json={"query": "Test"}
         )
         assert search_response.status_code == 200
@@ -1637,18 +1641,15 @@ async def test_full_workflow():
 | `LLM_MAX_NEW_TOKENS` | 512-2048 | 最大生成长度 |
 | `LLM_CACHE_SIZE` | 100 | 缓存大小 |
 | **包装层服务** |||
-| `WRAPPER_PORT` | 3001 | 服务端口 |
+| `WRAPPER_PORT` | 17999 | 服务端口 |
+| `WRAPPER_HOST` | 0.0.0.0 | 监听地址 |
+| `WRAPPER_CACHE_ENABLED` | true | 是否启用缓存 |
 | `WRAPPER_EMBEDDING_SERVICE_URL` | http://localhost:18000 | Embedding服务地址 |
-| `WRAPPER_LLM_SERVICE_URL` | http://localhost:18001 | LLM服务地址 |
-| `WRAPPER_CACHE_MAX_SIZE` | 1000 | 缓存大小 |
-| `WRAPPER_CACHE_TTL` | 3600 | 缓存TTL（秒） |
-| `WRAPPER_CIRCUIT_BREAKER_THRESHOLD` | 5 | 熔断阈值 |
-| `WRAPPER_CIRCUIT_BREAKER_TIMEOUT` | 60 | 熔断恢复时间（秒） |
+| `WRAPPER_SEARCH_VECTOR_THRESHOLD` | 0.75 | 向量搜索阈值 |
+| `WRAPPER_SEARCH_HYBRID_THRESHOLD` | 0.75 | 混合搜索阈值 |
+| `WRAPPER_SEARCH_KEYWORD_THRESHOLD` | 0.0 | 关键词搜索阈值 |
 | **SurrealDB** |||
 | `WRAPPER_SURREALDB_URL` | ws://localhost:8000/rpc | 连接地址 |
-| `WRAPPER_SURREALDB_NAMESPACE` | memory_ns | 命名空间 |
-| `WRAPPER_SURREALDB_DATABASE` | memory_db | 数据库名 |
-| `WRAPPER_SURREALDB_POOL_SIZE` | 10 | 连接池大小 |
 
 ### 10.2 错误码参考
 
@@ -1657,9 +1658,7 @@ async def test_full_workflow():
 | `EMPTY_INPUT` | 输入不能为空 | 400 |
 | `TEXT_TOO_LONG` | 文本长度超限 | 400 |
 | `INVALID_MODEL` | 无效的模型名称 | 400 |
-| `RATE_LIMIT_EXCEEDED` | 超出速率限制 | 429 |
 | `SERVICE_UNAVAILABLE` | 服务不可用 | 503 |
-| `CIRCUIT_BREAKER_OPEN` | 熔断器打开 | 503 |
 | `INTERNAL_ERROR` | 内部服务器错误 | 500 |
 
 ### 10.3 性能基准

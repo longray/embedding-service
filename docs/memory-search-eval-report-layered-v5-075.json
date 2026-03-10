@@ -1,0 +1,151 @@
+{
+  "eval_id": "eval_d5ff375618",
+  "base_url": "http://localhost:17999",
+  "dataset_size": 36,
+  "query_size": 66,
+  "topk": 5,
+  "threshold": 0.7,
+  "mode_thresholds": {
+    "vector": 0.75,
+    "keyword": 0.0,
+    "hybrid": 0.75
+  },
+  "upload_result": {
+    "total": 36,
+    "success": 36,
+    "failed": 0,
+    "memory_ids": [
+      "memory:6e855yknorf1skkeafme",
+      "memory:5o7gn42kwegd8pr1lug6",
+      "memory:brye8vr4qh1ayq898rit",
+      "memory:f7wfvdhb2pgfsk836erc",
+      "memory:pergipk7wl32go2mygwq",
+      "memory:hb635mjszqhqe8q7f00s",
+      "memory:6ona5d8z6ii30dki5108",
+      "memory:augtixgoliu2gkebh4n2",
+      "memory:04zf9x0lgvojb1ivcpiu",
+      "memory:v7lpkunovn8vfevbrjgc",
+      "memory:vycggcfd3y7rifcbzvl5",
+      "memory:l5ekli7a6tv5jm076hw6",
+      "memory:yb671lgyuv7vkhjenczg",
+      "memory:yy2jm3jgz6qd6vg16t7o",
+      "memory:tb4aeibiqpnge8e1glqp",
+      "memory:u3pcl2ysuec9t2u7un0v",
+      "memory:7un57u17lzb20kqbj2tb",
+      "memory:gqqyoe23a45rwifqpx9b",
+      "memory:292o7o1lwecadmmmc27q",
+      "memory:2hc8zds77p8262xslz30",
+      "memory:yxgihiiqn70g93hwsvld",
+      "memory:3w0y2oxkj7aw4u92qtkd",
+      "memory:ktmmptl7axnce768w2p3",
+      "memory:7f5bppxpunsyilxjqujj",
+      "memory:aeloos0j19jdpfq5grv5",
+      "memory:c090omjhip5vlyxz7vk7",
+      "memory:zo47zvb8ptzpm2dao5bg",
+      "memory:n980jmnmon7sb58zrl71",
+      "memory:z0p641ilrm94lsow8vd3",
+      "memory:4plb8g5hq90rx86r3804",
+      "memory:1a71lzpzblj0ato3vrtx",
+      "memory:aoiafhg1ryrfbtshj2ag",
+      "memory:42928srlgkldrp2p41uv",
+      "memory:m4xm9cw49ve7innaq4x3",
+      "memory:605ffqklkw3zqbv2v8pc",
+      "memory:ingkzpbsvw59a8uncsnc"
+    ]
+  },
+  "upload_elapsed_ms": 2549.3,
+  "modes": {
+    "vector": {
+      "query_count": 18,
+      "should_find_count": 12,
+      "should_not_find_count": 6,
+      "hit_rate_should_find": 1.0,
+      "precision_at_5_should_find": 0.5833,
+      "recall_at_5_should_find": 0.9722,
+      "mrr_should_find": 1.0,
+      "false_positive_rate_eval_should_not_find": 0.0,
+      "false_positive_rate_total_should_not_find": 0.0,
+      "non_eval_contamination_at5": 0.0,
+      "avg_eval_returned": 4.389,
+      "avg_total_returned": 4.389,
+      "median_eval_returned": 5.0,
+      "median_total_returned": 5.0,
+      "difficulty_metrics": {
+        "medium": {
+          "count": 12.0,
+          "hit_rate": 1.0,
+          "mrr": 1.0
+        },
+        "hard_negative": {
+          "count": 6.0,
+          "fp_eval_rate": 0.0
+        }
+      }
+    },
+    "keyword": {
+      "query_count": 32,
+      "should_find_count": 24,
+      "should_not_find_count": 8,
+      "hit_rate_should_find": 1.0,
+      "precision_at_5_should_find": 0.2833,
+      "recall_at_5_should_find": 0.4722,
+      "mrr_should_find": 1.0,
+      "false_positive_rate_eval_should_not_find": 0.0,
+      "false_positive_rate_total_should_not_find": 0.0,
+      "non_eval_contamination_at5": 0.0,
+      "avg_eval_returned": 1.094,
+      "avg_total_returned": 1.094,
+      "median_eval_returned": 1.0,
+      "median_total_returned": 1.0,
+      "difficulty_metrics": {
+        "easy": {
+          "count": 24.0,
+          "hit_rate": 1.0,
+          "mrr": 1.0
+        },
+        "hard_negative": {
+          "count": 8.0,
+          "fp_eval_rate": 0.0
+        }
+      }
+    },
+    "hybrid": {
+      "query_count": 66,
+      "should_find_count": 48,
+      "should_not_find_count": 18,
+      "hit_rate_should_find": 1.0,
+      "precision_at_5_should_find": 0.4167,
+      "recall_at_5_should_find": 0.6944,
+      "mrr_should_find": 0.9896,
+      "false_positive_rate_eval_should_not_find": 0.0,
+      "false_positive_rate_total_should_not_find": 0.0,
+      "non_eval_contamination_at5": 0.0,
+      "avg_eval_returned": 2.227,
+      "avg_total_returned": 2.227,
+      "median_eval_returned": 1.5,
+      "median_total_returned": 1.5,
+      "difficulty_metrics": {
+        "easy": {
+          "count": 24.0,
+          "hit_rate": 1.0,
+          "mrr": 0.9792
+        },
+        "medium": {
+          "count": 12.0,
+          "hit_rate": 1.0,
+          "mrr": 1.0
+        },
+        "hard": {
+          "count": 12.0,
+          "hit_rate": 1.0,
+          "mrr": 1.0
+        },
+        "hard_negative": {
+          "count": 18.0,
+          "fp_eval_rate": 0.0
+        }
+      }
+    }
+  },
+  "failures": []
+}
