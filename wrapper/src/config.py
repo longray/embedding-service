@@ -1,7 +1,6 @@
 """配置管理模块"""
 
 import os
-from pathlib import Path
 from dataclasses import dataclass, field
 
 
@@ -38,9 +37,23 @@ class ServiceConfig:
 
 @dataclass
 class SearchConfig:
+    """搜索配置（新增 - SurrealDB 3.0 升级）"""
+
+    # 阈值
     keyword_threshold: float = 0.0
     vector_threshold: float = 0.75
     hybrid_threshold: float = 0.75
+
+    # RRF 参数
+    rrf_k: int = 60  # RRF 平滑常数（Cormack et al. 2009 推荐值）
+    rrf_vector_weight: float = 0.7  # 向量搜索权重
+    rrf_keyword_weight: float = 0.3  # 关键词搜索权重
+
+    # HNSW 查询参数
+    hnsw_ef_search: int = 50  # HNSW 查询候选集大小
+
+    # 多租户
+    default_tenant_id: str = "default"  # API 未传 tenant_id 时使用
 
 
 @dataclass
@@ -55,39 +68,30 @@ class AppConfig:
     search: SearchConfig = field(default_factory=SearchConfig)
 
 
-def _load_env_file() -> None:
-    project_root = Path(__file__).resolve().parents[2]
-    candidates = [project_root / ".env", project_root / "wrapper" / ".env"]
-
-    for env_path in candidates:
-        if not env_path.exists() or not env_path.is_file():
-            continue
-
-        content = env_path.read_text(encoding="utf-8")
-        for raw_line in content.splitlines():
-            line = raw_line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            key = key.strip()
-            value = value.strip().strip('"').strip("'")
-            if key:
-                os.environ.setdefault(key, value)
-
-
 def load_config():
-    _load_env_file()
     cfg = AppConfig()
     cfg.host = os.getenv("WRAPPER_HOST", cfg.host)
     cfg.port = int(os.getenv("WRAPPER_PORT", str(cfg.port)))
     cfg.cache.enabled = os.getenv("WRAPPER_CACHE_ENABLED", "true").lower() == "true"
     cfg.service.embedding_service_url = os.getenv("WRAPPER_EMBEDDING_SERVICE_URL", cfg.service.embedding_service_url)
     cfg.surrealdb.url = os.getenv("WRAPPER_SURREALDB_URL", cfg.surrealdb.url)
+
+    # 搜索配置
+    cfg.search.vector_threshold = float(os.getenv("WRAPPER_SEARCH_VECTOR_THRESHOLD", str(cfg.search.vector_threshold)))
+    cfg.search.hybrid_threshold = float(os.getenv("WRAPPER_SEARCH_HYBRID_THRESHOLD", str(cfg.search.hybrid_threshold)))
     cfg.search.keyword_threshold = float(
         os.getenv("WRAPPER_SEARCH_KEYWORD_THRESHOLD", str(cfg.search.keyword_threshold))
     )
-    cfg.search.vector_threshold = float(os.getenv("WRAPPER_SEARCH_VECTOR_THRESHOLD", str(cfg.search.vector_threshold)))
-    cfg.search.hybrid_threshold = float(os.getenv("WRAPPER_SEARCH_HYBRID_THRESHOLD", str(cfg.search.hybrid_threshold)))
+    cfg.search.rrf_k = int(os.getenv("WRAPPER_SEARCH_RRF_K", str(cfg.search.rrf_k)))
+    cfg.search.rrf_vector_weight = float(
+        os.getenv("WRAPPER_SEARCH_RRF_VECTOR_WEIGHT", str(cfg.search.rrf_vector_weight))
+    )
+    cfg.search.rrf_keyword_weight = float(
+        os.getenv("WRAPPER_SEARCH_RRF_KEYWORD_WEIGHT", str(cfg.search.rrf_keyword_weight))
+    )
+    cfg.search.hnsw_ef_search = int(os.getenv("WRAPPER_SEARCH_HNSW_EF_SEARCH", str(cfg.search.hnsw_ef_search)))
+    cfg.search.default_tenant_id = os.getenv("WRAPPER_DEFAULT_TENANT_ID", cfg.search.default_tenant_id)
+
     return cfg
 
 

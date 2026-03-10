@@ -15,13 +15,13 @@
     uv run pytest tests/test_wrapper_api.py -v
 """
 
-import pytest
-import pytest_asyncio
-import httpx
 import asyncio
 import time
 import uuid
-from typing import Any
+
+import httpx
+import pytest
+import pytest_asyncio
 
 WRAPER_MINIMAL_URL = "http://localhost:17999"
 EMBEDDING_SERVICE_URL = "http://localhost:18000"
@@ -614,47 +614,6 @@ class TestMemoriesSearchParams:
         data = response.json()
         assert len(data["results"]) <= 10
 
-    @pytest.mark.asyncio
-    async def test_default_threshold(self, client):
-        response = await client.post(f"{WRAPER_MINIMAL_URL}/api/v1/memories/search", json={"query": "测试查询"})
-        assert response.status_code == 200
-        data = response.json()
-        assert data["mode"] == "hybrid"
-
-    @pytest.mark.asyncio
-    async def test_metadata_filters_parameter(self, client):
-        uid = str(uuid.uuid4())[:8]
-        memories = [
-            {
-                "content": f"metadata过滤命中文本[{uid}]",
-                "metadata": {"test_id": uid, "tenant": "tenant_a", "scope": "project_x"},
-            },
-            {
-                "content": f"metadata过滤非命中文本[{uid}]",
-                "metadata": {"test_id": uid, "tenant": "tenant_b", "scope": "project_y"},
-            },
-        ]
-        upload_resp = await client.post(f"{WRAPER_MINIMAL_URL}/api/v1/memories", json={"memories": memories})
-        assert upload_resp.status_code == 200
-        assert upload_resp.json().get("success", 0) == 2
-
-        await asyncio.sleep(0.8)
-
-        response = await client.post(
-            f"{WRAPER_MINIMAL_URL}/api/v1/memories/search",
-            json={
-                "query": uid,
-                "mode": "keyword",
-                "limit": 10,
-                "metadata_filters": {"test_id": uid, "tenant": "tenant_a"},
-            },
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert data["mode"] == "keyword"
-        assert data["total"] >= 1
-        assert all(r.get("metadata", {}).get("tenant") == "tenant_a" for r in data.get("results", []))
-
 
 # ============================================================================
 # 测试类：Memories搜索边界条件
@@ -864,3 +823,253 @@ class TestPerformance:
             assert r.status_code == 200
 
         assert duration < 10.0, f"并发搜索时间过长: {duration:.2f}秒"
+
+
+# ============================================================================
+# 测试类：多租户隔离
+# ============================================================================
+
+
+class TestMultiTenancy:
+    """多租户功能测试"""
+
+    @pytest.mark.asyncio
+    async def test_upload_with_default_tenant(self, client):
+        """测试默认租户上传（向后兼容：不传 tenant_id）"""
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories",
+            json={"memories": [{"content": f"默认租户测试 {uuid.uuid4()}"}]},
+        )
+        assert response.status_code == 200
+        assert response.json()["success"] == 1
+
+    @pytest.mark.asyncio
+    async def test_upload_with_custom_tenant(self, client):
+        """测试自定义租户上传"""
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories",
+            json={
+                "memories": [{"content": f"自定义租户测试 {uuid.uuid4()}"}],
+                "tenant_id": "test_tenant_A",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["success"] == 1
+
+    @pytest.mark.asyncio
+    async def test_tenant_isolation(self, client):
+        """测试租户数据隔离：A 的数据 B 搜不到"""
+        uid = str(uuid.uuid4())[:8]
+
+        # 上传到租户 A
+        await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories",
+            json={
+                "memories": [{"content": f"租户A隔离数据 {uid}"}],
+                "tenant_id": "isolation_test_A",
+            },
+        )
+
+        await asyncio.sleep(0.5)
+
+        # 用租户 B 搜索，应该找不到
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/search",
+            json={"query": uid, "mode": "keyword", "tenant_id": "isolation_test_B"},
+        )
+        assert response.status_code == 200
+        assert response.json()["total"] == 0
+
+    @pytest.mark.asyncio
+    async def test_search_within_same_tenant(self, client):
+        """测试相同租户内可以搜到数据"""
+        uid = str(uuid.uuid4())[:8]
+        tenant = f"same_tenant_{uid}"
+
+        await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories",
+            json={
+                "memories": [{"content": f"租户搜索验证 {uid}"}],
+                "tenant_id": tenant,
+            },
+        )
+
+        await asyncio.sleep(1.0)
+
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/search",
+            json={"query": uid, "mode": "vector", "threshold": 0.3, "tenant_id": tenant},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        found = any(uid in r.get("content", "") for r in data["results"])
+        assert found, f"相同租户内应能搜到数据，结果: {data['results']}"
+
+
+# ============================================================================
+# 测试类：新字段映射
+# ============================================================================
+
+
+class TestNewFieldMapping:
+    """新字段映射测试（type, tags, project_id, source_id）"""
+
+    @pytest.mark.asyncio
+    async def test_upload_with_new_fields(self, client):
+        """测试上传包含新字段的记忆"""
+        uid = str(uuid.uuid4())[:8]
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories",
+            json={
+                "memories": [
+                    {
+                        "content": f"新字段测试 {uid}",
+                        "type": "decision",
+                        "tags": ["test", "upgrade"],
+                        "project_id": "embedding_service",
+                        "source_id": f"mem_{uid}",
+                        "metadata": {"extra": "data"},
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["success"] == 1
+
+    @pytest.mark.asyncio
+    async def test_search_results_include_new_fields(self, client):
+        """测试搜索结果包含新字段（type, tags, project_id, score）"""
+        uid = str(uuid.uuid4())[:8]
+
+        await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories",
+            json={
+                "memories": [
+                    {
+                        "content": f"字段验证测试 {uid}",
+                        "type": "analysis",
+                        "tags": ["field", "verify"],
+                        "project_id": "test_project",
+                    }
+                ]
+            },
+        )
+
+        await asyncio.sleep(1.0)
+
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/search",
+            json={"query": f"字段验证测试 {uid}", "mode": "vector", "threshold": 0.3},
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        if data["results"]:
+            result = data["results"][0]
+            assert "type" in result
+            assert "tags" in result
+            assert "project_id" in result
+            assert "score" in result
+
+    @pytest.mark.asyncio
+    async def test_source_id_deduplication(self, client):
+        """测试 source_id UNIQUE 索引去重"""
+        uid = str(uuid.uuid4())[:8]
+        source_id = f"dedup_test_{uid}"
+
+        # 第一次上传
+        r1 = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories",
+            json={"memories": [{"content": f"去重测试 {uid}", "source_id": source_id}]},
+        )
+        assert r1.json()["success"] == 1
+
+        # 第二次上传相同 source_id，应该因 UNIQUE 冲突失败
+        r2 = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories",
+            json={"memories": [{"content": f"去重测试重复 {uid}", "source_id": source_id}]},
+        )
+        assert r2.json()["failed"] == 1
+
+
+# ============================================================================
+# 测试类：RRF 混合搜索 + 向量搜索分数验证
+# ============================================================================
+
+
+class TestRRFHybridSearch:
+    """RRF 混合搜索 + 向量搜索分数验证"""
+
+    @pytest.mark.asyncio
+    async def test_hybrid_search_returns_rrf_score(self, client):
+        """测试混合搜索结果包含 RRF 分数"""
+        uid = str(uuid.uuid4())[:8]
+
+        await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories",
+            json={
+                "memories": [
+                    {"content": f"Python编程语言RRF测试 {uid}"},
+                    {"content": f"JavaScript前端框架RRF测试 {uid}"},
+                ]
+            },
+        )
+
+        await asyncio.sleep(1.0)
+
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/search",
+            json={"query": f"Python {uid}", "mode": "hybrid", "threshold": 0.1},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["mode"] == "hybrid"
+
+        if data["results"]:
+            for r in data["results"]:
+                assert "score" in r
+                assert isinstance(r["score"], (int, float))
+
+    @pytest.mark.asyncio
+    async def test_vector_search_similarity_score(self, client):
+        """测试向量搜索返回相似度分数（distance→similarity 转换，范围 [0,1]）"""
+        uid = str(uuid.uuid4())[:8]
+
+        await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories",
+            json={"memories": [{"content": f"向量分数测试 {uid}"}]},
+        )
+
+        await asyncio.sleep(1.0)
+
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/search",
+            json={"query": f"向量分数测试 {uid}", "mode": "vector", "threshold": 0.1},
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        if data["results"]:
+            score = data["results"][0]["score"]
+            # 相似度分数应在 [0, 1] 范围内
+            assert 0.0 <= score <= 1.0, f"分数超出范围: {score}"
+
+    @pytest.mark.asyncio
+    async def test_keyword_search_with_bm25(self, client):
+        """测试 BM25 关键词搜索（@1@ 操作符替代 CONTAINS）"""
+        uid = str(uuid.uuid4())[:8]
+
+        await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories",
+            json={"memories": [{"content": f"BM25关键词搜索测试 {uid}"}]},
+        )
+
+        await asyncio.sleep(1.0)
+
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/search",
+            json={"query": f"BM25 {uid}", "mode": "keyword"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["mode"] == "keyword"

@@ -3,31 +3,34 @@
 
 使用 SurrealDB 长期连接 + FastAPI lifespan 管理
 集成缓存和HTTP连接池，不使用熔断器。
+支持 Schema 自动初始化和多租户隔离。
 """
 
 import asyncio
-import inspect
-from datetime import datetime
+import logging
 from contextlib import asynccontextmanager
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any
 
+import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from surrealdb import Surreal
-import uvicorn
+from surrealdb import AsyncSurreal
 
 from .config import config
 from .utils.cache import ThreadSafeLRUCache, hash_text
-from .utils.http_pool import get_http_pool, close_http_pool
+from .utils.exceptions import ValidationError, WrapperServiceError
+from .utils.http_pool import close_http_pool, get_http_pool
 from .utils.memory_manager import MemoryManager
-from .utils.exceptions import WrapperServiceError, ValidationError
+
+logger = logging.getLogger(__name__)
 
 
 # ==================== 全局状态 ====================
 
-embedding_cache: Optional[ThreadSafeLRUCache] = None
-memory_manager: Optional[MemoryManager] = None
+embedding_cache: ThreadSafeLRUCache | None = None
+memory_manager: MemoryManager | None = None
 
 
 # ==================== 数据模型 ====================
@@ -40,14 +43,15 @@ class EmbeddingRequest(BaseModel):
 
 class MemoryUploadRequest(BaseModel):
     memories: list[dict] = Field(..., description="记忆列表")
+    tenant_id: str = Field(default="default", description="租户ID")
 
 
 class MemorySearchRequest(BaseModel):
     query: str = Field(..., description="搜索查询")
     mode: str = Field(default="hybrid", description="搜索模式")
     limit: int = Field(default=10, ge=1, le=100)
-    threshold: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    metadata_filters: Optional[dict[str, Any]] = Field(default=None, description="元数据精确过滤条件")
+    threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+    tenant_id: str = Field(default="default", description="租户ID")
 
 
 # ==================== SurrealDB 管理器 ====================
@@ -55,7 +59,7 @@ class MemorySearchRequest(BaseModel):
 
 class SurrealDBManager:
     _instance = None
-    _db: Optional[Any] = None
+    _db: Any = None  # AsyncSurreal SDK 返回联合类型，使用 Any 避免类型检查误报
     _lock = asyncio.Lock()
 
     @classmethod
@@ -68,29 +72,19 @@ class SurrealDBManager:
 
     async def connect(self):
         if self._db is None:
-            db: Any = Surreal(config.surrealdb.url)
-            if hasattr(db, "connect"):
-                connect_result = db.connect(config.surrealdb.url)
-                if inspect.isawaitable(connect_result):
-                    await connect_result
-            signin_result = db.signin(
+            self._db = AsyncSurreal(config.surrealdb.url)
+            await self._db.connect()
+            await self._db.signin(
                 {
                     "username": config.surrealdb.username,
                     "password": config.surrealdb.password,
                 }
             )
-            if inspect.isawaitable(signin_result):
-                await signin_result
-            use_result = db.use(config.surrealdb.namespace, config.surrealdb.database)
-            if inspect.isawaitable(use_result):
-                await use_result
-            self._db = db
+            await self._db.use(config.surrealdb.namespace, config.surrealdb.database)
 
     async def disconnect(self):
         if self._db:
-            close_result = self._db.close()
-            if inspect.isawaitable(close_result):
-                await close_result
+            await self._db.close()
             self._db = None
 
     @property
@@ -98,6 +92,106 @@ class SurrealDBManager:
         if self._db is None:
             raise RuntimeError("数据库未连接")
         return self._db
+
+    async def _db_query(self, sql: str, params: dict[str, Any] | None = None) -> Any:
+        """执行 SurrealQL 查询的辅助方法"""
+        if params:
+            return await self.db.query(sql, params)
+        return await self.db.query(sql)
+
+    # ==================== Schema 初始化 ====================
+
+    async def ensure_schema(self):
+        """确保数据库 Schema 已初始化（幂等操作 + migration lock + fail-fast）
+
+        调用时机：lifespan 启动阶段，connect() 之后、MemoryManager 初始化之前。
+        Schema 初始化失败将导致服务直接退出（SystemExit(1)），确保不会在残缺状态下接受请求。
+        """
+        lock_acquired = False
+        try:
+            lock_acquired = await self._acquire_migration_lock()
+            if not lock_acquired:
+                logger.info("[Schema] 其他实例正在执行 migration，跳过")
+                return
+
+            # 检查是否已初始化
+            result = await self._db_query("SELECT * FROM schema_version ORDER BY applied_at DESC LIMIT 1")
+            if result and isinstance(result, list) and len(result) > 0:
+                version = "unknown"
+                if isinstance(result[0], dict):
+                    version = result[0].get("version", "unknown")
+                elif isinstance(result[0], list) and len(result[0]) > 0:
+                    version = result[0][0].get("version", "unknown")
+                logger.info("[Schema] 当前版本: %s", version)
+                return
+
+            # 首次初始化
+            logger.info("[Schema] 首次初始化，执行 init_surrealdb.surql...")
+            init_script = Path(__file__).parent.parent / "scripts" / "init_surrealdb.surql"
+
+            # 兼容项目根目录的 scripts/ 和 wrapper/scripts/
+            if not init_script.exists():
+                init_script = Path(__file__).parent.parent.parent / "scripts" / "init_surrealdb.surql"
+
+            if not init_script.exists():
+                raise FileNotFoundError(f"初始化脚本不存在: {init_script}")
+
+            sql = init_script.read_text(encoding="utf-8")
+
+            # 拆分为单条语句逐条执行（query() 对多语句只返回最后结果）
+            statements = [s.strip() for s in sql.split(";") if s.strip()]
+            for stmt in statements:
+                # 跳过纯注释块
+                lines = [line for line in stmt.split("\n") if not line.strip().startswith("--")]
+                if not any(line.strip() for line in lines):
+                    continue
+                await self._db_query(stmt)
+
+            logger.info("[Schema] 初始化完成")
+
+        except SystemExit:
+            raise
+        except Exception as e:
+            # fail-fast：Schema 初始化失败必须终止服务
+            logger.critical("[Schema] 初始化失败，服务无法启动: %s", e)
+            raise SystemExit(1) from e
+        finally:
+            if lock_acquired:
+                await self._release_migration_lock()
+
+    async def _acquire_migration_lock(self) -> bool:
+        """获取 migration 锁（基于 SurrealDB 记录）
+
+        使用 UPSERT + WHERE + TTL 实现：
+        - UPSERT: 幂等，不抛 AlreadyExistsError
+        - WHERE: 只在未锁定或锁已过期时获取
+        - TTL (locked_until): 防止进程崩溃后永久死锁
+        """
+        try:
+            result = await self._db_query(
+                "UPSERT migration_lock:global SET "
+                "  locked = true, "
+                "  locked_by = $instance_id, "
+                "  locked_at = time::now(), "
+                "  locked_until = time::now() + 5m "
+                "WHERE locked = false OR locked_until < time::now()",
+                {"instance_id": str(id(self))},
+            )
+            # UPSERT + WHERE 返回空列表表示条件不满足（锁被持有且未过期）
+            return bool(result and len(result) > 0)
+        except ConnectionError:
+            logger.error("[Schema] 无法连接 SurrealDB，获取锁失败")
+            raise
+        except Exception as e:
+            logger.warning("[Schema] 获取锁异常: %s", e)
+            return False
+
+    async def _release_migration_lock(self):
+        """释放 migration 锁"""
+        try:
+            await self._db_query("UPDATE migration_lock:global SET locked = false")
+        except Exception:  # nosec B110 # noqa: S110 - 锁释放失败不影响正常流程（TTL 会自动过期）
+            pass
 
 
 # ==================== FastAPI 生命周期 ====================
@@ -114,7 +208,7 @@ async def lifespan(app: FastAPI):
             max_size=config.cache.max_size,
             ttl_seconds=config.cache.ttl_seconds,
         )
-        print(f"[Startup] 缓存已启用")
+        print("[Startup] 缓存已启用")
 
     await get_http_pool(
         max_connections=config.http.max_connections,
@@ -129,9 +223,14 @@ async def lifespan(app: FastAPI):
     await db_manager.connect()
     print("[Startup] SurrealDB已连接")
 
+    # Schema 自动初始化（在 MemoryManager 之前，失败则服务退出）
+    await db_manager.ensure_schema()
+    print("[Startup] Schema已验证")
+
     memory_manager = MemoryManager(
         db=db_manager.db,
         embedding_service_url=config.service.embedding_service_url,
+        search_config=config.search,
     )
     print("[Startup] MemoryManager已初始化")
 
@@ -143,17 +242,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Minimal Wrapper Service", version="2.0.0", lifespan=lifespan)
-
-
-@app.middleware("http")
-async def access_log_middleware(request: Request, call_next):
-    response = await call_next(request)
-    if request.url.path == "/favicon.ico":
-        return response
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    http_version = request.scope.get("http_version", "1.1")
-    print(f'[{timestamp}] "{request.method} {request.url.path} HTTP/{http_version}" {response.status_code}')
-    return response
 
 
 # ==================== 异常处理 ====================
@@ -205,11 +293,6 @@ async def health_check():
         "port": config.port,
         "embedding_service": embedding_health or {"status": "unhealthy"},
         "surrealdb": surrealdb_health,
-        "search_thresholds": {
-            "vector": config.search.vector_threshold,
-            "hybrid": config.search.hybrid_threshold,
-            "keyword": config.search.keyword_threshold,
-        },
     }
 
     if embedding_cache:
@@ -244,7 +327,7 @@ async def create_embedding(request: EmbeddingRequest):
         return data
 
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Embedding服务错误: {str(e)}")
+        raise HTTPException(status_code=502, detail=f"Embedding服务错误: {e!s}") from e
 
 
 @app.post("/api/v1/memories")
@@ -253,12 +336,15 @@ async def upload_memories(request: MemoryUploadRequest):
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
 
     try:
-        result = await memory_manager.upload_memories(request.memories)
+        result = await memory_manager.upload_memories(
+            request.memories,
+            tenant_id=request.tenant_id,
+        )
         return result
     except ValidationError as e:
-        raise HTTPException(status_code=400, detail=e.message)
+        raise HTTPException(status_code=400, detail=e.message) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"上传失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"上传失败: {e!s}") from e
 
 
 @app.post("/api/v1/memories/search")
@@ -267,28 +353,19 @@ async def search_memories(request: MemorySearchRequest):
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
 
     try:
-        if request.threshold is not None:
-            resolved_threshold = request.threshold
-        elif request.mode == "vector":
-            resolved_threshold = config.search.vector_threshold
-        elif request.mode == "hybrid":
-            resolved_threshold = config.search.hybrid_threshold
-        else:
-            resolved_threshold = config.search.keyword_threshold
-
         result = await memory_manager.search_memories(
             query=request.query,
             mode=request.mode,
             limit=request.limit,
-            threshold=resolved_threshold,
-            metadata_filters=request.metadata_filters,
+            threshold=request.threshold,
+            tenant_id=request.tenant_id,
         )
         return result
     except ValidationError as e:
-        raise HTTPException(status_code=400, detail=e.message)
+        raise HTTPException(status_code=400, detail=e.message) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"搜索失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"搜索失败: {e!s}") from e
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host=config.host, port=config.port, access_log=False)
+    uvicorn.run(app, host=config.host, port=config.port)

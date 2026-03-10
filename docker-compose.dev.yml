@@ -3,11 +3,11 @@ version: '3.8'
 services:
   # SurrealDB 开发数据库，使用本地路径数据卷以便热重载开发数据
   surrealdb:
-    image: surrealdb/surrealdb:latest
+    image: surrealdb/surrealdb:v3.0.1
     container_name: embedding-surrealdb-dev
     ports:
       - "8000:8000"
-    command: start --user root --pass root --bind 0.0.0.0:8000 memory
+    command: start --user root --pass root --bind 0.0.0.0:8000 rocksdb://data
     volumes:
       - surrealdb-data-dev:/data
     networks:

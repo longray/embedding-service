@@ -3,11 +3,11 @@ version: '3.8'
 services:
   # SurrealDB 向量数据库
   surrealdb:
-    image: surrealdb/surrealdb:latest
+    image: surrealdb/surrealdb:v3.0.1
     container_name: embedding-surrealdb
     ports:
       - "8000:8000"
-    command: start --user root --pass root --bind 0.0.0.0:8000 memory
+    command: start --user root --pass root --bind 0.0.0.0:8000 rocksdb://data
     volumes:
       - surrealdb-data:/data
     networks:
