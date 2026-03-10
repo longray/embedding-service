@@ -1,93 +1,126 @@
 @echo off
 chcp 65001 >nul
 
-title Qwen3-Embedding-0.6B API 服务
+title Qwen3-Embedding-0.6B API Service
 setlocal EnableDelayedExpansion
 
-:: ==================== 配置区域 ====================
+:: ==================== Configuration ====================
 set "PROJECT_DIR=D:\embedding_service"
 set "UV_PATH=C:\Users\Longray\.local\bin\uv.exe"
 set "PYTHON_PATH=%PROJECT_DIR%\.venv\Scripts\python.exe"
 set "SCRIPT_PATH=%PROJECT_DIR%\src\qwen3_embedding_service\start_embedding.py"
 set "PORT=18000"
+set "HEALTH_URL=http://localhost:%PORT%/health"
+set "HEALTH_TIMEOUT=3"
 set MAX_BATCH_SIZE=256
 
-:: ==================== 颜色定义 ====================
+:: Color definitions
 set "GREEN=[92m"
 set "YELLOW=[93m"
 set "RED=[91m"
 set "BLUE=[94m"
 set "RESET=[0m"
 
-:: ==================== 启动画面 ====================
+:: ==================== Startup Banner ====================
 echo %BLUE%
 echo ============================================
-echo    Qwen3-Embedding-0.6B API 服务启动脚本
+echo    Qwen3-Embedding-0.6B API Service Startup
 echo ============================================
 echo %RESET%
 echo.
 
-:: ==================== 环境检查 ====================
-echo %YELLOW%[检查] 项目环境...%RESET%
+:: ==================== Health Check ====================
+echo %YELLOW%[CHECK] Checking if service is already running...%RESET%
 
-:: 检查 UV 是否存在
-if not exist "%UV_PATH%" (
-    echo %RED%[错误] 未找到 uv.exe: %UV_PATH%%RESET%
-    echo 请确认 uv 已正确安装
-    pause
-    exit /b 1
+powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri '%HEALTH_URL%' -Method GET -TimeoutSec %HEALTH_TIMEOUT% -UseBasicParsing; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+
+if %errorlevel% equ 0 (
+    echo %GREEN%[OK] Service is already running and healthy!%RESET%
+    echo %CYAN%Health endpoint: %HEALTH_URL%%RESET%
+    echo.
+    echo %YELLOW%Service is already available. No need to restart.%RESET%
+    echo.
+    timeout /t 3 /nobreak >nul
+    exit /b 0
 )
 
-:: 检查 Python 虚拟环境
-if not exist "%PYTHON_PATH%" (
-    echo %RED%[错误] 未找到 Python 解释器: %PYTHON_PATH%%RESET%
-    echo 请确认虚拟环境已创建
-    pause
-    exit /b 1
-)
-
-:: 检查主脚本
-if not exist "%SCRIPT_PATH%" (
-    echo %RED%[错误] 未找到主脚本: %SCRIPT_PATH%%RESET%
-    pause
-    exit /b 1
-)
-
-echo %GREEN%[通过] 环境检查完成%RESET%
+echo %YELLOW%[INFO] Service not running, will start new instance...%RESET%
 echo.
 
-:: ==================== 端口检查 ====================
-echo %YELLOW%[检查] 端口 %PORT% 占用情况...%RESET%
+:: ==================== Environment Check ====================
+echo %YELLOW%[CHECK] Checking environment...%RESET%
+
+:: Check UV exists
+if not exist "%UV_PATH%" (
+    echo %RED%[ERROR] uv.exe not found: %UV_PATH%%RESET%
+    echo Please ensure uv is installed correctly
+    pause
+    exit /b 1
+)
+
+:: Check Python virtual environment
+if not exist "%PYTHON_PATH%" (
+    echo %RED%[ERROR] Python interpreter not found: %PYTHON_PATH%%RESET%
+    echo Please ensure virtual environment is created
+    pause
+    exit /b 1
+)
+
+:: Check main script
+if not exist "%SCRIPT_PATH%" (
+    echo %RED%[ERROR] Main script not found: %SCRIPT_PATH%%RESET%
+    pause
+    exit /b 1
+)
+
+echo %GREEN%[PASS] Environment check completed%RESET%
+echo.
+
+:: ==================== Port Check ====================
+echo %YELLOW%[CHECK] Checking port %PORT% availability...%RESET%
 
 netstat -ano | findstr ":%PORT%" >nul
 if %errorlevel% equ 0 (
-    echo %RED%[警告] 端口 %PORT% 已被占用%RESET%
-    echo 请关闭占用该端口的程序后重试
-    echo 或使用命令查看: netstat -ano ^| findstr ":%PORT%"
-    pause
-    exit /b 1
+    echo %RED%[WARNING] Port %PORT% is already in use%RESET%
+    echo Another process may be using this port.
+    echo Check with: netstat -ano ^| findstr ":%PORT%"
+    echo.
+    echo %YELLOW%Attempting health check on existing service...%RESET%
+    
+    powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri '%HEALTH_URL%' -Method GET -TimeoutSec %HEALTH_TIMEOUT% -UseBasicParsing; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+    
+    if %errorlevel% equ 0 (
+        echo %GREEN%[OK] Existing service is healthy! Using existing instance.%RESET%
+        timeout /t 2 /nobreak >nul
+        exit /b 0
+    ) else (
+        echo %RED%[ERROR] Port %PORT% is in use but service is not healthy%RESET%
+        echo Please stop the process using this port and try again.
+        pause
+        exit /b 1
+    )
 )
 
-echo %GREEN%[通过] 端口 %PORT% 可用%RESET%
+echo %GREEN%[PASS] Port %PORT% is available%RESET%
 echo.
 
-:: ==================== 启动服务 ====================
-echo %BLUE%[启动] 正在启动 Embedding 服务...%RESET%
+:: ==================== Start Service ====================
+echo %BLUE%[START] Starting Embedding Service...%RESET%
 echo %YELLOW%-------------------------------------------%RESET%
-echo 模型路径: %PROJECT_DIR%\src\qwen3_embedding_service\models
-echo 监听地址: http://0.0.0.0:%PORT%
-echo 健康检查: http://localhost:%PORT%/health
+echo Model Path: %PROJECT_DIR%\src\qwen3_embedding_service\models
+echo Listen Address: http://0.0.0.0:%PORT%
+echo Health Check: %HEALTH_URL%
 echo %YELLOW%-------------------------------------------%RESET%
 echo.
 
-:: 切换到项目目录
+:: Change to project directory
 cd /d "%PROJECT_DIR%"
 
-:: 启动服务（使用 uv run）
+:: Start service using uv run
 "%UV_PATH%" run "%PYTHON_PATH%" "%SCRIPT_PATH%"
 
-:: 如果服务异常退出
+:: If service exits abnormally
 echo.
-echo %RED%[停止] 服务已退出 (代码: %errorlevel%)%RESET%
-echo 按任意键关闭窗口...
+echo %RED%[STOP] Service exited (code: %errorlevel%)%RESET%
+echo Press any key to close window...
 pause >nul
