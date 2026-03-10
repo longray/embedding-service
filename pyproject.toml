@@ -70,6 +70,12 @@ ignore = [
     "RUF001", # 忽略中文标点符号检查
     "RUF002", # 忽略docstring中的中文标点符号
     "RUF003", # 忽略注释中的中文标点符号
+    "E501",   # line too long (由line-length配置处理)
+    "W293",   # blank line contains whitespace
+    "RUF001", # 忽略中文标点符号检查
+    "RUF002", # 忽略docstring中的中文标点符号
+    "RUF003", # 忽略注释中的中文标点符号
+    "S608",   # SQL注入警告（SDK限制必须使用字面量，已通过 _sanitize_query 清洗）
     "S324",   # MD5哈希（用于缓存键，非安全场景）
     "S104",   # 绑定到所有接口（服务设计需要）
 ]

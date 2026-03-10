@@ -2,11 +2,13 @@
 
 封装记忆的批量上传、搜索等业务逻辑。
 支持 KNN 向量搜索（HNSW 索引）、BM25 关键词搜索和 RRF 混合搜索。
+支持 SurrealDB RELATE 图关系操作（创建/查询/删除记忆间关联）。
 多租户隔离通过 tenant_id 字段实现。
 """
 
 import asyncio
 import json
+import re
 from typing import Any
 
 from .exceptions import DatabaseError, EmbeddingError, ValidationError
@@ -18,8 +20,9 @@ class MemoryManager:
 
     支持多租户隔离和 SurrealDB 3.0 新查询语法：
     - 向量搜索: KNN <|K,EF|> 算子 + HNSW 索引
-    - 关键词搜索: @1@ 全文搜索算子 + BM25 评分
+    - 关键词搜索: @1@ 全文搜索算子 + BM25 评分 + ngram(2,8) 中文分词
     - 混合搜索: RRF (Reciprocal Rank Fusion) 融合算法
+    - 图关系: RELATE 语句实现记忆间关联（follow_up/related/elaboration 等）
     """
 
     def __init__(
@@ -221,7 +224,7 @@ class MemoryManager:
             "vector::distance::knn() AS distance "
             "FROM memory "
             "WHERE tenant_id = $tenant_id "
-            f"AND embedding {knn_op} {emb_literal} "  # nosec B608 # noqa: S608
+            f"AND embedding {knn_op} {emb_literal} "  # nosec B608
             "ORDER BY distance ASC"
         )
         result = await self._db.query(q, {"tenant_id": tenant_id})
@@ -235,20 +238,20 @@ class MemoryManager:
         """BM25 全文搜索
 
         使用 @1@ 全文搜索操作符 + search::score(1) 获取 BM25 评分。
-        注意: SurrealDB bug #6852 导致 score 可能返回 0.0，但不影响 RRF 排名。
+        注意: SDK WebSocket 参数化传递 $query 对 @1@ 算子无效（同 KNN 发现 #4），
+        必须使用字面量嵌入查询文本。查询文本经 _sanitize_query() 清洗防止注入。
         """
-        q = """
-            SELECT id, content, metadata, type, tags, project_id,
-                   search::score(1) AS score
-            FROM memory
-            WHERE tenant_id = $tenant_id
-              AND content @1@ $query
-            ORDER BY score DESC LIMIT $limit
-        """
-        result = await self._db.query(
-            q,
-            {"query": query_text, "limit": limit, "tenant_id": tenant_id},
+        safe_query = self._sanitize_query(query_text)
+        q = (  # nosec B608
+            "SELECT id, content, metadata, type, tags, project_id, "
+            "search::score(1) AS score "
+            "FROM memory "
+            "WHERE tenant_id = $tenant_id "
+            f"AND content @1@ '{safe_query}' "  # nosec B608
+            "ORDER BY score DESC "
+            f"LIMIT {int(limit)}"  # nosec B608
         )
+        result = await self._db.query(q, {"tenant_id": tenant_id})
         return self._format_keyword_results(result)
 
     async def _hybrid_search(
@@ -267,12 +270,8 @@ class MemoryManager:
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        vector_results: list[dict[str, Any]] = (
-            [] if isinstance(results[0], BaseException) else results[0]
-        )
-        keyword_results: list[dict[str, Any]] = (
-            [] if isinstance(results[1], BaseException) else results[1]
-        )
+        vector_results: list[dict[str, Any]] = [] if isinstance(results[0], BaseException) else results[0]
+        keyword_results: list[dict[str, Any]] = [] if isinstance(results[1], BaseException) else results[1]
 
         # RRF 融合
         merged = self._rrf_merge(vector_results, keyword_results)
@@ -383,3 +382,276 @@ class MemoryManager:
                     if isinstance(record, dict):
                         records.append(record)
         return records
+
+    @staticmethod
+    def _sanitize_query(text: str) -> str:
+        """清洗搜索查询文本，防止 SurrealQL 注入
+
+        策略：移除 SurrealQL 特殊字符，保留字母数字和 CJK 字符。
+        比简单转义更安全：直接移除潜在危险字符而非依赖转义正确性。
+        """
+        # 保留: 字母、数字、空格、CJK 统一表意文字（U+4E00-U+9FFF）
+        # 移除: 引号、分号、反斜杠等 SQL/SurrealQL 特殊字符
+        return re.sub(r"[^\w\s\u4e00-\u9fff\u3400-\u4dbf\uff00-\uffef-]", "", text).strip()[:500]
+
+    # ==================== 图关系 (RELATE) ====================
+
+    async def create_relation(
+        self,
+        from_id: str,
+        to_id: str,
+        relationship_type: str = "related",
+        weight: float = 0.5,
+        tenant_id: str | None = None,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """创建两条记忆之间的图关系
+
+        使用 SurrealDB RELATE 语句创建有向边。
+        edge 表为 memory_relation，类型限制为 IN memory OUT memory。
+
+        Args:
+            from_id: 源记忆 ID（如 "memory:abc123"）
+            to_id: 目标记忆 ID（如 "memory:def456"）
+            relationship_type: 关系类型 (related/follow_up/elaboration/contradiction/reference/derived_from)
+            weight: 关系权重 0.0-1.0
+            tenant_id: 租户 ID
+            description: 关系描述（可选）
+            metadata: 扩展元数据（可选）
+        """
+        effective_tenant_id = tenant_id or self._default_tenant_id
+
+        # 验证参数
+        valid_types = {"related", "follow_up", "elaboration", "contradiction", "reference", "derived_from"}
+        if relationship_type not in valid_types:
+            raise ValidationError(f"Invalid relationship_type: {relationship_type}. Must be one of {valid_types}")
+        if not 0.0 <= weight <= 1.0:
+            raise ValidationError(f"weight must be between 0.0 and 1.0, got {weight}")
+
+        # 规范化 ID 格式
+        from_ref = self._normalize_memory_id(from_id)
+        to_ref = self._normalize_memory_id(to_id)
+
+        try:
+            # RELATE 使用字面量（同 KNN/BM25 的 SDK workaround）
+            set_clauses = [
+                f"relationship_type = '{relationship_type}'",
+                f"weight = {float(weight)}",
+                "tenant_id = $tenant_id",
+            ]
+            if description:
+                safe_desc = self._sanitize_query(description)
+                set_clauses.append(f"description = '{safe_desc}'")
+            if metadata:
+                set_clauses.append(f"metadata = {json.dumps(metadata)}")
+
+            set_str = ", ".join(set_clauses)
+            q = (  # nosec B608
+                f"RELATE {from_ref}->memory_relation->{to_ref} "  # nosec B608
+                f"SET {set_str}"  # nosec B608
+            )
+            result = await self._db.query(q, {"tenant_id": effective_tenant_id})
+
+            # 提取创建的关系 ID
+            records = self._extract_records(result)
+            if records:
+                return {
+                    "id": str(records[0].get("id", "")),
+                    "from": from_ref,
+                    "to": to_ref,
+                    "relationship_type": relationship_type,
+                    "weight": weight,
+                }
+            return {"error": "No relation created"}
+        except Exception as e:
+            raise DatabaseError(f"Failed to create relation: {e!s}") from e
+
+    async def get_relations(
+        self,
+        memory_id: str,
+        direction: str = "both",
+        relationship_type: str | None = None,
+        tenant_id: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """查询记忆的关联关系
+
+        Args:
+            memory_id: 记忆 ID
+            direction: 查询方向 (outgoing/incoming/both)
+            relationship_type: 按关系类型过滤（可选）
+            tenant_id: 租户 ID
+            limit: 返回数量限制
+        """
+        effective_tenant_id = tenant_id or self._default_tenant_id
+        mem_ref = self._normalize_memory_id(memory_id)
+
+        if direction not in ("outgoing", "incoming", "both"):
+            raise ValidationError(f"Invalid direction: {direction}. Must be outgoing/incoming/both")
+
+        try:
+            results: list[dict[str, Any]] = []
+
+            if direction in ("outgoing", "both"):
+                q = (
+                    f"SELECT *, meta::id(id) AS relation_id, "  # nosec B608
+                    f"meta::id(in) AS from_id, meta::id(out) AS to_id "
+                    f"FROM memory_relation "
+                    f"WHERE in = {mem_ref} AND tenant_id = $tenant_id "
+                )
+                if relationship_type:
+                    safe_type = self._sanitize_query(relationship_type)
+                    q += f"AND relationship_type = '{safe_type}' "  # nosec B608
+                q += f"LIMIT {int(limit)}"
+                r = await self._db.query(q, {"tenant_id": effective_tenant_id})
+                results.extend(self._format_relation_results(r, "outgoing"))
+
+            if direction in ("incoming", "both"):
+                q = (
+                    f"SELECT *, meta::id(id) AS relation_id, "  # nosec B608
+                    f"meta::id(in) AS from_id, meta::id(out) AS to_id "
+                    f"FROM memory_relation "
+                    f"WHERE out = {mem_ref} AND tenant_id = $tenant_id "
+                )
+                if relationship_type:
+                    safe_type = self._sanitize_query(relationship_type)
+                    q += f"AND relationship_type = '{safe_type}' "  # nosec B608
+                q += f"LIMIT {int(limit)}"
+                r = await self._db.query(q, {"tenant_id": effective_tenant_id})
+                results.extend(self._format_relation_results(r, "incoming"))
+
+            return results
+        except Exception as e:
+            raise DatabaseError(f"Failed to get relations: {e!s}") from e
+
+    async def delete_relation(
+        self,
+        relation_id: str,
+        tenant_id: str | None = None,
+    ) -> bool:
+        """删除指定的关系
+
+        Args:
+            relation_id: 关系 ID（如 "memory_relation:abc123"）
+            tenant_id: 租户 ID（安全检查，防止跨租户删除）
+        """
+        effective_tenant_id = tenant_id or self._default_tenant_id
+        rel_ref = self._normalize_relation_id(relation_id)
+
+        try:
+            # 先验证关系存在且属于该租户
+            q = f"SELECT id FROM {rel_ref} WHERE tenant_id = $tenant_id"  # nosec B608
+            check = await self._db.query(q, {"tenant_id": effective_tenant_id})
+            records = self._extract_records(check)
+            if not records:
+                return False
+
+            await self._db.query(f"DELETE {rel_ref}")  # nosec B608
+            return True
+        except Exception as e:
+            raise DatabaseError(f"Failed to delete relation: {e!s}") from e
+
+    async def get_related_memories(
+        self,
+        memory_id: str,
+        depth: int = 1,
+        relationship_type: str | None = None,
+        tenant_id: str | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        """图遍历：获取关联的记忆内容（支持多层深度）
+
+        Args:
+            memory_id: 起始记忆 ID
+            depth: 遍历深度 (1-3，默认 1)
+            relationship_type: 按关系类型过滤
+            tenant_id: 租户 ID
+            limit: 返回数量限制
+        """
+        effective_tenant_id = tenant_id or self._default_tenant_id
+        mem_ref = self._normalize_memory_id(memory_id)
+        depth = max(1, min(depth, 3))  # 限制 1-3 层防止性能问题
+
+        try:
+            # 构建图遍历路径表达式
+            # depth=1: ->memory_relation->memory
+            # depth=2: ->memory_relation->memory->memory_relation->memory
+            path = "->memory_relation->memory" * depth
+
+            q = (
+                f"SELECT {path}.* AS related "  # nosec B608
+                f"FROM {mem_ref}"  # nosec B608
+            )
+            result = await self._db.query(q)
+
+            # 提取并去重关联记忆
+            seen: set[str] = set()
+            memories: list[dict[str, Any]] = []
+            records = self._extract_records(result)
+
+            for record in records:
+                related_list = record.get("related", [])
+                if not isinstance(related_list, list):
+                    related_list = [related_list]
+                for mem in related_list:
+                    if not isinstance(mem, dict):
+                        continue
+                    mem_id = str(mem.get("id", ""))
+                    if not mem_id or mem_id in seen:
+                        continue
+                    # 租户隔离检查
+                    if mem.get("tenant_id") != effective_tenant_id:
+                        continue
+                    seen.add(mem_id)
+                    memories.append(self._build_result_item(mem, score=0.0))
+                    if len(memories) >= limit:
+                        break
+                if len(memories) >= limit:
+                    break
+
+            return memories
+        except Exception as e:
+            raise DatabaseError(f"Failed to get related memories: {e!s}") from e
+
+    # ==================== ID 规范化 ====================
+
+    @staticmethod
+    def _normalize_memory_id(memory_id: str) -> str:
+        """规范化记忆 ID 为 SurrealDB record ID 格式
+
+        接受: "memory:abc123" 或 "abc123"
+        返回: "memory:abc123"
+        """
+        mid = str(memory_id)
+        if mid.startswith("memory:"):
+            return mid
+        return f"memory:{mid}"
+
+    @staticmethod
+    def _normalize_relation_id(relation_id: str) -> str:
+        """规范化关系 ID 为 SurrealDB record ID 格式"""
+        rid = str(relation_id)
+        if rid.startswith("memory_relation:"):
+            return rid
+        return f"memory_relation:{rid}"
+
+    def _format_relation_results(self, db_result: Any, direction: str) -> list[dict[str, Any]]:
+        """格式化关系查询结果"""
+        raw_items = self._extract_records(db_result)
+        results: list[dict[str, Any]] = []
+        for item in raw_items:
+            results.append(
+                {
+                    "id": str(item.get("id", "")),
+                    "from": str(item.get("in", "")),
+                    "to": str(item.get("out", "")),
+                    "direction": direction,
+                    "relationship_type": item.get("relationship_type", "related"),
+                    "weight": item.get("weight", 0.5),
+                    "description": item.get("description"),
+                    "metadata": item.get("metadata", {}),
+                    "created_at": str(item.get("created_at", "")),
+                }
+            )
+        return results

@@ -3,7 +3,7 @@
 
 使用 SurrealDB 长期连接 + FastAPI lifespan 管理
 集成缓存和HTTP连接池，不使用熔断器。
-支持 Schema 自动初始化和多租户隔离。
+支持 Schema 自动初始化/升级、多租户隔离和图关系操作。
 """
 
 import asyncio
@@ -54,6 +54,29 @@ class MemorySearchRequest(BaseModel):
     tenant_id: str = Field(default="default", description="租户ID")
 
 
+class RelationCreateRequest(BaseModel):
+    from_id: str = Field(..., description="源记忆 ID")
+    to_id: str = Field(..., description="目标记忆 ID")
+    relationship_type: str = Field(default="related", description="关系类型")
+    weight: float = Field(default=0.5, ge=0.0, le=1.0, description="关系权重")
+    tenant_id: str = Field(default="default", description="租户ID")
+    description: str | None = Field(default=None, description="关系描述")
+
+
+class RelationQueryRequest(BaseModel):
+    direction: str = Field(default="both", description="查询方向 (outgoing/incoming/both)")
+    relationship_type: str | None = Field(default=None, description="按关系类型过滤")
+    tenant_id: str = Field(default="default", description="租户ID")
+    limit: int = Field(default=50, ge=1, le=200)
+
+
+class GraphTraversalRequest(BaseModel):
+    depth: int = Field(default=1, ge=1, le=3, description="遍历深度")
+    relationship_type: str | None = Field(default=None, description="按关系类型过滤")
+    tenant_id: str = Field(default="default", description="租户ID")
+    limit: int = Field(default=20, ge=1, le=100)
+
+
 # ==================== SurrealDB 管理器 ====================
 
 
@@ -99,10 +122,11 @@ class SurrealDBManager:
             return await self.db.query(sql, params)
         return await self.db.query(sql)
 
-    # ==================== Schema 初始化 ====================
+    # 目标 Schema 版本（与 init_surrealdb.surql 中的 UPSERT 保持一致）
+    SCHEMA_TARGET_VERSION = "2.1.0"
 
     async def ensure_schema(self):
-        """确保数据库 Schema 已初始化（幂等操作 + migration lock + fail-fast）
+        """确保数据库 Schema 已初始化或已升级（幂等操作 + migration lock + fail-fast）
 
         调用时机：lifespan 启动阶段，connect() 之后、MemoryManager 初始化之前。
         Schema 初始化失败将导致服务直接退出（SystemExit(1)），确保不会在残缺状态下接受请求。
@@ -114,50 +138,70 @@ class SurrealDBManager:
                 logger.info("[Schema] 其他实例正在执行 migration，跳过")
                 return
 
-            # 检查是否已初始化
-            result = await self._db_query("SELECT * FROM schema_version ORDER BY applied_at DESC LIMIT 1")
-            if result and isinstance(result, list) and len(result) > 0:
-                version = "unknown"
-                if isinstance(result[0], dict):
-                    version = result[0].get("version", "unknown")
-                elif isinstance(result[0], list) and len(result[0]) > 0:
-                    version = result[0][0].get("version", "unknown")
-                logger.info("[Schema] 当前版本: %s", version)
+            # 检查当前版本
+            current_version = await self._get_current_schema_version()
+            if current_version == self.SCHEMA_TARGET_VERSION:
+                logger.info("[Schema] 当前版本: %s（已是最新）", current_version)
                 return
 
-            # 首次初始化
-            logger.info("[Schema] 首次初始化，执行 init_surrealdb.surql...")
-            init_script = Path(__file__).parent.parent / "scripts" / "init_surrealdb.surql"
-
-            # 兼容项目根目录的 scripts/ 和 wrapper/scripts/
-            if not init_script.exists():
-                init_script = Path(__file__).parent.parent.parent / "scripts" / "init_surrealdb.surql"
-
-            if not init_script.exists():
-                raise FileNotFoundError(f"初始化脚本不存在: {init_script}")
-
-            sql = init_script.read_text(encoding="utf-8")
-
-            # 拆分为单条语句逐条执行（query() 对多语句只返回最后结果）
-            statements = [s.strip() for s in sql.split(";") if s.strip()]
-            for stmt in statements:
-                # 跳过纯注释块
-                lines = [line for line in stmt.split("\n") if not line.strip().startswith("--")]
-                if not any(line.strip() for line in lines):
-                    continue
-                await self._db_query(stmt)
-
-            logger.info("[Schema] 初始化完成")
+            # 需要初始化或升级
+            action = "升级" if current_version else "首次初始化"
+            logger.info(
+                "[Schema] %s: %s -> %s，执行 init_surrealdb.surql...",
+                action,
+                current_version or "(none)",
+                self.SCHEMA_TARGET_VERSION,
+            )
+            await self._apply_init_script()
+            logger.info("[Schema] %s完成", action)
 
         except SystemExit:
             raise
         except Exception as e:
             # fail-fast：Schema 初始化失败必须终止服务
-            logger.critical("[Schema] 初始化失败，服务无法启动: %s", e)
+            logger.critical("[Schema] 初始化失败，服务��法启动: %s", e)
             raise SystemExit(1) from e
         finally:
             if lock_acquired:
                 await self._release_migration_lock()
+
+    async def _get_current_schema_version(self) -> str | None:
+        """获取当前 Schema 版本，返回 None 表示未初始化"""
+        result = await self._db_query("SELECT * FROM schema_version ORDER BY applied_at DESC LIMIT 1")
+        if result and isinstance(result, list) and len(result) > 0:
+            if isinstance(result[0], dict):
+                return result[0].get("version")
+            if isinstance(result[0], list) and len(result[0]) > 0:
+                return result[0][0].get("version")
+        return None
+
+    async def _apply_init_script(self) -> None:
+        """执行 init_surrealdb.surql 脚本（支持初始化和升级）
+
+        脚本设计为幂等：
+        - 普通定义使用 IF NOT EXISTS，安全重复执行
+        - Analyzer/Index 使用 REMOVE + DEFINE，确保升级生效
+        - UPSERT 版本号确保最终一致性
+        """
+        init_script = Path(__file__).parent.parent / "scripts" / "init_surrealdb.surql"
+
+        # 兼容项目根目录的 scripts/ 和 wrapper/scripts/
+        if not init_script.exists():
+            init_script = Path(__file__).parent.parent.parent / "scripts" / "init_surrealdb.surql"
+
+        if not init_script.exists():
+            raise FileNotFoundError(f"初始化脚本不存在: {init_script}")
+
+        sql = init_script.read_text(encoding="utf-8")
+
+        # 拆分为单条语句逐条执行（query() 对多语句只返回最后结果）
+        statements = [s.strip() for s in sql.split(";") if s.strip()]
+        for stmt in statements:
+            # 跳过纯注释块
+            lines = [line for line in stmt.split("\n") if not line.strip().startswith("--")]
+            if not any(line.strip() for line in lines):
+                continue
+            await self._db_query(stmt)
 
     async def _acquire_migration_lock(self) -> bool:
         """获取 migration 锁（基于 SurrealDB 记录）
@@ -241,7 +285,7 @@ async def lifespan(app: FastAPI):
     await db_manager.disconnect()
 
 
-app = FastAPI(title="Minimal Wrapper Service", version="2.0.0", lifespan=lifespan)
+app = FastAPI(title="Minimal Wrapper Service", version="2.1.0", lifespan=lifespan)
 
 
 # ==================== 异常处理 ====================
@@ -289,7 +333,7 @@ async def health_check():
     result = {
         "status": "healthy",
         "service": "minimal-wrapper",
-        "version": "2.0.0",
+        "version": "2.1.0",
         "port": config.port,
         "embedding_service": embedding_health or {"status": "unhealthy"},
         "surrealdb": surrealdb_health,
@@ -365,6 +409,90 @@ async def search_memories(request: MemorySearchRequest):
         raise HTTPException(status_code=400, detail=e.message) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"搜索失败: {e!s}") from e
+
+
+@app.post("/api/v1/memories/relations")
+async def create_relation(request: RelationCreateRequest):
+    """创建记忆间的图关系"""
+    if not memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        result = await memory_manager.create_relation(
+            from_id=request.from_id,
+            to_id=request.to_id,
+            relationship_type=request.relationship_type,
+            weight=request.weight,
+            tenant_id=request.tenant_id,
+            description=request.description,
+        )
+        return result
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.message) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"创建关系失败: {e!s}") from e
+
+
+@app.post("/api/v1/memories/{memory_id}/relations")
+async def get_relations(memory_id: str, request: RelationQueryRequest):
+    """查询记忆的关联关系"""
+    if not memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        result = await memory_manager.get_relations(
+            memory_id=memory_id,
+            direction=request.direction,
+            relationship_type=request.relationship_type,
+            tenant_id=request.tenant_id,
+            limit=request.limit,
+        )
+        return {"relations": result, "total": len(result), "memory_id": memory_id}
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.message) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"查询关系失败: {e!s}") from e
+
+
+@app.delete("/api/v1/memories/relations/{relation_id}")
+async def delete_relation(relation_id: str, tenant_id: str = "default"):
+    """删除指定的关系"""
+    if not memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        deleted = await memory_manager.delete_relation(
+            relation_id=relation_id,
+            tenant_id=tenant_id,
+        )
+        if not deleted:
+            raise HTTPException(status_code=404, detail="关系不存在或无权删除")
+        return {"deleted": True, "relation_id": relation_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"删除关系失败: {e!s}") from e
+
+
+@app.post("/api/v1/memories/{memory_id}/graph")
+async def graph_traversal(memory_id: str, request: GraphTraversalRequest):
+    """图遍历：获取关联的记忆内容"""
+    if not memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        result = await memory_manager.get_related_memories(
+            memory_id=memory_id,
+            depth=request.depth,
+            relationship_type=request.relationship_type,
+            tenant_id=request.tenant_id,
+            limit=request.limit,
+        )
+        return {"memories": result, "total": len(result), "source": memory_id, "depth": request.depth}
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.message) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"图遍历失败: {e!s}") from e
 
 
 if __name__ == "__main__":

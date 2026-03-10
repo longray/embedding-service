@@ -1073,3 +1073,518 @@ class TestRRFHybridSearch:
         assert response.status_code == 200
         data = response.json()
         assert data["mode"] == "keyword"
+
+
+# ============================================================================
+# 测试类：中文分词搜索质量验证（Phase 2 - Task D）
+# ============================================================================
+
+
+class TestChineseSearch:
+    """验证 ngram(2,8) 分析器对中文/英文 BM25 关键词搜索的支持
+
+    测试场景覆盖：
+    - 中文 2 字词搜索（如"数据"）
+    - 中文 4 字词搜索（如"向量搜索"）
+    - 英文短词搜索（如"Python"）
+    - 中英混合搜索
+    - 搜索结果相关性验证
+    """
+
+    @pytest_asyncio.fixture(autouse=True)
+    async def setup_chinese_data(self, client):
+        """上传中文测试数据"""
+        self.uid = str(uuid.uuid4())[:8]
+        self.tenant = f"cn_test_{self.uid}"
+        self.memories = [
+            {
+                "content": "SurrealDB是一个多模型数据库支持向量搜索和图查询功能",
+                "metadata": {"lang": "zh"},
+            },
+            {
+                "content": "Python的FastAPI框架可以快速构建高性能推理服务",
+                "metadata": {"lang": "zh"},
+            },
+            {
+                "content": "深度学习模型需要大量训练数据和GPU计算资源",
+                "metadata": {"lang": "zh"},
+            },
+            {
+                "content": "知识图谱通过实体关系构建语义网络实现智能问答",
+                "metadata": {"lang": "zh"},
+            },
+            {
+                "content": "Embedding嵌入模型将文本映射到高维向量空间",
+                "metadata": {"lang": "zh"},
+            },
+        ]
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories",
+            json={"memories": self.memories, "tenant_id": self.tenant},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        self.memory_ids = data.get("memory_ids", [])
+        # 等待 BM25 索引更新
+        await asyncio.sleep(1.5)
+
+    @pytest.mark.asyncio
+    async def test_chinese_2char_keyword(self, client):
+        """测试中文 2 字词搜索（'数据' 出现在训练数据、数据库）"""
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/search",
+            json={"query": "数据", "mode": "keyword", "threshold": 0.0, "tenant_id": self.tenant},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["mode"] == "keyword"
+        # ngram(2,8) 应能匹配 "数据" 二字词
+        assert len(data["results"]) >= 1, f"中文2字词搜索应返回结果, got {data}"
+
+    @pytest.mark.asyncio
+    async def test_chinese_4char_keyword(self, client):
+        """测试中文 4 字词搜索（'向量搜索'）"""
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/search",
+            json={"query": "向量搜索", "mode": "keyword", "threshold": 0.0, "tenant_id": self.tenant},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["results"]) >= 1, f"中文4字词搜索应返回结果, got {data}"
+
+    @pytest.mark.asyncio
+    async def test_english_keyword_within_ngram_range(self, client):
+        """测试英文短词搜索（'Python' = 6字符，在ngram(2,8)范围内）"""
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/search",
+            json={"query": "Python", "mode": "keyword", "threshold": 0.0, "tenant_id": self.tenant},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["results"]) >= 1, f"英文短词搜索应返回结果, got {data}"
+
+    @pytest.mark.asyncio
+    async def test_chinese_english_mixed_search(self, client):
+        """测试中英混合搜索（'深度学习' + 'GPU'）"""
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/search",
+            json={"query": "深度学习", "mode": "keyword", "threshold": 0.0, "tenant_id": self.tenant},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["results"]) >= 1, f"中英混合内容搜索应返回结果, got {data}"
+
+    @pytest.mark.asyncio
+    async def test_keyword_search_relevance(self, client):
+        """测试搜索结果相关性：查"知识图谱"应返回含该词的记忆"""
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/search",
+            json={"query": "知识图谱", "mode": "keyword", "threshold": 0.0, "tenant_id": self.tenant},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        results = data["results"]
+        assert len(results) >= 1, f"应至少返回含'知识图谱'的记忆, got {data}"
+        # 验证最相关的结果包含搜索词
+        found = any("知识图谱" in r.get("content", "") for r in results)
+        assert found, f"搜索结果中应包含'知识图谱', results={[r.get('content', '')[:30] for r in results]}"
+
+    @pytest.mark.asyncio
+    async def test_keyword_no_false_positive(self, client):
+        """测试不存在的词不会崩溃"""
+        fake_query = "量子纠缠超导"
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/search",
+            json={"query": fake_query, "mode": "keyword", "threshold": 0.0, "tenant_id": self.tenant},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        # 不存在的词应返回空结果或极少结果
+        assert isinstance(data["results"], list)
+
+
+# ============================================================================
+# 测试类：RELATE 图关系 API（Phase 2 - Task E）
+# ============================================================================
+
+
+class TestRelationsAPI:
+    """测试 SurrealDB RELATE 图关系的 CRUD 操作和图遍历
+
+    覆盖场景：
+    - 创建关系（POST /api/v1/memories/relations）
+    - 查询关系（POST /api/v1/memories/{id}/relations）
+    - 删除关系（DELETE /api/v1/memories/relations/{id}）
+    - 图遍历（POST /api/v1/memories/{id}/graph）
+    - 参数验证和错误处理
+    - 租户隔离
+    """
+
+    @pytest_asyncio.fixture(autouse=True)
+    async def setup_relation_data(self, client):
+        """上传测试记忆数据，获取记忆 ID 供关系测试使用"""
+        self.uid = str(uuid.uuid4())[:8]
+        self.tenant = f"rel_test_{self.uid}"
+        memories = [
+            {
+                "content": f"关系测试-源节点A-机器学习基础概念 [{self.uid}]",
+                "metadata": {"test_id": self.uid, "node": "A"},
+            },
+            {
+                "content": f"关系测试-目标节点B-深度学习进阶 [{self.uid}]",
+                "metadata": {"test_id": self.uid, "node": "B"},
+            },
+            {
+                "content": f"关系测试-节点C-自然语言处理 [{self.uid}]",
+                "metadata": {"test_id": self.uid, "node": "C"},
+            },
+        ]
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories",
+            json={"memories": memories, "tenant_id": self.tenant},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        self.ids = data.get("memory_ids", [])
+        assert len(self.ids) >= 3, f"应成功上传3条记忆, got {data}"
+        # 等待数据持久化
+        await asyncio.sleep(1.0)
+
+    @pytest.mark.asyncio
+    async def test_create_relation(self, client):
+        """测试创建关系：A→B (follow_up)"""
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations",
+            json={
+                "from_id": self.ids[0],
+                "to_id": self.ids[1],
+                "relationship_type": "follow_up",
+                "weight": 0.8,
+                "tenant_id": self.tenant,
+                "description": "从基础到进阶",
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "id" in data, f"创建关系应返回 id, got {data}"
+        assert data["relationship_type"] == "follow_up"
+        assert data["weight"] == 0.8
+
+    @pytest.mark.asyncio
+    async def test_create_relation_default_values(self, client):
+        """测试创建关系使用默认值（type=related, weight=0.5）"""
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations",
+            json={
+                "from_id": self.ids[0],
+                "to_id": self.ids[2],
+                "tenant_id": self.tenant,
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["relationship_type"] == "related"
+        assert data["weight"] == 0.5
+
+    @pytest.mark.asyncio
+    async def test_create_relation_invalid_type(self, client):
+        """测试无效关系类型应返回 400"""
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations",
+            json={
+                "from_id": self.ids[0],
+                "to_id": self.ids[1],
+                "relationship_type": "invalid_type",
+                "tenant_id": self.tenant,
+            },
+        )
+        assert response.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_create_relation_invalid_weight(self, client):
+        """测试无效权重应返回 422（Pydantic 验证）"""
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations",
+            json={
+                "from_id": self.ids[0],
+                "to_id": self.ids[1],
+                "weight": 1.5,
+                "tenant_id": self.tenant,
+            },
+        )
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_query_relations_outgoing(self, client):
+        """测试查询出向关系"""
+        # 先创建关系 A→B
+        await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations",
+            json={
+                "from_id": self.ids[0],
+                "to_id": self.ids[1],
+                "relationship_type": "follow_up",
+                "tenant_id": self.tenant,
+            },
+        )
+
+        # 查询 A 的出向关系
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/{self.ids[0]}/relations",
+            json={"direction": "outgoing", "tenant_id": self.tenant},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "relations" in data
+        assert data["total"] >= 1
+        for rel in data["relations"]:
+            assert rel["direction"] == "outgoing"
+
+    @pytest.mark.asyncio
+    async def test_query_relations_incoming(self, client):
+        """测试查询入向关系"""
+        # 创建关系 A→B
+        await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations",
+            json={
+                "from_id": self.ids[0],
+                "to_id": self.ids[1],
+                "relationship_type": "elaboration",
+                "tenant_id": self.tenant,
+            },
+        )
+
+        # 查询 B 的入向关系
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/{self.ids[1]}/relations",
+            json={"direction": "incoming", "tenant_id": self.tenant},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] >= 1
+        for rel in data["relations"]:
+            assert rel["direction"] == "incoming"
+
+    @pytest.mark.asyncio
+    async def test_query_relations_both_directions(self, client):
+        """测试查询双向关系"""
+        # 创建 A→B 和 C→A 两条关系
+        await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations",
+            json={
+                "from_id": self.ids[0],
+                "to_id": self.ids[1],
+                "relationship_type": "related",
+                "tenant_id": self.tenant,
+            },
+        )
+        await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations",
+            json={
+                "from_id": self.ids[2],
+                "to_id": self.ids[0],
+                "relationship_type": "reference",
+                "tenant_id": self.tenant,
+            },
+        )
+
+        # 查询 A 的双向关系
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/{self.ids[0]}/relations",
+            json={"direction": "both", "tenant_id": self.tenant},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] >= 2, f"A 应有至少2条关系(出+入), got {data}"
+
+    @pytest.mark.asyncio
+    async def test_query_relations_filter_by_type(self, client):
+        """测试按关系类型过滤"""
+        # 创建不同类型关系
+        await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations",
+            json={
+                "from_id": self.ids[0],
+                "to_id": self.ids[1],
+                "relationship_type": "follow_up",
+                "tenant_id": self.tenant,
+            },
+        )
+        await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations",
+            json={
+                "from_id": self.ids[0],
+                "to_id": self.ids[2],
+                "relationship_type": "reference",
+                "tenant_id": self.tenant,
+            },
+        )
+
+        # 只查询 follow_up 类型
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/{self.ids[0]}/relations",
+            json={
+                "direction": "outgoing",
+                "relationship_type": "follow_up",
+                "tenant_id": self.tenant,
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        for rel in data["relations"]:
+            assert rel["relationship_type"] == "follow_up"
+
+    @pytest.mark.asyncio
+    async def test_delete_relation(self, client):
+        """测试删除关系"""
+        # 创建关系
+        create_resp = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations",
+            json={
+                "from_id": self.ids[0],
+                "to_id": self.ids[1],
+                "relationship_type": "related",
+                "tenant_id": self.tenant,
+            },
+        )
+        assert create_resp.status_code == 200
+        relation_id = create_resp.json()["id"]
+
+        # 删除关系
+        delete_resp = await client.delete(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations/{relation_id}",
+            params={"tenant_id": self.tenant},
+        )
+        assert delete_resp.status_code == 200
+        assert delete_resp.json()["deleted"] is True
+
+    @pytest.mark.asyncio
+    async def test_delete_nonexistent_relation(self, client):
+        """测试删除不存在的关系应返回 404"""
+        fake_id = f"memory_relation:nonexist_{self.uid}"
+        response = await client.delete(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations/{fake_id}",
+            params={"tenant_id": self.tenant},
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_graph_traversal_depth_1(self, client):
+        """测试图遍历：深度1（A→B）"""
+        # 创建关系 A→B
+        await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations",
+            json={
+                "from_id": self.ids[0],
+                "to_id": self.ids[1],
+                "relationship_type": "follow_up",
+                "tenant_id": self.tenant,
+            },
+        )
+
+        # 从 A 出发遍历深度1
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/{self.ids[0]}/graph",
+            json={"depth": 1, "tenant_id": self.tenant},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "memories" in data
+        assert data["depth"] == 1
+        assert data["source"] == self.ids[0]
+        assert data["total"] >= 1, f"深度1遍历应至少找到节点B, got {data}"
+
+    @pytest.mark.asyncio
+    async def test_graph_traversal_depth_2(self, client):
+        """测试图遍历：深度2（A→B→C 链式路径）"""
+        # 创建 A→B, B→C 链
+        await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations",
+            json={
+                "from_id": self.ids[0],
+                "to_id": self.ids[1],
+                "relationship_type": "follow_up",
+                "tenant_id": self.tenant,
+            },
+        )
+        await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations",
+            json={
+                "from_id": self.ids[1],
+                "to_id": self.ids[2],
+                "relationship_type": "elaboration",
+                "tenant_id": self.tenant,
+            },
+        )
+
+        # 从 A 出发深度2
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/{self.ids[0]}/graph",
+            json={"depth": 2, "tenant_id": self.tenant},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["depth"] == 2
+        assert data["total"] >= 1, f"深度2遍历应找到节点, got {data}"
+
+    @pytest.mark.asyncio
+    async def test_graph_traversal_no_relations(self, client):
+        """测试对没有关系的节点进行图遍历"""
+        response = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/{self.ids[2]}/graph",
+            json={"depth": 1, "tenant_id": self.tenant},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 0
+        assert data["memories"] == []
+
+    @pytest.mark.asyncio
+    async def test_relation_all_types(self, client):
+        """测试所有6种合法关系类型"""
+        valid_types = ["related", "follow_up", "elaboration", "contradiction", "reference", "derived_from"]
+        for rel_type in valid_types:
+            response = await client.post(
+                f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations",
+                json={
+                    "from_id": self.ids[0],
+                    "to_id": self.ids[1],
+                    "relationship_type": rel_type,
+                    "tenant_id": self.tenant,
+                },
+            )
+            assert response.status_code == 200, (
+                f"关系类型 '{rel_type}' 应成功创建, got {response.status_code}"
+            )
+
+    @pytest.mark.asyncio
+    async def test_relation_tenant_isolation(self, client):
+        """测试关系的租户隔离"""
+        other_tenant = f"other_{self.uid}"
+
+        # 在 self.tenant 下创建关系
+        create_resp = await client.post(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations",
+            json={
+                "from_id": self.ids[0],
+                "to_id": self.ids[1],
+                "relationship_type": "related",
+                "tenant_id": self.tenant,
+            },
+        )
+        assert create_resp.status_code == 200
+        relation_id = create_resp.json()["id"]
+
+        # 用其他租户 ID 尝试删除 → 应失败 (404)
+        delete_resp = await client.delete(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations/{relation_id}",
+            params={"tenant_id": other_tenant},
+        )
+        assert delete_resp.status_code == 404, "不同租户不应能删除其他租户的关系"
+
+        # 用正确的租户 ID 应能删除
+        delete_resp2 = await client.delete(
+            f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations/{relation_id}",
+            params={"tenant_id": self.tenant},
+        )
+        assert delete_resp2.status_code == 200

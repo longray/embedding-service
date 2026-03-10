@@ -1,7 +1,7 @@
 -- ============================================================
 -- scripts/init_surrealdb.surql
 -- Embedding Service 数据库初始化脚本
--- 版本: 2.0.0
+-- 版本: 2.1.0
 -- 兼容: SurrealDB >= 2.0（推荐 3.0+）
 -- 注意: SurrealDB 3.0 要求 TYPE NORMAL SCHEMAFULL（非旧的 SCHEMAFULL）
 -- 幂等: 所有 DEFINE 使用 IF NOT EXISTS，支持重复执行
@@ -75,11 +75,20 @@ DEFINE INDEX IF NOT EXISTS memory_embedding_hnsw ON memory
     EFC 200 M 12;
 
 -- 全文搜索索引（BM25）
-DEFINE ANALYZER IF NOT EXISTS memory_analyzer
+-- 注意: ngram(2,8) 对中英文混合内容都能正确分词
+-- - blank: 按空格切分
+-- - class: 按 Unicode 类别（Latin/CJK/数字）切分
+-- - ngram(2,8): 从每个 token 生成 2-8 字符的 n-gram 子串
+-- 效果: 中文词组（推理/服务/知识图谱）和英文词（Python/FastAPI）均可搜索
+-- ⚠️ 使用 REMOVE + DEFINE（非 IF NOT EXISTS）确保 analyzer 变更生效
+REMOVE ANALYZER IF EXISTS memory_analyzer;
+DEFINE ANALYZER memory_analyzer
     TOKENIZERS blank, class
-    FILTERS lowercase, ascii;
+    FILTERS lowercase, ngram(2,8);
 
-DEFINE INDEX IF NOT EXISTS memory_content_ft ON memory
+-- 重建全文索引以使用更新后的 analyzer
+REMOVE INDEX IF EXISTS memory_content_ft ON memory;
+DEFINE INDEX memory_content_ft ON memory
     FIELDS content FULLTEXT ANALYZER memory_analyzer BM25;
 
 -- 时间戳索引（用于时间范围查询）
@@ -101,6 +110,41 @@ DEFINE INDEX IF NOT EXISTS memory_source_id ON memory FIELDS source_id UNIQUE;
 -- 复合索引（高频查询路径）
 DEFINE INDEX IF NOT EXISTS memory_tenant_type ON memory FIELDS tenant_id, type;
 DEFINE INDEX IF NOT EXISTS memory_tenant_project ON memory FIELDS tenant_id, project_id;
+
+-- ==================== memory_relation 边表 (图关系) ====================
+
+-- 记忆间的关联关系表（SurrealDB RELATE 图边表）
+-- 使用 TYPE RELATION 定义边，IN/OUT 限制端点为 memory 表
+DEFINE TABLE IF NOT EXISTS memory_relation TYPE RELATION SCHEMAFULL
+    IN memory OUT memory;
+
+-- 关系类型: related | follow_up | elaboration | contradiction | reference | derived_from
+DEFINE FIELD IF NOT EXISTS relationship_type ON memory_relation TYPE string
+    DEFAULT 'related';
+
+-- 关系权重: 0.0-1.0，表示关联强度
+DEFINE FIELD IF NOT EXISTS weight ON memory_relation TYPE float
+    DEFAULT 0.5;
+
+-- 多租户字段（与 memory 表保持一致）
+DEFINE FIELD IF NOT EXISTS tenant_id ON memory_relation TYPE string
+    DEFAULT 'default';
+
+-- 关系描述（可选，如 "基于此决策的后续分析"）
+DEFINE FIELD IF NOT EXISTS description ON memory_relation TYPE option<string>;
+
+-- 扩展元数据
+DEFINE FIELD IF NOT EXISTS metadata ON memory_relation TYPE object FLEXIBLE
+    DEFAULT {};
+
+-- 创建时间
+DEFINE FIELD IF NOT EXISTS created_at ON memory_relation TYPE datetime
+    DEFAULT time::now();
+
+-- 边表索引
+DEFINE INDEX IF NOT EXISTS relation_type ON memory_relation FIELDS relationship_type;
+DEFINE INDEX IF NOT EXISTS relation_tenant ON memory_relation FIELDS tenant_id;
+DEFINE INDEX IF NOT EXISTS relation_tenant_type ON memory_relation FIELDS tenant_id, relationship_type;
 
 -- ==================== project 表 ====================
 
@@ -139,7 +183,7 @@ DEFINE FIELD IF NOT EXISTS description ON schema_version TYPE string;
 -- 记录当前版本（UPSERT 保证幂等）
 -- 注意: CONTENT 会替换所有字段，必须显式设置 applied_at
 UPSERT schema_version:current CONTENT {
-    version: '2.0.0',
+    version: '2.1.0',
     applied_at: time::now(),
-    description: '融合 MemoryEntry 数据模型 + 多租户 tenant_id + project 表'
+    description: 'Phase 2: ngram(2,8) 中文分词 + memory_relation 图关系边表'
 };
