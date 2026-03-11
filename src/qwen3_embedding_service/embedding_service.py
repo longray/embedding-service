@@ -2,7 +2,8 @@ import hashlib
 import logging
 import os
 import time
-from functools import lru_cache
+from collections import OrderedDict
+from dataclasses import dataclass
 from typing import Literal
 
 import numpy as np
@@ -109,14 +110,75 @@ def hash_text(text: str) -> str:
     return hashlib.md5(text.encode("utf-8")).hexdigest()  # nosec B324
 
 
-# ==================== 缓存机制 ====================
-CACHE_SIZE = int(os.getenv("EMB_CACHE_SIZE", "1000"))
+# ==================== 批量缓存机制 ====================
+CACHE_SIZE = int(os.getenv("EMB_CACHE_SIZE", "2000"))
 
 
-@lru_cache(maxsize=CACHE_SIZE)
-def cached_encode(text_hash: str, text: str) -> tuple:
-    embedding = get_embeddings([text])[0]
-    return tuple(embedding.tolist())
+@dataclass
+class CacheStats:
+    """缓存统计信息（兼容 lru_cache.cache_info() 接口）"""
+
+    hits: int
+    misses: int
+    maxsize: int
+    currsize: int
+
+
+class EmbeddingCache:
+    """LRU 缓存，支持批量查找和存储
+
+    相比 @lru_cache 的优势：
+    - 支持 get_batch() 批量查找，一次分离命中/未命中
+    - 未命中部分可批量送入模型推理，避免逐条前向传播
+    """
+
+    def __init__(self, maxsize: int = 2000):
+        self._cache: OrderedDict[str, list[float]] = OrderedDict()
+        self._maxsize = maxsize
+        self._hits = 0
+        self._misses = 0
+
+    def get(self, key: str) -> list[float] | None:
+        """查找单个缓存项"""
+        if key in self._cache:
+            self._hits += 1
+            self._cache.move_to_end(key)
+            return self._cache[key]
+        self._misses += 1
+        return None
+
+    def get_batch(self, keys: list[str]) -> tuple[dict[int, list[float]], list[int]]:
+        """批量查找：返回 (索引→嵌入 的命中映射, 未命中索引列表)"""
+        hits: dict[int, list[float]] = {}
+        miss_indices: list[int] = []
+        for i, key in enumerate(keys):
+            val = self.get(key)
+            if val is not None:
+                hits[i] = val
+            else:
+                miss_indices.append(i)
+        return hits, miss_indices
+
+    def put(self, key: str, value: list[float]):
+        """存储单个缓存项（LRU 淘汰）"""
+        if key in self._cache:
+            self._cache.move_to_end(key)
+        else:
+            if len(self._cache) >= self._maxsize:
+                self._cache.popitem(last=False)
+        self._cache[key] = value
+
+    def cache_info(self) -> CacheStats:
+        """兼容 lru_cache.cache_info() 接口"""
+        return CacheStats(
+            hits=self._hits,
+            misses=self._misses,
+            maxsize=self._maxsize,
+            currsize=len(self._cache),
+        )
+
+
+embedding_cache = EmbeddingCache(maxsize=CACHE_SIZE)
 
 
 # ==================== Pydantic 模型 ====================
@@ -204,33 +266,57 @@ async def create_embedding(request: EmbeddingRequest):
     logger.info(f"处理 {batch_size} 条文本 | 维度: {request.dimensions or 1024}")
 
     try:
-        embeddings_list = []
-        total_tokens = 0
+        # 1. 计算所有文本的哈希
+        text_hashes = [hash_text(t) for t in texts]
+        total_tokens = sum(len(t.split()) for t in texts)
 
-        for _idx, text in enumerate(texts):
-            text_hash = hash_text(text)
-            total_tokens += len(text.split())
+        # 2. 批量查找缓存：一次性分离命中/未命中
+        cached_hits, miss_indices = embedding_cache.get_batch(text_hashes)
 
-            emb_tuple = cached_encode(text_hash, text)
-            embedding = np.array(emb_tuple)
+        # 3. 初始化结果数组，填充缓存命中的结果
+        embeddings_result: list[np.ndarray] = [np.empty(0)] * batch_size
+        for idx, emb_list in cached_hits.items():
+            embeddings_result[idx] = np.array(emb_list)
 
-            if request.dimensions and request.dimensions < embedding.shape[0]:
-                embedding = embedding[: request.dimensions]
+        # 4. 批量计算所有未命中的文本（单次前向传播）
+        if miss_indices:
+            uncached_texts = [texts[i] for i in miss_indices]
+            cache_hit_count = batch_size - len(miss_indices)
+            logger.info(f"缓存命中 {cache_hit_count}/{batch_size}，批量计算 {len(miss_indices)} 条")
 
-            embeddings_list.append(embedding)
+            # 子批量处理（防止 GPU OOM）
+            all_new_embeddings: list[np.ndarray] = []
+            for start in range(0, len(uncached_texts), MAX_BATCH_SIZE):
+                sub_texts = uncached_texts[start : start + MAX_BATCH_SIZE]
+                sub_embs = get_embeddings(sub_texts)
+                all_new_embeddings.append(sub_embs)
 
-        embeddings = np.stack(embeddings_list)
+            new_embeddings = (
+                np.concatenate(all_new_embeddings, axis=0) if len(all_new_embeddings) > 1 else all_new_embeddings[0]
+            )
 
-        data = [EmbeddingObject(index=i, embedding=emb.tolist()) for i, emb in enumerate(embeddings)]
+            # 存入缓存并填充结果
+            for j, idx in enumerate(miss_indices):
+                emb = new_embeddings[j]
+                embedding_cache.put(text_hashes[idx], emb.tolist())
+                embeddings_result[idx] = emb
+        else:
+            logger.info(f"缓存全部命中 ({batch_size}/{batch_size})")
+
+        # 5. 维度裁剪
+        target_dim = request.dimensions
+        if target_dim and target_dim < embeddings_result[0].shape[0]:
+            embeddings_result = [e[:target_dim] for e in embeddings_result]
+
+        # 6. 构建响应
+        data = [EmbeddingObject(index=i, embedding=emb.tolist()) for i, emb in enumerate(embeddings_result)]
 
         processing_time_ms = (time.time() - start_time) * 1000
-
-        # 避免除零错误
         throughput = batch_size / (processing_time_ms / 1000) if processing_time_ms > 0 else 0.0
 
         logger.info(
             f"完成 {batch_size} 条 | "
-            f"维度: {embeddings.shape[1]} | "
+            f"维度: {embeddings_result[0].shape[0]} | "
             f"耗时: {processing_time_ms:.2f}ms | "
             f"速度: {throughput:.1f} 条/秒"
         )
@@ -293,7 +379,7 @@ async def list_models():
 
 @app.get("/stats")
 async def get_stats():
-    cache_info = cached_encode.cache_info()
+    cache_info = embedding_cache.cache_info()
     total = cache_info.hits + cache_info.misses
     return {
         "service": "embedding",
