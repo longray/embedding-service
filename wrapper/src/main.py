@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from surrealdb import AsyncSurreal
 
 from .config import config
+from .utils.auth import verify_websocket_token
 from .utils.cache import ThreadSafeLRUCache, hash_text
 from .utils.exceptions import ValidationError, WrapperServiceError
 from .utils.http_pool import close_http_pool, get_http_pool
@@ -519,11 +520,18 @@ async def graph_traversal(memory_id: str, request: GraphTraversalRequest):
 
 
 @app.websocket("/ws/memories/live")
-async def websocket_live_memories(websocket: WebSocket, tenant_id: str = "default"):
+async def websocket_live_memories(websocket: WebSocket, tenant_id: str = "default", token: str | None = None):
     """WebSocket 端点：实时推送记忆变更通知
     
     连接后自动订阅指定租户的 memory 表变更，推送 CREATE/UPDATE/DELETE 通知。
+    认证：通过 token 查询参数传递（可选，取决于 WRAPPER_WEBSOCKET_TOKEN 配置）。
     """
+    # 认证检查
+    if not verify_websocket_token(token):
+        await websocket.close(code=1008, reason="Unauthorized")
+        logger.warning("[WebSocket] 认证失败，拒绝连接")
+        return
+    
     await websocket.accept()
     query_uuid = None
     

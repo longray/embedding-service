@@ -1,14 +1,14 @@
 # Embedding Service (OpenCode Memory Stack)
 
 版本与路线图
-- 当前版本: v1.1.0
-- 实施阶段: P0 + P1 + P2 + P3-1 + P3-2 已完成
+- 当前版本: v2.2.0
+- 实施阶段: P0 + P1 + P2 + Phase 3 (SurrealDB 3.0 升级) 已完成
 - 详细路线见 ROADMAP.md
 
 ## 开发状态
 
-**当前版本**: v1.1.0
-**实施阶段**: P0 + P1 + P2 + P3-1 + P3-2 已完成
+**当前版本**: v2.2.0
+**实施阶段**: P0 + P1 + P2 + Phase 3 (SurrealDB 3.0 升级) 已完成
 
 ### 已完成 ✅
 - ✅ P0 核心功能（Embedding + LLM + 包装层）
@@ -16,6 +16,10 @@
 - ✅ P2 生产就绪（API认证授权、CI/CD、完整文档）
 - ✅ P3-1 Docker Compose 一键部署
 - ✅ P3-2 HNSW 向量搜索优化
+- ✅ Phase 3A 批量 Embedding 性能优化（10x 加速）
+- ✅ Phase 3B OpenTelemetry 分布式追踪
+- ✅ Phase 3C 安全加固（DB 权限分离 + 运行时凭据）
+- ✅ Phase 3D WebSocket 实时推送（LIVE SELECT）
 
 ### P3 优化路线图 🚀
 
@@ -39,6 +43,7 @@
 | `/v1/embeddings` | POST | 文本嵌入 + 缓存 | 🌍 公开 |
 | `/api/v1/memories` | POST | 批量上传记忆 | 🌍 公开 |
 | `/api/v1/memories/search` | POST | 搜索记忆 | 🌍 公开 |
+| `/ws/memories/live` | WebSocket | 实时推送记忆变更 | 🔓 可选 |
 
 ### 完整包装服务（端口 3001）
 
@@ -56,6 +61,40 @@
 ```bash
 export WRAPPER_AUTH_ENABLED=true
 export WRAPPER_API_KEYS="your_key:read;write"
+```
+
+### WebSocket 实时推送
+
+连接 `/ws/memories/live` 端点接收记忆变更的实时通知。
+
+**连接参数**:
+- `tenant_id` (可选): 租户 ID，默认 `default`
+- `token` (可选): 认证 token（需配置 `WRAPPER_WEBSOCKET_TOKEN`）
+
+**JavaScript 示例**:
+```javascript
+const ws = new WebSocket('ws://localhost:17999/ws/memories/live?tenant_id=default&token=your_token');
+ws.onmessage = (event) => {
+  const { action, result } = JSON.parse(event.data);
+  console.log(action, result); // CREATE/UPDATE/DELETE
+};
+```
+
+**Python 示例**:
+```python
+import json
+from websockets import connect
+
+async with connect('ws://localhost:17999/ws/memories/live?tenant_id=default') as ws:
+    async for message in ws:
+        data = json.loads(message)
+        print(data['action'], data['result'])
+```
+
+**认证配置**:
+```bash
+# 启用 WebSocket 认证（可选，未配置则允许所有连接）
+export WRAPPER_WEBSOCKET_TOKEN=your_secret_token
 ```
 
 ### 核心功能
