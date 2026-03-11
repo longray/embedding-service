@@ -73,6 +73,8 @@ services:
       - WRAPPER_EMBEDDING_SERVICE_URL=http://embedding:18000
       - WRAPPER_LLM_SERVICE_URL=http://llm:18001
       - WRAPPER_SURREALDB_URL=ws://surrealdb:8000/rpc
+      - WRAPPER_OTEL_ENABLED=${WRAPPER_OTEL_ENABLED:-false}
+      - WRAPPER_OTEL_ENDPOINT=http://jaeger:4317
       - WRAPPER_SURREALDB_NAMESPACE=memory_ns
       - WRAPPER_SURREALDB_DATABASE=memory_db
       - WRAPPER_SURREALDB_USERNAME=root
@@ -91,6 +93,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+
+  # Jaeger 分布式追踪（可选，OpenTelemetry 后端）
+  jaeger:
+    image: jaegertracing/jaeger:2.6
+    container_name: embedding-jaeger
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "4317:4317"     # OTLP gRPC 接收端
+      - "4318:4318"     # OTLP HTTP 接收端
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - embedding-network
+    profiles:
+      - tracing  # 仅 docker compose --profile tracing up 时启动
 
 volumes:
   surrealdb-data:

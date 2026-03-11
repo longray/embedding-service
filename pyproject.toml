@@ -34,6 +34,15 @@ dependencies = [
     # === SurrealDB ===
     "surrealdb>=1.0.0,<2.0.0",
 ]
+
+[project.optional-dependencies]
+tracing = [
+    "opentelemetry-api>=1.40.0,<2.0.0",
+    "opentelemetry-sdk>=1.40.0,<2.0.0",
+    "opentelemetry-instrumentation-fastapi>=0.61b0",
+    "opentelemetry-instrumentation-httpx>=0.61b0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.40.0,<2.0.0",
+]
 [build-system]
 requires = ["hatchling>=1.21.0"]
 build-backend = "hatchling.build"

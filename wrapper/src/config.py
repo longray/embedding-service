@@ -55,6 +55,16 @@ class SearchConfig:
     # 多租户
     default_tenant_id: str = "default"  # API 未传 tenant_id 时使用
 
+@dataclass
+class TelemetryConfig:
+    """OpenTelemetry 追踪配置"""
+
+    enabled: bool = False  # 默认关闭，按需开启
+    service_name: str = "embedding-wrapper"
+    otlp_endpoint: str = "http://localhost:4317"  # Jaeger OTLP gRPC
+    sample_rate: float = 1.0  # 1.0 = 全采样，生产环境可降低
+
+
 
 @dataclass
 class AppConfig:
@@ -66,6 +76,7 @@ class AppConfig:
     surrealdb: SurrealDBConfig = field(default_factory=SurrealDBConfig)
     service: ServiceConfig = field(default_factory=ServiceConfig)
     search: SearchConfig = field(default_factory=SearchConfig)
+    telemetry: TelemetryConfig = field(default_factory=TelemetryConfig)
 
 
 def load_config():
@@ -91,6 +102,12 @@ def load_config():
     )
     cfg.search.hnsw_ef_search = int(os.getenv("WRAPPER_SEARCH_HNSW_EF_SEARCH", str(cfg.search.hnsw_ef_search)))
     cfg.search.default_tenant_id = os.getenv("WRAPPER_DEFAULT_TENANT_ID", cfg.search.default_tenant_id)
+
+    # OpenTelemetry 配置
+    cfg.telemetry.enabled = os.getenv("WRAPPER_OTEL_ENABLED", "false").lower() == "true"
+    cfg.telemetry.service_name = os.getenv("WRAPPER_OTEL_SERVICE_NAME", cfg.telemetry.service_name)
+    cfg.telemetry.otlp_endpoint = os.getenv("WRAPPER_OTEL_ENDPOINT", cfg.telemetry.otlp_endpoint)
+    cfg.telemetry.sample_rate = float(os.getenv("WRAPPER_OTEL_SAMPLE_RATE", str(cfg.telemetry.sample_rate)))
 
     return cfg
 

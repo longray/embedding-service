@@ -23,6 +23,7 @@ from .utils.cache import ThreadSafeLRUCache, hash_text
 from .utils.exceptions import ValidationError, WrapperServiceError
 from .utils.http_pool import close_http_pool, get_http_pool
 from .utils.memory_manager import MemoryManager
+from .utils.tracing import init_tracing, shutdown_tracing
 
 logger = logging.getLogger(__name__)
 
@@ -278,9 +279,13 @@ async def lifespan(app: FastAPI):
     )
     print("[Startup] MemoryManager已初始化")
 
+    # OpenTelemetry 追踪（可选，失败不影响服务启动）
+    init_tracing(app, config.telemetry)
+
     yield
 
     print("[Shutdown] 关闭服务...")
+    shutdown_tracing()
     await close_http_pool()
     await db_manager.disconnect()
 

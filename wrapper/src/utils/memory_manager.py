@@ -13,6 +13,7 @@ from typing import Any
 
 from .exceptions import DatabaseError, EmbeddingError, ValidationError
 from .http_pool import get_http_pool
+from .tracing import get_tracer
 
 
 class MemoryManager:
@@ -55,110 +56,109 @@ class MemoryManager:
 
     async def _get_embeddings(self, texts: list[str]) -> list[list[float]]:
         """批量获取文本的 embedding 向量"""
-        try:
-            http_pool = await self._get_http_pool()
-            response = await http_pool.post(
-                f"{self._embedding_service_url}/v1/embeddings",
-                json={"input": texts, "model": "Qwen3-Embedding-0.6B"},
-            )
-            response.raise_for_status()
-            data = response.json()
-            return [item["embedding"] for item in data["data"]]
-        except Exception as e:
-            raise EmbeddingError(f"Failed to get embeddings: {e!s}") from e
+        tracer = get_tracer()
+        with tracer.start_as_current_span("embedding.get_batch") as span:
+            span.set_attribute("embedding.text_count", len(texts))
+            try:
+                http_pool = await self._get_http_pool()
+                response = await http_pool.post(
+                    f"{self._embedding_service_url}/v1/embeddings",
+                    json={"input": texts, "model": "Qwen3-Embedding-0.6B"},
+                )
+                response.raise_for_status()
+                data = response.json()
+                result = [item["embedding"] for item in data["data"]]
+                span.set_attribute("embedding.dimension", len(result[0]) if result else 0)
+                return result
+            except Exception as e:
+                span.record_exception(e)
+                raise EmbeddingError(f"Failed to get embeddings: {e!s}") from e
 
     # ==================== 上传 ====================
 
     async def upload_memories(self, memories: list[dict[str, Any]], tenant_id: str | None = None) -> dict[str, Any]:
-        """批量上传记忆
-
-        字段映射（API dict → SurrealDB 记录）：
-        - content → content (必需)
-        - embedding → embedding (服务端计算)
-        - tenant_id → tenant_id (默认 "default")
-        - type → type (默认 "general")
-        - tags → tags (默认 [])
-        - project_id → project_id (默认 "global")
-        - source_id → source_id (可选，UNIQUE 索引去重)
-        - source → source (默认 "api")
-        - source_timestamp → source_timestamp (可选)
-        - classification_confidence → classification_confidence (可选)
-        - metadata → metadata (兜底扩展字段)
-        """
+        """批量上传记忆"""
         if not memories:
             raise ValidationError("Memories list cannot be empty")
 
         effective_tenant_id = tenant_id or self._default_tenant_id
+        tracer = get_tracer()
 
-        total = len(memories)
-        success_count = 0
-        failed_count = 0
-        memory_ids: list[str] = []
-        errors: list[str] = []
+        with tracer.start_as_current_span("memory.upload") as span:
+            span.set_attribute("memory.count", len(memories))
+            span.set_attribute("tenant.id", effective_tenant_id)
 
-        # 批量获取 embeddings
-        texts = [m.get("content", "") for m in memories]
-        try:
-            embeddings = await self._get_embeddings(texts)
-        except EmbeddingError as e:
-            return {
-                "total": total,
-                "success": 0,
-                "failed": total,
-                "memory_ids": [],
-                "errors": [str(e)],
-            }
+            total = len(memories)
+            success_count = 0
+            failed_count = 0
+            memory_ids: list[str] = []
+            errors: list[str] = []
 
-        for memory, embedding in zip(memories, embeddings, strict=False):
+            # 批量获取 embeddings
+            texts = [m.get("content", "") for m in memories]
             try:
-                # 构建 SurrealDB 记录数据（顶层字段映射）
-                memory_data: dict[str, Any] = {
-                    "content": memory.get("content", ""),
-                    "embedding": embedding,
-                    "tenant_id": effective_tenant_id,
-                    "type": memory.get("type", "general"),
-                    "tags": memory.get("tags", []),
-                    "project_id": memory.get("project_id", "global"),
-                    "source": memory.get("source", "api"),
-                    "metadata": memory.get("metadata", {}),
+                embeddings = await self._get_embeddings(texts)
+            except EmbeddingError as e:
+                span.record_exception(e)
+                span.set_attribute("memory.upload.success", 0)
+                span.set_attribute("memory.upload.failed", total)
+                return {
+                    "total": total,
+                    "success": 0,
+                    "failed": total,
+                    "memory_ids": [],
+                    "errors": [str(e)],
                 }
 
-                # 可选字段（仅在提供时设置，否则由 Schema DEFAULT 处理）
-                if "source_id" in memory:
-                    memory_data["source_id"] = memory["source_id"]
-                if "source_timestamp" in memory:
-                    memory_data["source_timestamp"] = memory["source_timestamp"]
-                if "classification_confidence" in memory:
-                    memory_data["classification_confidence"] = memory["classification_confidence"]
+            for memory, embedding in zip(memories, embeddings, strict=False):
+                try:
+                    memory_data: dict[str, Any] = {
+                        "content": memory.get("content", ""),
+                        "embedding": embedding,
+                        "tenant_id": effective_tenant_id,
+                        "type": memory.get("type", "general"),
+                        "tags": memory.get("tags", []),
+                        "project_id": memory.get("project_id", "global"),
+                        "source": memory.get("source", "api"),
+                        "metadata": memory.get("metadata", {}),
+                    }
 
-                result = await self._db.create("memory", memory_data)
-                # 提取成功创建的记录 ID
-                record_id: str | None = None
-                if isinstance(result, list) and len(result) > 0:
-                    record_id = str(result[0].get("id", "")) or None
-                elif isinstance(result, dict) and result.get("id"):
-                    record_id = str(result["id"])
+                    if "source_id" in memory:
+                        memory_data["source_id"] = memory["source_id"]
+                    if "source_timestamp" in memory:
+                        memory_data["source_timestamp"] = memory["source_timestamp"]
+                    if "classification_confidence" in memory:
+                        memory_data["classification_confidence"] = memory["classification_confidence"]
 
-                if record_id:
-                    memory_ids.append(record_id)
-                    success_count += 1
-                else:
-                    # SDK 未抛异常但未返回有效 ID（如 UNIQUE 约束冲突）
+                    result = await self._db.create("memory", memory_data)
+                    record_id: str | None = None
+                    if isinstance(result, list) and len(result) > 0:
+                        record_id = str(result[0].get("id", "")) or None
+                    elif isinstance(result, dict) and result.get("id"):
+                        record_id = str(result["id"])
+
+                    if record_id:
+                        memory_ids.append(record_id)
+                        success_count += 1
+                    else:
+                        failed_count += 1
+                        errors.append("No record ID returned (possible UNIQUE constraint violation)")
+                except Exception as e:
                     failed_count += 1
-                    errors.append("No record ID returned (possible UNIQUE constraint violation)")
-            except Exception as e:
-                failed_count += 1
-                errors.append(f"{type(e).__name__}: {e!s}")
+                    errors.append(f"{type(e).__name__}: {e!s}")
 
-        result_data: dict[str, Any] = {
-            "total": total,
-            "success": success_count,
-            "failed": failed_count,
-            "memory_ids": memory_ids,
-        }
-        if errors:
-            result_data["errors"] = errors[:10]
-        return result_data
+            span.set_attribute("memory.upload.success", success_count)
+            span.set_attribute("memory.upload.failed", failed_count)
+
+            result_data: dict[str, Any] = {
+                "total": total,
+                "success": success_count,
+                "failed": failed_count,
+                "memory_ids": memory_ids,
+            }
+            if errors:
+                result_data["errors"] = errors[:10]
+            return result_data
 
     # ==================== 搜索 ====================
 
@@ -170,33 +170,35 @@ class MemoryManager:
         threshold: float = 0.7,
         tenant_id: str | None = None,
     ) -> dict[str, Any]:
-        """搜索记忆
-
-        Args:
-            query: 搜索查询文本
-            mode: 搜索模式 (vector/keyword/hybrid)
-            limit: 返回结果数量限制
-            threshold: 相似度阈值 (0.0-1.0，向量搜索使用，转换为 distance 过滤)
-            tenant_id: 租户 ID（不传则使用默认值）
-        """
+        """搜索记忆"""
         if mode not in ("vector", "keyword", "hybrid"):
             raise ValidationError(f"Invalid search mode: {mode}")
 
         effective_tenant_id = tenant_id or self._default_tenant_id
+        tracer = get_tracer()
 
-        try:
-            if mode == "vector":
-                embeddings = await self._get_embeddings([query])
-                results = await self._search_by_vector(embeddings[0], limit, threshold, effective_tenant_id)
-            elif mode == "keyword":
-                results = await self._search_by_keyword(query, limit, effective_tenant_id)
-            else:
-                embeddings = await self._get_embeddings([query])
-                results = await self._hybrid_search(query, embeddings[0], limit, threshold, effective_tenant_id)
+        with tracer.start_as_current_span("memory.search") as span:
+            span.set_attribute("search.mode", mode)
+            span.set_attribute("search.limit", limit)
+            span.set_attribute("search.threshold", threshold)
+            span.set_attribute("tenant.id", effective_tenant_id)
+            span.set_attribute("search.query_length", len(query))
 
-            return {"results": results, "total": len(results), "mode": mode, "query": query}
-        except Exception as e:
-            raise DatabaseError(f"Search failed: {e!s}") from e
+            try:
+                if mode == "vector":
+                    embeddings = await self._get_embeddings([query])
+                    results = await self._search_by_vector(embeddings[0], limit, threshold, effective_tenant_id)
+                elif mode == "keyword":
+                    results = await self._search_by_keyword(query, limit, effective_tenant_id)
+                else:
+                    embeddings = await self._get_embeddings([query])
+                    results = await self._hybrid_search(query, embeddings[0], limit, threshold, effective_tenant_id)
+
+                span.set_attribute("search.result_count", len(results))
+                return {"results": results, "total": len(results), "mode": mode, "query": query}
+            except Exception as e:
+                span.record_exception(e)
+                raise DatabaseError(f"Search failed: {e!s}") from e
 
     async def _search_by_vector(
         self,
@@ -205,54 +207,49 @@ class MemoryManager:
         threshold: float,
         tenant_id: str,
     ) -> list[dict[str, Any]]:
-        """KNN 向量搜索（利用 HNSW 索引）
+        """KNN 向量搜索（利用 HNSW 索引）"""
+        tracer = get_tracer()
+        with tracer.start_as_current_span("search.vector") as span:
+            ef_search = max(self._hnsw_ef_search, 4 * limit)
+            span.set_attribute("search.vector.ef", ef_search)
+            span.set_attribute("search.vector.k", limit)
 
-        使用 <|K,EF|> 算子触发 HNSW 索引：
-        - K = 返回最近邻数量
-        - EF = 搜索候选集大小（越大越精确但越慢）
-        - vector::distance::knn() 复用索引已计算的距离（0=完全相同）
-        """
-        # EF 参数：max(配置值, 4*limit)，Oracle 建议动态调整
-        ef_search = max(self._hnsw_ef_search, 4 * limit)
+            knn_op = f"<|{int(limit)},{int(ef_search)}|>"
+            emb_literal = json.dumps(embedding)
+            q = (  # nosec B608
+                "SELECT id, content, metadata, type, tags, project_id, "  # nosec B608
+                "vector::distance::knn() AS distance "
+                "FROM memory "
+                "WHERE tenant_id = $tenant_id "
+                f"AND embedding {knn_op} {emb_literal} "  # nosec B608
+                "ORDER BY distance ASC"
+            )
+            result = await self._db.query(q, {"tenant_id": tenant_id})
 
-        # KNN 操作符 <|K,EF|> 要求字面整数；embedding 数组必须作为字面量嵌入
-        # （SDK WebSocket 传递 $embedding 参数时 KNN 不生效 — 已验证）
-        knn_op = f"<|{int(limit)},{int(ef_search)}|>"
-        emb_literal = json.dumps(embedding)
-        q = (  # nosec B608
-            "SELECT id, content, metadata, type, tags, project_id, "  # nosec B608
-            "vector::distance::knn() AS distance "
-            "FROM memory "
-            "WHERE tenant_id = $tenant_id "
-            f"AND embedding {knn_op} {emb_literal} "  # nosec B608
-            "ORDER BY distance ASC"
-        )
-        result = await self._db.query(q, {"tenant_id": tenant_id})
-
-        # cosine_distance = 1 - cosine_similarity
-        # 用户传入 threshold 为相似度 (0.7)，转换为最大距离 (0.3)
-        max_distance = 1.0 - threshold
-        return self._format_vector_results(result, max_distance)
+            max_distance = 1.0 - threshold
+            results = self._format_vector_results(result, max_distance)
+            span.set_attribute("search.vector.result_count", len(results))
+            return results
 
     async def _search_by_keyword(self, query_text: str, limit: int, tenant_id: str) -> list[dict[str, Any]]:
-        """BM25 全文搜索
-
-        使用 @1@ 全文搜索操作符 + search::score(1) 获取 BM25 评分。
-        注意: SDK WebSocket 参数化传递 $query 对 @1@ 算子无效（同 KNN 发现 #4），
-        必须使用字面量嵌入查询文本。查询文本经 _sanitize_query() 清洗防止注入。
-        """
-        safe_query = self._sanitize_query(query_text)
-        q = (  # nosec B608
-            "SELECT id, content, metadata, type, tags, project_id, "
-            "search::score(1) AS score "
-            "FROM memory "
-            "WHERE tenant_id = $tenant_id "
-            f"AND content @1@ '{safe_query}' "  # nosec B608
-            "ORDER BY score DESC "
-            f"LIMIT {int(limit)}"  # nosec B608
-        )
-        result = await self._db.query(q, {"tenant_id": tenant_id})
-        return self._format_keyword_results(result)
+        """BM25 全文搜索"""
+        tracer = get_tracer()
+        with tracer.start_as_current_span("search.keyword") as span:
+            safe_query = self._sanitize_query(query_text)
+            span.set_attribute("search.keyword.query", safe_query[:100])
+            q = (  # nosec B608
+                "SELECT id, content, metadata, type, tags, project_id, "
+                "search::score(1) AS score "
+                "FROM memory "
+                "WHERE tenant_id = $tenant_id "
+                f"AND content @1@ '{safe_query}' "  # nosec B608
+                "ORDER BY score DESC "
+                f"LIMIT {int(limit)}"  # nosec B608
+            )
+            result = await self._db.query(q, {"tenant_id": tenant_id})
+            results = self._format_keyword_results(result)
+            span.set_attribute("search.keyword.result_count", len(results))
+            return results
 
     async def _hybrid_search(
         self,
@@ -263,19 +260,23 @@ class MemoryManager:
         tenant_id: str,
     ) -> list[dict[str, Any]]:
         """RRF 混合搜索：并行执行向量+关键词搜索，然后用 RRF 算法融合"""
-        # 并行执行两种搜索，各取 2*limit 候选以保证融合后有足够结果
-        tasks = [
-            self._search_by_vector(embedding, limit * 2, threshold, tenant_id),
-            self._search_by_keyword(query_text, limit * 2, tenant_id),
-        ]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        tracer = get_tracer()
+        with tracer.start_as_current_span("search.hybrid") as span:
+            tasks = [
+                self._search_by_vector(embedding, limit * 2, threshold, tenant_id),
+                self._search_by_keyword(query_text, limit * 2, tenant_id),
+            ]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        vector_results: list[dict[str, Any]] = [] if isinstance(results[0], BaseException) else results[0]
-        keyword_results: list[dict[str, Any]] = [] if isinstance(results[1], BaseException) else results[1]
+            vector_results: list[dict[str, Any]] = [] if isinstance(results[0], BaseException) else results[0]
+            keyword_results: list[dict[str, Any]] = [] if isinstance(results[1], BaseException) else results[1]
 
-        # RRF 融合
-        merged = self._rrf_merge(vector_results, keyword_results)
-        return merged[:limit]
+            span.set_attribute("search.hybrid.vector_count", len(vector_results))
+            span.set_attribute("search.hybrid.keyword_count", len(keyword_results))
+
+            merged = self._rrf_merge(vector_results, keyword_results)
+            span.set_attribute("search.hybrid.merged_count", len(merged[:limit]))
+            return merged[:limit]
 
     def _rrf_merge(
         self,
@@ -406,66 +407,57 @@ class MemoryManager:
         description: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """创建两条记忆之间的图关系
-
-        使用 SurrealDB RELATE 语句创建有向边。
-        edge 表为 memory_relation，类型限制为 IN memory OUT memory。
-
-        Args:
-            from_id: 源记忆 ID（如 "memory:abc123"）
-            to_id: 目标记忆 ID（如 "memory:def456"）
-            relationship_type: 关系类型 (related/follow_up/elaboration/contradiction/reference/derived_from)
-            weight: 关系权重 0.0-1.0
-            tenant_id: 租户 ID
-            description: 关系描述（可选）
-            metadata: 扩展元数据（可选）
-        """
+        """创建两条记忆之间的图关系"""
         effective_tenant_id = tenant_id or self._default_tenant_id
 
-        # 验证参数
         valid_types = {"related", "follow_up", "elaboration", "contradiction", "reference", "derived_from"}
         if relationship_type not in valid_types:
             raise ValidationError(f"Invalid relationship_type: {relationship_type}. Must be one of {valid_types}")
         if not 0.0 <= weight <= 1.0:
             raise ValidationError(f"weight must be between 0.0 and 1.0, got {weight}")
 
-        # 规范化 ID 格式
         from_ref = self._normalize_memory_id(from_id)
         to_ref = self._normalize_memory_id(to_id)
 
-        try:
-            # RELATE 使用字面量（同 KNN/BM25 的 SDK workaround）
-            set_clauses = [
-                f"relationship_type = '{relationship_type}'",
-                f"weight = {float(weight)}",
-                "tenant_id = $tenant_id",
-            ]
-            if description:
-                safe_desc = self._sanitize_query(description)
-                set_clauses.append(f"description = '{safe_desc}'")
-            if metadata:
-                set_clauses.append(f"metadata = {json.dumps(metadata)}")
+        tracer = get_tracer()
+        with tracer.start_as_current_span("graph.create_relation") as span:
+            span.set_attribute("graph.from", from_ref)
+            span.set_attribute("graph.to", to_ref)
+            span.set_attribute("graph.type", relationship_type)
+            span.set_attribute("tenant.id", effective_tenant_id)
 
-            set_str = ", ".join(set_clauses)
-            q = (  # nosec B608
-                f"RELATE {from_ref}->memory_relation->{to_ref} "  # nosec B608
-                f"SET {set_str}"  # nosec B608
-            )
-            result = await self._db.query(q, {"tenant_id": effective_tenant_id})
+            try:
+                set_clauses = [
+                    f"relationship_type = '{relationship_type}'",
+                    f"weight = {float(weight)}",
+                    "tenant_id = $tenant_id",
+                ]
+                if description:
+                    safe_desc = self._sanitize_query(description)
+                    set_clauses.append(f"description = '{safe_desc}'")
+                if metadata:
+                    set_clauses.append(f"metadata = {json.dumps(metadata)}")
 
-            # 提取创建的关系 ID
-            records = self._extract_records(result)
-            if records:
-                return {
-                    "id": str(records[0].get("id", "")),
-                    "from": from_ref,
-                    "to": to_ref,
-                    "relationship_type": relationship_type,
-                    "weight": weight,
-                }
-            return {"error": "No relation created"}
-        except Exception as e:
-            raise DatabaseError(f"Failed to create relation: {e!s}") from e
+                set_str = ", ".join(set_clauses)
+                q = (  # nosec B608
+                    f"RELATE {from_ref}->memory_relation->{to_ref} "  # nosec B608
+                    f"SET {set_str}"  # nosec B608
+                )
+                result = await self._db.query(q, {"tenant_id": effective_tenant_id})
+
+                records = self._extract_records(result)
+                if records:
+                    return {
+                        "id": str(records[0].get("id", "")),
+                        "from": from_ref,
+                        "to": to_ref,
+                        "relationship_type": relationship_type,
+                        "weight": weight,
+                    }
+                return {"error": "No relation created"}
+            except Exception as e:
+                span.record_exception(e)
+                raise DatabaseError(f"Failed to create relation: {e!s}") from e
 
     async def get_relations(
         self,
@@ -475,55 +467,55 @@ class MemoryManager:
         tenant_id: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
-        """查询记忆的关联关系
-
-        Args:
-            memory_id: 记忆 ID
-            direction: 查询方向 (outgoing/incoming/both)
-            relationship_type: 按关系类型过滤（可选）
-            tenant_id: 租户 ID
-            limit: 返回数量限制
-        """
+        """查询记忆的关联关系"""
         effective_tenant_id = tenant_id or self._default_tenant_id
         mem_ref = self._normalize_memory_id(memory_id)
 
         if direction not in ("outgoing", "incoming", "both"):
             raise ValidationError(f"Invalid direction: {direction}. Must be outgoing/incoming/both")
 
-        try:
-            results: list[dict[str, Any]] = []
+        tracer = get_tracer()
+        with tracer.start_as_current_span("graph.get_relations") as span:
+            span.set_attribute("graph.memory_id", mem_ref)
+            span.set_attribute("graph.direction", direction)
+            span.set_attribute("tenant.id", effective_tenant_id)
 
-            if direction in ("outgoing", "both"):
-                q = (
-                    f"SELECT *, meta::id(id) AS relation_id, "  # nosec B608
-                    f"meta::id(in) AS from_id, meta::id(out) AS to_id "
-                    f"FROM memory_relation "
-                    f"WHERE in = {mem_ref} AND tenant_id = $tenant_id "
-                )
-                if relationship_type:
-                    safe_type = self._sanitize_query(relationship_type)
-                    q += f"AND relationship_type = '{safe_type}' "  # nosec B608
-                q += f"LIMIT {int(limit)}"
-                r = await self._db.query(q, {"tenant_id": effective_tenant_id})
-                results.extend(self._format_relation_results(r, "outgoing"))
+            try:
+                results: list[dict[str, Any]] = []
 
-            if direction in ("incoming", "both"):
-                q = (
-                    f"SELECT *, meta::id(id) AS relation_id, "  # nosec B608
-                    f"meta::id(in) AS from_id, meta::id(out) AS to_id "
-                    f"FROM memory_relation "
-                    f"WHERE out = {mem_ref} AND tenant_id = $tenant_id "
-                )
-                if relationship_type:
-                    safe_type = self._sanitize_query(relationship_type)
-                    q += f"AND relationship_type = '{safe_type}' "  # nosec B608
-                q += f"LIMIT {int(limit)}"
-                r = await self._db.query(q, {"tenant_id": effective_tenant_id})
-                results.extend(self._format_relation_results(r, "incoming"))
+                if direction in ("outgoing", "both"):
+                    q = (
+                        f"SELECT *, meta::id(id) AS relation_id, "  # nosec B608
+                        f"meta::id(in) AS from_id, meta::id(out) AS to_id "
+                        f"FROM memory_relation "
+                        f"WHERE in = {mem_ref} AND tenant_id = $tenant_id "
+                    )
+                    if relationship_type:
+                        safe_type = self._sanitize_query(relationship_type)
+                        q += f"AND relationship_type = '{safe_type}' "  # nosec B608
+                    q += f"LIMIT {int(limit)}"
+                    r = await self._db.query(q, {"tenant_id": effective_tenant_id})
+                    results.extend(self._format_relation_results(r, "outgoing"))
 
-            return results
-        except Exception as e:
-            raise DatabaseError(f"Failed to get relations: {e!s}") from e
+                if direction in ("incoming", "both"):
+                    q = (
+                        f"SELECT *, meta::id(id) AS relation_id, "  # nosec B608
+                        f"meta::id(in) AS from_id, meta::id(out) AS to_id "
+                        f"FROM memory_relation "
+                        f"WHERE out = {mem_ref} AND tenant_id = $tenant_id "
+                    )
+                    if relationship_type:
+                        safe_type = self._sanitize_query(relationship_type)
+                        q += f"AND relationship_type = '{safe_type}' "  # nosec B608
+                    q += f"LIMIT {int(limit)}"
+                    r = await self._db.query(q, {"tenant_id": effective_tenant_id})
+                    results.extend(self._format_relation_results(r, "incoming"))
+
+                span.set_attribute("graph.relation_count", len(results))
+                return results
+            except Exception as e:
+                span.record_exception(e)
+                raise DatabaseError(f"Failed to get relations: {e!s}") from e
 
     async def delete_relation(
         self,
@@ -560,59 +552,54 @@ class MemoryManager:
         tenant_id: str | None = None,
         limit: int = 20,
     ) -> list[dict[str, Any]]:
-        """图遍历：获取关联的记忆内容（支持多层深度）
-
-        Args:
-            memory_id: 起始记忆 ID
-            depth: 遍历深度 (1-3，默认 1)
-            relationship_type: 按关系类型过滤
-            tenant_id: 租户 ID
-            limit: 返回数量限制
-        """
+        """图遍历：获取关联的记忆内容（支持多层深度）"""
         effective_tenant_id = tenant_id or self._default_tenant_id
         mem_ref = self._normalize_memory_id(memory_id)
-        depth = max(1, min(depth, 3))  # 限制 1-3 层防止性能问题
+        depth = max(1, min(depth, 3))
 
-        try:
-            # 构建图遍历路径表达式
-            # depth=1: ->memory_relation->memory
-            # depth=2: ->memory_relation->memory->memory_relation->memory
-            path = "->memory_relation->memory" * depth
+        tracer = get_tracer()
+        with tracer.start_as_current_span("graph.traverse") as span:
+            span.set_attribute("graph.start", mem_ref)
+            span.set_attribute("graph.depth", depth)
+            span.set_attribute("tenant.id", effective_tenant_id)
 
-            q = (
-                f"SELECT {path}.* AS related "  # nosec B608
-                f"FROM {mem_ref}"  # nosec B608
-            )
-            result = await self._db.query(q)
+            try:
+                path = "->memory_relation->memory" * depth
 
-            # 提取并去重关联记忆
-            seen: set[str] = set()
-            memories: list[dict[str, Any]] = []
-            records = self._extract_records(result)
+                q = (
+                    f"SELECT {path}.* AS related "  # nosec B608
+                    f"FROM {mem_ref}"  # nosec B608
+                )
+                result = await self._db.query(q)
 
-            for record in records:
-                related_list = record.get("related", [])
-                if not isinstance(related_list, list):
-                    related_list = [related_list]
-                for mem in related_list:
-                    if not isinstance(mem, dict):
-                        continue
-                    mem_id = str(mem.get("id", ""))
-                    if not mem_id or mem_id in seen:
-                        continue
-                    # 租户隔离检查
-                    if mem.get("tenant_id") != effective_tenant_id:
-                        continue
-                    seen.add(mem_id)
-                    memories.append(self._build_result_item(mem, score=0.0))
+                seen: set[str] = set()
+                memories: list[dict[str, Any]] = []
+                records = self._extract_records(result)
+
+                for record in records:
+                    related_list = record.get("related", [])
+                    if not isinstance(related_list, list):
+                        related_list = [related_list]
+                    for mem in related_list:
+                        if not isinstance(mem, dict):
+                            continue
+                        mem_id = str(mem.get("id", ""))
+                        if not mem_id or mem_id in seen:
+                            continue
+                        if mem.get("tenant_id") != effective_tenant_id:
+                            continue
+                        seen.add(mem_id)
+                        memories.append(self._build_result_item(mem, score=0.0))
+                        if len(memories) >= limit:
+                            break
                     if len(memories) >= limit:
                         break
-                if len(memories) >= limit:
-                    break
 
-            return memories
-        except Exception as e:
-            raise DatabaseError(f"Failed to get related memories: {e!s}") from e
+                span.set_attribute("graph.traverse.result_count", len(memories))
+                return memories
+            except Exception as e:
+                span.record_exception(e)
+                raise DatabaseError(f"Failed to get related memories: {e!s}") from e
 
     # ==================== ID 规范化 ====================
 
