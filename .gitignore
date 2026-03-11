@@ -24,3 +24,15 @@ wrapper-service/.coverage
 
 # 环境变量（不提交）
 .env
+
+
+# 旧版/临时开发脚本（已被 v2.3.0 Polyglot 架构取代）
+scripts/apply_schema_fix.py
+scripts/init_surrealdb_v2.surql
+scripts/update_schema.py
+scripts/update_schema_simple.py
+
+# 旧方案文档（已归档，不纳入版本控制）
+EXECUTION_REPORT.md
+docs/DATE_SEARCH_SOLUTION.md
+docs/智能记忆系统*
