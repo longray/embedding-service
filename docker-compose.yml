@@ -79,6 +79,9 @@ services:
       - WRAPPER_SURREALDB_DATABASE=memory_db
       - WRAPPER_SURREALDB_USERNAME=root
       - WRAPPER_SURREALDB_PASSWORD=root
+      - WRAPPER_SURREALDB_RUNTIME_USERNAME=runtime_user
+      - WRAPPER_SURREALDB_RUNTIME_PASSWORD=change_me_in_production
+      - WRAPPER_SURREALDB_USE_RUNTIME_CREDENTIALS=true
     depends_on:
       surrealdb:
         condition: service_healthy

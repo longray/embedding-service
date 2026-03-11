@@ -124,7 +124,7 @@ class SurrealDBManager:
         return await self.db.query(sql)
 
     # 目标 Schema 版本（与 init_surrealdb.surql 中的 UPSERT 保持一致）
-    SCHEMA_TARGET_VERSION = "2.1.0"
+    SCHEMA_TARGET_VERSION = "2.2.0"
 
     async def ensure_schema(self):
         """确保数据库 Schema 已初始化或已升级（幂等操作 + migration lock + fail-fast）
@@ -155,6 +155,19 @@ class SurrealDBManager:
             )
             await self._apply_init_script()
             logger.info("[Schema] %s完成", action)
+
+            # Phase 3C: 切换到运行时用户凭据（安全加固）
+            if config.surrealdb.use_runtime_credentials:
+                logger.info("[Security] 切换到运行时用户凭据（EDITOR 权限）")
+                await self._db.signin(
+                    {
+                        "namespace": config.surrealdb.namespace,
+                        "database": config.surrealdb.database,
+                        "username": config.surrealdb.runtime_username,
+                        "password": config.surrealdb.runtime_password,
+                    }
+                )
+                logger.info("[Security] 已切换到运行时用户: %s", config.surrealdb.runtime_username)
 
         except SystemExit:
             raise
@@ -290,7 +303,7 @@ async def lifespan(app: FastAPI):
     await db_manager.disconnect()
 
 
-app = FastAPI(title="Minimal Wrapper Service", version="2.1.0", lifespan=lifespan)
+app = FastAPI(title="Minimal Wrapper Service", version="2.2.0", lifespan=lifespan)
 
 
 # ==================== 异常处理 ====================

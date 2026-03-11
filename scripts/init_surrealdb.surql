@@ -1,7 +1,7 @@
 -- ============================================================
 -- scripts/init_surrealdb.surql
 -- Embedding Service 数据库初始化脚本
--- 版本: 2.1.0
+-- 版本: 2.2.0
 -- 兼容: SurrealDB >= 2.0（推荐 3.0+）
 -- 注意: SurrealDB 3.0 要求 TYPE NORMAL SCHEMAFULL（非旧的 SCHEMAFULL）
 -- 幂等: 所有 DEFINE 使用 IF NOT EXISTS，支持重复执行
@@ -186,4 +186,20 @@ UPSERT schema_version:current CONTENT {
     version: '2.1.0',
     applied_at: time::now(),
     description: 'Phase 2: ngram(2,8) 中文分词 + memory_relation 图关系边表'
+};
+
+-- ==================== 运行时用户（安全加固 Phase 3C）====================
+-- 运行时应用用户 - 仅数据操作权限（EDITOR 角色）
+-- 不能执行 DEFINE TABLE/INDEX 等 schema 操作
+DEFINE USER IF NOT EXISTS runtime_user ON DATABASE
+    PASSWORD 'change_me_in_production'
+    ROLES EDITOR
+    DURATION FOR SESSION 12h, FOR TOKEN 1h
+    COMMENT 'Runtime application user with data-only permissions';
+
+-- 更新版本号
+UPSERT schema_version:current CONTENT {
+    version: '2.2.0',
+    applied_at: time::now(),
+    description: 'Phase 3C: 安全加固 — 运行时用户权限分离 + Phase 2 ngram(2,8) 中文分词 + memory_relation 图关系边表'
 };

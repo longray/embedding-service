@@ -25,8 +25,11 @@ class SurrealDBConfig:
     url: str = "ws://localhost:8000/rpc"
     namespace: str = "memory_ns"
     database: str = "memory_db"
-    username: str = "root"
+    username: str = "root"  # 迁移用户（OWNER 权限）
     password: str = "root"
+    runtime_username: str = "runtime_user"  # 运行时用户（EDITOR 权限）
+    runtime_password: str = "change_me_in_production"
+    use_runtime_credentials: bool = True  # 生产环境启用权限分离
 
 
 @dataclass
@@ -86,6 +89,13 @@ def load_config():
     cfg.cache.enabled = os.getenv("WRAPPER_CACHE_ENABLED", "true").lower() == "true"
     cfg.service.embedding_service_url = os.getenv("WRAPPER_EMBEDDING_SERVICE_URL", cfg.service.embedding_service_url)
     cfg.surrealdb.url = os.getenv("WRAPPER_SURREALDB_URL", cfg.surrealdb.url)
+    cfg.surrealdb.namespace = os.getenv("WRAPPER_SURREALDB_NAMESPACE", cfg.surrealdb.namespace)
+    cfg.surrealdb.database = os.getenv("WRAPPER_SURREALDB_DATABASE", cfg.surrealdb.database)
+    cfg.surrealdb.username = os.getenv("WRAPPER_SURREALDB_USERNAME", cfg.surrealdb.username)
+    cfg.surrealdb.password = os.getenv("WRAPPER_SURREALDB_PASSWORD", cfg.surrealdb.password)
+    cfg.surrealdb.runtime_username = os.getenv("WRAPPER_SURREALDB_RUNTIME_USERNAME", cfg.surrealdb.runtime_username)
+    cfg.surrealdb.runtime_password = os.getenv("WRAPPER_SURREALDB_RUNTIME_PASSWORD", cfg.surrealdb.runtime_password)
+    cfg.surrealdb.use_runtime_credentials = os.getenv("WRAPPER_SURREALDB_USE_RUNTIME_CREDENTIALS", "true").lower() == "true"
 
     # 搜索配置
     cfg.search.vector_threshold = float(os.getenv("WRAPPER_SEARCH_VECTOR_THRESHOLD", str(cfg.search.vector_threshold)))
