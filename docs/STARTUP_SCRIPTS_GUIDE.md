@@ -11,6 +11,7 @@ Optimized Windows batch scripts with intelligent health checking for embedding s
 **Features**:
 - Checks if Embedding Service (port 18000) is already running
 - Checks if SurrealDB (port 18002) is already running
+- Checks if Meilisearch (port 7700) is already running (v2.3.0+)
 - Only starts services that are not running
 - Waits for services to be ready before completing
 - Visual status summary with colors
@@ -96,6 +97,7 @@ User
 start_all_services.bat (Coordinator)
   |-- Health Check: Embedding (HTTP 18000)
   |-- Health Check: SurrealDB (TCP 18002)
+  |-- Health Check: Meilisearch (HTTP 7700/health) [v2.3.0+]
   |-- Decision: Start / Skip / Error
   |
   +-- start_embedding_service.bat
@@ -105,10 +107,15 @@ start_all_services.bat (Coordinator)
   |     +-- Start Service
   |
   +-- start_surrealdb.bat
-        |-- Health Check
-        |-- Environment Check
-        |-- Port Check
-        +-- Start Service
+  |     |-- Health Check
+  |     |-- Environment Check
+  |     |-- Port Check
+  |     +-- Start Service
+  |
+  +-- Meilisearch (独立运行) [v2.3.0+]
+        |-- 全文搜索引擎（CJK 中文分词）
+        |-- 端口：7700（默认）
+        +-- 健康检查：GET /health
 ```
 
 ---
@@ -135,6 +142,16 @@ $c.Close()
 - No external dependencies (unlike curl)
 - Supports both HTTP and TCP socket checks
 - Better error handling
+
+### Meilisearch (HTTP) [v2.3.0+]
+```
+Endpoint: http://localhost:7700/health
+Method: HTTP GET
+Auth: Authorization: Bearer <master_key>
+Success: {"status": "available"}
+```
+
+**Note**: Meilisearch 是可选服务，不可用时包装层自动回退到 SurrealDB BM25 全文搜索。
 
 ---
 
@@ -241,4 +258,5 @@ set "HEALTH_TIMEOUT=3"
 - Scripts detect own directory (`%~dp0`)
 - Timeout values are in seconds
 - All health checks are non-blocking
-
+- **v2.3.0+**: Meilisearch 为可选依赖，不影响核心启动流程
+- **Polyglot 架构**: SurrealDB（向量+图）+ Meilisearch（全文搜索）

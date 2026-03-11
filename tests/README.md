@@ -7,6 +7,7 @@
 - LLM 服务（端口 18001）
 - 包装层服务（端口 3001）
 - **最小化包装服务（端口 17999）** - 新增
+- **Meilisearch 集成测试** - v2.3.0 新增
 
 ## 测试类型
 
@@ -209,6 +210,29 @@ uv run pytest tests/test_wrapper_api.py -v
 - ✅ 快速连续请求
 - ✅ 速率限制（如果实现）
 
+### Meilisearch 集成测试 (23个) - v2.3.0 新增
+
+**测试文件**: `tests/test_meili_integration.py`
+
+| 测试类 | 测试数 | 覆盖内容 |
+|--------|--------|----------|
+| TestMeiliClientInit | 3 | 客户端初始化、禁用状态、默认配置 |
+| TestMeiliClientIndexManagement | 3 | 索引创建、幂等性、设置配置 |
+| TestMeiliClientDocumentOperations | 4 | 文档上传、批量操作、删除 |
+| TestMeiliClientSearch | 5 | 关键词搜索、中文搜索、日期搜索、结果格式 |
+| TestMemoryManagerMeiliIntegration | 4 | 双写同步、搜索路由、降级回退 |
+| TestMeiliSearchRouting | 4 | keyword→Meilisearch、vector→SurrealDB、hybrid→RRF |
+
+**运行方式**:
+```bash
+# 运行 Meilisearch 集成测试
+uv run pytest tests/test_meili_integration.py -v
+```
+
+**前置条件**:
+- Meilisearch 1.4+ 运行中（默认端口 7700）
+- 配置 `WRAPPER_MEILI_ENABLED=true` 环境变量
+- 不需要 Meilisearch 也可运行（mock 测试）
 ### 集成测试 (2个)
 
 ## 测试报告

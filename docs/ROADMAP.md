@@ -2,8 +2,8 @@
 
 ## 版本历史
 
-### v1.1.0 (当前) - 最小化包装服务 ✅
-**发布日期**: 2026-03-10
+### v2.3.0 (当前) - Polyglot 搜索架构 ✅
+**发布日期**: 2026-03-12
 
 **核心功能**:
 - Embedding 服务（Qwen3-Embedding-0.6B）
@@ -16,12 +16,13 @@
 - 包装层服务（端口 3001，完整功能）
 - API 认证授权（API Key + 权限控制）
 - 记忆管理系统（SurrealDB + 向量搜索）
+- **Polyglot 搜索架构**（Meilisearch 全文搜索 + SurrealDB 向量/图）
 - CI/CD（GitHub Actions）
 - **完整测试套件（150+ 测试用例）**
 
 ---
 
-## P3 优化阶段 (进行中)
+## P3 优化阶段
 
 ### P3-1: Docker Compose 配置 ✅ 已完成
 
@@ -80,6 +81,38 @@ DEFINE INDEX memory_embedding_hnsw ON memory
 **工作量**: 2-3天
 **依赖**: 无
 
+---
+
+### Phase 3E: Polyglot 搜索架构 ✅ 已完成
+
+**目标**: 解决 SurrealDB 3.0.1 BM25 全文搜索的日期分词 bug 和中文分词不足
+
+**架构决策**: Polyglot Persistence（多模搜索引擎协作）
+- SurrealDB → 向量搜索 (HNSW) + 图关系 (RELATE) + 数据存储
+- Meilisearch → 全文搜索 + CJK 中文分词 + 日期精确匹配
+
+**任务清单**:
+- [x] MeilisearchConfig 配置类 + 环境变量
+- [x] MeilisearchClient 异步客户端 (meili_client.py)
+- [x] 上传双写同步（SurrealDB + Meilisearch）
+- [x] 关键词搜索路由到 Meilisearch
+- [x] 混合搜索 RRF 融合（向量走 SurrealDB + 关键词走 Meilisearch）
+- [x] 数据迁移脚本 (migrate_to_meilisearch.py)
+- [x] 23 个单元测试（全部通过）
+- [x] 端到��验证（日期/中文/混合搜索全部通过）
+- [x] docker-compose.yml 新增 Meilisearch 服务
+- [x] README.md 更新
+
+**状态**: ✅ 已完成 (2026-03-12)
+
+**预期收益**:
+- 日期搜索精确匹配（"2026-03-12" 不再被拆分为三个 token）
+- CJK 中文分词开箱即用
+- 优雅降级（Meilisearch 不可用时回退到 SurrealDB BM25）
+- 搜索质量显著提升
+
+**工作量**: 2-3天
+**依赖**: P3-2（HNSW 向量索引）
 ---
 
 ### P3-3: 监控告警完善

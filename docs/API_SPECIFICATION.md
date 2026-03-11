@@ -1,6 +1,6 @@
 # Embedding Service API 接口规范
 
-**版本**: 1.0.0
+**版本**: 2.3.0
 **生成日期**: 2026-03-04
 **适用项目**: D:\embedding_service
 
@@ -36,28 +36,30 @@
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              包装层服务 (端口 3001)                        │
+│              包装层服务 (端口 17999)                     │
 │  ┌─────────┐  ┌─────────┐  ┌─────────┐                │
 │  │ 缓存    │  │ 熔断器  │  │ 连接池  │                │
 │  └─────────┘  └─────────┘  └─────────┘                │
 └─────────────────────────────────────────────────────────────┘
                             │
-                ┌───────────┼───────────┐
-                ▼           ▼           ▼
-        ┌──────────┐ ┌──────────┐ ┌──────────┐
-        │Embedding│ │   LLM    │ │SurrealDB │
-        │ 18000   │ │  18001   │ │  18002   │
-        │(Qwen3)  │ │(MiniCPM) │ │          │
-        └──────────┘ └──────────┘ └──────────┘
+                ┌───────────┼───────────────────┐
+                ▼           ▼           ▼           ▼
+        ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────────┐
+        │Embedding│ │   LLM    │ │SurrealDB │ │Meilisearch │
+        │ 18000   │ │  18001   │ │  18002   │ │   7700     │
+        │(Qwen3)  │ │(MiniCPM) │ │向量+图   │ │全文搜索    │
+        └──────────┘ └──────────┘ └──────────┘ └────────────┘
 ```
 
 ### 1.2 服务列表
 
-| 服务 | 端口 | 功能 | 模型 |
+| 服务 | 端口 | 功能 | 模型/引擎 |
 |------|------|------|------|
 | Embedding服务 | 18000 | 文本→向量转换 | Qwen3-Embedding-0.6B |
 | LLM服务 | 18001 | 对话补全生成 | MiniCPM4-0.5B |
-| 包装层服务 | 3001 | 统一入口+增强功能 | - |
+| SurrealDB | 18002 | 向量搜索 + 图关系 + 数据存储 | HNSW 索引 |
+| Meilisearch | 7700 | 全文搜索 + CJK 中文分词 | charabia tokenizer |
+| 包装层服务 | 17999 | 统一入口+增强功能 | - |
 
 ### 1.3 核心特性
 
@@ -65,9 +67,9 @@
 - ✅ **智能缓存**：线程安全LRU缓存（TTL过期）
 - ✅ **连接池管理**：HTTP连接复用
 - ✅ **结构化日志**：structlog支持
-- ✅ **Prometheus指标**：完整监控
-- ✅ **记忆管理**：SurrealDB向量存储
-
+- ✅ **记忆管理**：Polyglot 架构（SurrealDB 向量/图 + Meilisearch 全文搜索）
+- ✅ **混合搜索**：RRF 融合（向量走 SurrealDB + 关键词走 Meilisearch）
+- ✅ **API 认证**：API Key 认证和权限控制
 ---
 
 ## 二、API版本管理
@@ -675,18 +677,23 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
 ```json
 {
   "status": "healthy",
+  "service": "minimal-wrapper",
+  "version": "2.3.0",
+  "port": 17999,
+  "embedding_service": {
+    "status": "healthy",
+    "device": "cuda",
+    "model": "Qwen3-Embedding-0.6B"
+  },
+  "surrealdb": {"status": "healthy"},
+  "meilisearch": {"status": "available"},
   "cache_stats": {
     "max_size": 1000,
     "current_size": 42,
     "hits": 156,
     "misses": 23,
     "hit_rate": 87.15
-  },
-  "circuit_breakers": {
-    "embedding": "closed",
-    "llm": "closed"
-  },
-  "surrealdb": "healthy"
+  }
 }
 ```
 
@@ -1637,7 +1644,7 @@ async def test_full_workflow():
 | `LLM_MAX_NEW_TOKENS` | 512-2048 | 最大生成长度 |
 | `LLM_CACHE_SIZE` | 100 | 缓存大小 |
 | **包装层服务** |||
-| `WRAPPER_PORT` | 3001 | 服务端口 |
+| `WRAPPER_PORT` | 17999 | 服务端口 |
 | `WRAPPER_EMBEDDING_SERVICE_URL` | http://localhost:18000 | Embedding服务地址 |
 | `WRAPPER_LLM_SERVICE_URL` | http://localhost:18001 | LLM服务地址 |
 | `WRAPPER_CACHE_MAX_SIZE` | 1000 | 缓存大小 |
@@ -1649,6 +1656,12 @@ async def test_full_workflow():
 | `WRAPPER_SURREALDB_NAMESPACE` | memory_ns | 命名空间 |
 | `WRAPPER_SURREALDB_DATABASE` | memory_db | 数据库名 |
 | `WRAPPER_SURREALDB_POOL_SIZE` | 10 | 连接池大小 |
+| **Meilisearch** |||
+| `WRAPPER_MEILI_ENABLED` | false | 是否启用 Meilisearch |
+| `WRAPPER_MEILI_URL` | http://127.0.0.1:7700 | Meilisearch 地址 |
+| `WRAPPER_MEILI_API_KEY` | - | Meilisearch Master Key |
+| `WRAPPER_MEILI_INDEX_NAME` | memories | 索引名称 |
+| `WRAPPER_MEILI_TIMEOUT` | 30.0 | 请求超时（秒） |
 
 ### 10.2 错误码参考
 
@@ -1678,8 +1691,8 @@ async def test_full_workflow():
 
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
+| 2.3.0 | 2026-03-12 | Polyglot 搜索架构：Meilisearch 全文搜索 + SurrealDB 向量/图 |
 | 1.0.0 | 2026-03-04 | 初始版本 |
-
 ---
 
 ## 联系方式

@@ -40,9 +40,11 @@ uv run python start_services.py --with-llm --no-wrapper
 
 | 服务 | 地址 | 说明 |
 |------|------|------|
-| **包装层** | http://localhost:3001 | 推荐使用（带缓存、熔断器） |
+| **包装层** | http://localhost:17999 | 推荐使用（带缓存、熔断器、Meilisearch 全文搜索） |
 | Embedding | http://localhost:18000 | 直接访问后端 |
 | LLM | http://localhost:18001 | 直接访问后端 |
+| SurrealDB | ws://localhost:18002/rpc | 向量搜索 + 图关系 + 数据存储 |
+| Meilisearch | http://localhost:7700 | 全文搜索 + CJK 中文分词（可选） |
 
 ### 停止服务
 
@@ -51,9 +53,11 @@ uv run python start_services.py --with-llm --no-wrapper
 ### 依赖关系
 
 ```
-包装层服务 (3001)
+包装层服务 (17999)
     ├── 必须依赖：Embedding 服务 (18000)
-    └── 可选依赖：LLM 服务 (18001)
+    ├── 必须依赖：SurrealDB (18002) — 向量搜索 + 图关系
+    ├── 可选依赖：LLM 服务 (18001)
+    └── 可选依赖：Meilisearch (7700) — 全文搜索（不可用时回退到 SurrealDB BM25）
 ```
 
 ### 故障排查
@@ -70,8 +74,8 @@ uv run python start_services.py --with-llm --no-wrapper
 
 **问题3：包装层服务启动失败**
 - 确保后端服务已启动
-- 检查端口3001是否被占用
-- 检查环境变量配置
+- 检查端口 17999 是否被占用
+- 检查环境变量配置（SurrealDB、Meilisearch 地址等）
 
 ## 📝 手动启动（不推荐）
 
@@ -85,9 +89,7 @@ uv run python src/qwen3_embedding_service/embedding_service.py
 uv run python src/qwen3_embedding_service/llm_service.py
 
 # 终端3：包装层服务
-cd wrapper-service
-uv run python -m src.main
-```
+uv run python -m wrapper.src.main
 
 ## 🎯 推荐配置
 
@@ -118,9 +120,35 @@ export EMB_CACHE_SIZE=1000
 export LLM_CACHE_SIZE=100
 
 # 包装层服务
-export WRAPPER_PORT=3001
+export WRAPPER_PORT=17999
 export WRAPPER_CACHE_MAX_SIZE=1000
 export WRAPPER_CACHE_TTL=3600
+
+# SurrealDB
+export WRAPPER_SURREALDB_URL=ws://localhost:18002/rpc
+export WRAPPER_SURREALDB_NAMESPACE=memory_ns
+export WRAPPER_SURREALDB_DATABASE=memory_db
+
+# Meilisearch（可选，不配置则回退到 SurrealDB BM25）
+export WRAPPER_MEILI_ENABLED=true
+export WRAPPER_MEILI_URL=http://127.0.0.1:7700
+export WRAPPER_MEILI_API_KEY=your_master_key
+export WRAPPER_MEILI_INDEX_NAME=memories
+export WRAPPER_MEILI_TIMEOUT=30.0
 ```
 
-详细配置说明见 `wrapper-service/README.md`。
+## 📦 数据迁移（首次启用 Meilisearch 时）
+
+如果之前已有 SurrealDB 中的记忆数据，需要同步到 Meilisearch：
+
+```bash
+# 设置 SurrealDB 连接信息
+export SURREAL_URL=ws://localhost:18002/rpc
+export SURREAL_NS=memory_ns
+export SURREAL_DB=memory_db
+
+# 运行迁移脚本（幂等，可重复运行）
+uv run python scripts/migrate_to_meilisearch.py --batch-size 200
+```
+
+详细配置说明见 `README.md`。
