@@ -68,6 +68,14 @@ class TelemetryConfig:
     sample_rate: float = 1.0  # 1.0 = 全采样，生产环境可降低
 
 
+@dataclass
+class MeilisearchConfig:
+    url: str = "http://localhost:7700"
+    api_key: str = "masterKey_change_in_production"
+    index_name: str = "memories"
+    timeout: float = 30.0
+    enabled: bool = True
+
 
 @dataclass
 class AppConfig:
@@ -80,6 +88,7 @@ class AppConfig:
     service: ServiceConfig = field(default_factory=ServiceConfig)
     search: SearchConfig = field(default_factory=SearchConfig)
     telemetry: TelemetryConfig = field(default_factory=TelemetryConfig)
+    meilisearch: MeilisearchConfig = field(default_factory=MeilisearchConfig)
 
 
 def load_config():
@@ -96,6 +105,13 @@ def load_config():
     cfg.surrealdb.runtime_username = os.getenv("WRAPPER_SURREALDB_RUNTIME_USERNAME", cfg.surrealdb.runtime_username)
     cfg.surrealdb.runtime_password = os.getenv("WRAPPER_SURREALDB_RUNTIME_PASSWORD", cfg.surrealdb.runtime_password)
     cfg.surrealdb.use_runtime_credentials = os.getenv("WRAPPER_SURREALDB_USE_RUNTIME_CREDENTIALS", "true").lower() == "true"
+
+    # Meilisearch 配置
+    cfg.meilisearch.enabled = os.getenv("WRAPPER_MEILI_ENABLED", "true").lower() == "true"
+    cfg.meilisearch.url = os.getenv("WRAPPER_MEILI_URL", cfg.meilisearch.url)
+    cfg.meilisearch.api_key = os.getenv("WRAPPER_MEILI_API_KEY", cfg.meilisearch.api_key)
+    cfg.meilisearch.index_name = os.getenv("WRAPPER_MEILI_INDEX_NAME", cfg.meilisearch.index_name)
+    cfg.meilisearch.timeout = float(os.getenv("WRAPPER_MEILI_TIMEOUT", str(cfg.meilisearch.timeout)))
 
     # 搜索配置
     cfg.search.vector_threshold = float(os.getenv("WRAPPER_SEARCH_VECTOR_THRESHOLD", str(cfg.search.vector_threshold)))

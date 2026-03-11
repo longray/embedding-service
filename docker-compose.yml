@@ -18,6 +18,26 @@ services:
       timeout: 5s
       retries: 5
 
+  # Meilisearch 全文搜索引擎（Polyglot 架构：关键词搜索 + 中文分词 + 日期精确匹配）
+  meilisearch:
+    image: getmeili/meilisearch:v1.13
+    container_name: embedding-meilisearch
+    ports:
+      - "7700:7700"
+    environment:
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-masterKey_change_in_production}
+      - MEILI_ENV=development
+      - MEILI_NO_ANALYTICS=true
+    volumes:
+      - meili-data:/meili_data
+    networks:
+      - embedding-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Embedding 服务
   embedding:
     build:
@@ -82,12 +102,17 @@ services:
       - WRAPPER_SURREALDB_RUNTIME_USERNAME=runtime_user
       - WRAPPER_SURREALDB_RUNTIME_PASSWORD=change_me_in_production
       - WRAPPER_SURREALDB_USE_RUNTIME_CREDENTIALS=true
+      - WRAPPER_MEILI_URL=http://meilisearch:7700
+      - WRAPPER_MEILI_API_KEY=${MEILI_MASTER_KEY:-masterKey_change_in_production}
+      - WRAPPER_MEILI_INDEX_NAME=memories
     depends_on:
       surrealdb:
         condition: service_healthy
       embedding:
         condition: service_healthy
       llm:
+        condition: service_healthy
+      meilisearch:
         condition: service_healthy
     networks:
       - embedding-network
@@ -115,6 +140,7 @@ services:
 volumes:
   surrealdb-data:
   model-cache:
+  meili-data:
 
 networks:
   embedding-network:

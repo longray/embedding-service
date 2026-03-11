@@ -1,10 +1,16 @@
 -- ============================================================
--- scripts/init_surrealdb.surql
--- Embedding Service 数据库初始化脚本
--- 版本: 2.2.0
+-- scripts/init_surrealdb_fixed.surql
+-- Embedding Service 数据库初始化脚本（修复日期搜索问题）
+-- 版本: 2.2.1
 -- 兼容: SurrealDB >= 2.0（推荐 3.0+）
 -- 注意: SurrealDB 3.0 要求 TYPE NORMAL SCHEMAFULL（非旧的 SCHEMAFULL）
 -- 幂等: 所有 DEFINE 使用 IF NOT EXISTS，支持重复执行
+-- 
+-- 【重要修复 v2.2.1】
+-- 移除了 `blank` tokenizer，改用 `class` tokenizer
+-- 解决日期格式（如 2026-03-11）被错误切分的问题
+-- blank: 按空格/标点切分（会把连字符 - 当分隔符）❌
+-- class: 按 Unicode 类别切分（保留连字符）✅
 -- ============================================================
 
 -- ==================== 命名空间初始化 ====================
@@ -34,7 +40,7 @@ DEFINE FIELD IF NOT EXISTS type        ON memory TYPE option<string>
 
 DEFINE FIELD IF NOT EXISTS tags        ON memory TYPE option<array<string>>
     DEFAULT [];
-    -- 自由标签，支��多标签过滤
+    -- 自由标签，支持多标签过滤
 
 DEFINE FIELD IF NOT EXISTS project_id  ON memory TYPE option<string>
     DEFAULT 'global';
@@ -80,12 +86,12 @@ DEFINE INDEX IF NOT EXISTS memory_embedding_hnsw ON memory
 -- 已知限制: 日期格式（如 2026-03-11）会被 blank tokenizer 切分
 -- 如需精确日期搜索，请确保 Meilisearch 已启用
 --
--- Tokenizer: blank（按空格切分）+ class（按 Unicode 类别切分）
+-- Tokenizer: class（按 Unicode 类别切分，保留连字符）
 -- Filter: ngram(2,8) 对中英文混合内容分词
 -- ⚠️ 使用 REMOVE + DEFINE（非 IF NOT EXISTS）确保 analyzer 变更生效
 REMOVE ANALYZER IF EXISTS memory_analyzer;
 DEFINE ANALYZER memory_analyzer
-    TOKENIZERS blank, class
+    TOKENIZERS class
     FILTERS lowercase, ngram(2,8);
 
 -- 重建全文索引以使用更新后的 analyzer（降级路径）
@@ -184,9 +190,9 @@ DEFINE FIELD IF NOT EXISTS description ON schema_version TYPE string;
 -- 记录当前版本（UPSERT 保证幂等）
 -- 注意: CONTENT 会替换所有字段，必须显式设置 applied_at
 UPSERT schema_version:current CONTENT {
-    version: '2.1.0',
+    version: '2.3.0',
     applied_at: time::now(),
-    description: 'Phase 2: ngram(2,8) 中文分词 + memory_relation 图关系边表'
+    description: 'Polyglot 架构: Meilisearch 全文搜索 + SurrealDB 向量/图/存储; BM25 索引保留为降级路径'
 };
 
 -- ==================== 运行时用户（安全加固 Phase 3C）====================
@@ -197,10 +203,3 @@ DEFINE USER IF NOT EXISTS runtime_user ON DATABASE
     ROLES EDITOR
     DURATION FOR SESSION 12h, FOR TOKEN 1h
     COMMENT 'Runtime application user with data-only permissions';
-
--- 更新版本号
-UPSERT schema_version:current CONTENT {
-    version: '2.3.0',
-    applied_at: time::now(),
-    description: 'Polyglot 架构: Meilisearch 全文搜索 + SurrealDB 向量/图/存储; BM25 索引保留为降级路径'
-};

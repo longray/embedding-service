@@ -1,28 +1,31 @@
 """记忆管理器模块
 
 封装记忆的批量上传、搜索等业务逻辑。
-支持 KNN 向量搜索（HNSW 索引）、BM25 关键词搜索和 RRF 混合搜索。
+支持 KNN 向量搜索（HNSW 索引）、Meilisearch 全文搜索和 RRF 混合搜索。
 支持 SurrealDB RELATE 图关系操作（创建/查询/删除记忆间关联）。
 多租户隔离通过 tenant_id 字段实现。
 """
 
 import asyncio
 import json
+import logging
 import re
 from typing import Any
 
 from .exceptions import DatabaseError, EmbeddingError, ValidationError
 from .http_pool import get_http_pool
+from .meili_client import MeilisearchClient
 from .tracing import get_tracer
 
+logger = logging.getLogger(__name__)
 
 class MemoryManager:
     """记忆管理器，协调 embedding 服务和数据库操作
 
     支持多租户隔离和 SurrealDB 3.0 新查询语法：
     - 向量搜索: KNN <|K,EF|> 算子 + HNSW 索引
-    - 关键词搜索: @1@ 全文搜索算子 + BM25 评分 + ngram(2,8) 中文分词
-    - 混合搜索: RRF (Reciprocal Rank Fusion) 融合算法
+    - 关键词搜索: Meilisearch 全文搜索（CJK 分词）+ SurrealDB BM25（降级路径）
+    - 混合搜索: RRF 融合算法（向量 from SurrealDB + 关键词 from Meilisearch）
     - 图关系: RELATE 语句实现记忆间关联（follow_up/related/elaboration 等）
     """
 
@@ -37,6 +40,7 @@ class MemoryManager:
         self._embedding_service_url = embedding_service_url
         self._batch_size = batch_size
         self._http_pool: Any | None = None
+        self._meili: MeilisearchClient | None = None
 
         # 搜索配置（从 config.SearchConfig 传入，使用 getattr 保持向后兼容）
         self._rrf_k: int = getattr(search_config, "rrf_k", 60)
@@ -51,6 +55,8 @@ class MemoryManager:
             self._http_pool = await get_http_pool()
         return self._http_pool
 
+    def set_meili_client(self, client: MeilisearchClient) -> None:
+        self._meili = client
     async def close(self) -> None:
         """关闭资源"""
 
@@ -93,6 +99,7 @@ class MemoryManager:
             failed_count = 0
             memory_ids: list[str] = []
             errors: list[str] = []
+            meili_docs: list[dict[str, Any]] = []
 
             # 批量获取 embeddings
             texts = [m.get("content", "") for m in memories]
@@ -140,12 +147,37 @@ class MemoryManager:
                     if record_id:
                         memory_ids.append(record_id)
                         success_count += 1
+                        # 构建 Meilisearch 文档（不含 embedding 向量）
+                        if self._meili:
+                            meili_doc: dict[str, Any] = {
+                                "id": self._to_meili_id(record_id),
+                                "surreal_id": record_id,
+                                "content": memory.get("content", ""),
+                                "tenant_id": effective_tenant_id,
+                                "type": memory.get("type", "general"),
+                                "tags": memory.get("tags", []),
+                                "project_id": memory.get("project_id", "global"),
+                            }
+                            if "source_id" in memory:
+                                meili_doc["source_id"] = memory["source_id"]
+                            if "source_timestamp" in memory:
+                                meili_doc["date"] = memory["source_timestamp"]
+                            meili_docs.append(meili_doc)
                     else:
                         failed_count += 1
                         errors.append("No record ID returned (possible UNIQUE constraint violation)")
                 except Exception as e:
                     failed_count += 1
                     errors.append(f"{type(e).__name__}: {e!s}")
+
+            # 同步到 Meilisearch（优雅降级：失败不影响主流��）
+            if self._meili and meili_docs:
+                try:
+                    await self._meili.add_documents(meili_docs)
+                    span.set_attribute("memory.upload.meili_synced", len(meili_docs))
+                except Exception as meili_err:
+                    logger.warning("[Meili sync] 同步失败（不影响 SurrealDB 数据）: %s", meili_err)
+                    span.set_attribute("memory.upload.meili_error", str(meili_err))
 
             span.set_attribute("memory.upload.success", success_count)
             span.set_attribute("memory.upload.failed", failed_count)
@@ -232,10 +264,45 @@ class MemoryManager:
             return results
 
     async def _search_by_keyword(self, query_text: str, limit: int, tenant_id: str) -> list[dict[str, Any]]:
-        """BM25 全文搜索"""
+        """全文搜索：优先使用 Meilisearch，降级到 SurrealDB BM25"""
+        if self._meili:
+            return await self._search_by_keyword_meili(query_text, limit, tenant_id)
+        return await self._search_by_keyword_surreal(query_text, limit, tenant_id)
+
+    async def _search_by_keyword_meili(
+        self,
+        query_text: str,
+        limit: int,
+        tenant_id: str,
+    ) -> list[dict[str, Any]]:
+        """Meilisearch 全文搜索（支持 CJK 分词、日期精确匹配）"""
+        assert self._meili is not None  # 由 _search_by_keyword 保证
         tracer = get_tracer()
-        with tracer.start_as_current_span("search.keyword") as span:
+        with tracer.start_as_current_span("search.keyword.meili") as span:
+            span.set_attribute("search.keyword.engine", "meilisearch")
+            span.set_attribute("search.keyword.query", query_text[:100])
+
+            filter_expr = f"tenant_id = '{tenant_id}'"
+            result = await self._meili.search(
+                query_text,
+                filter_expr=filter_expr,
+                limit=limit,
+            )
+            results = self._format_meili_results(result)
+            span.set_attribute("search.keyword.result_count", len(results))
+            return results
+
+    async def _search_by_keyword_surreal(
+        self,
+        query_text: str,
+        limit: int,
+        tenant_id: str,
+    ) -> list[dict[str, Any]]:
+        """SurrealDB BM25 全文搜索（Meilisearch 不可用时的降级路径）"""
+        tracer = get_tracer()
+        with tracer.start_as_current_span("search.keyword.surreal") as span:
             safe_query = self._sanitize_query(query_text)
+            span.set_attribute("search.keyword.engine", "surrealdb")
             span.set_attribute("search.keyword.query", safe_query[:100])
             q = (  # nosec B608
                 "SELECT id, content, metadata, type, tags, project_id, "
@@ -351,6 +418,28 @@ class MemoryManager:
         for item in raw_items:
             score = item.get("score", 0.0)
             results.append(self._build_result_item(item, score=float(score)))
+        return results
+
+    def _format_meili_results(self, meili_result: dict[str, Any]) -> list[dict[str, Any]]:
+        """格式化 Meilisearch 搜索结果为统一格式
+
+        Meilisearch 返回结构:
+        {"hits": [{"id": "...", "content": "...", "_rankingScore": 0.95, ...}], ...}
+        """
+        results: list[dict[str, Any]] = []
+        for hit in meili_result.get("hits", []):
+            # 使用 surreal_id 还原完整的 SurrealDB record ID
+            doc_id = hit.get("surreal_id") or self._from_meili_id(str(hit.get("id", "")))
+            score = hit.get("_rankingScore", 0.0)
+            results.append({
+                "id": str(doc_id),
+                "content": hit.get("content", ""),
+                "metadata": hit.get("metadata", {}),
+                "type": hit.get("type", "general"),
+                "tags": hit.get("tags", []),
+                "project_id": hit.get("project_id", "global"),
+                "score": round(float(score), 6),
+            })
         return results
 
     def _build_result_item(self, item: dict[str, Any], score: float) -> dict[str, Any]:
@@ -611,6 +700,30 @@ class MemoryManager:
         返回: "memory:abc123"
         """
         mid = str(memory_id)
+        if mid.startswith("memory:"):
+            return mid
+        return f"memory:{mid}"
+
+    @staticmethod
+    def _to_meili_id(surreal_id: str) -> str:
+        """SurrealDB record ID → Meilisearch 主键（去掉表名前缀）
+
+        'memory:abc123' → 'abc123'
+        'abc123' → 'abc123'
+        """
+        sid = str(surreal_id)
+        if ":" in sid:
+            return sid.split(":", 1)[1]
+        return sid
+
+    @staticmethod
+    def _from_meili_id(meili_id: str) -> str:
+        """Meilisearch 主键 → SurrealDB record ID（补全表名前缀）
+
+        'abc123' → 'memory:abc123'
+        'memory:abc123' → 'memory:abc123'
+        """
+        mid = str(meili_id)
         if mid.startswith("memory:"):
             return mid
         return f"memory:{mid}"

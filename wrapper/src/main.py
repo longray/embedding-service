@@ -23,6 +23,7 @@ from .utils.auth import verify_websocket_token
 from .utils.cache import ThreadSafeLRUCache, hash_text
 from .utils.exceptions import ValidationError, WrapperServiceError
 from .utils.http_pool import close_http_pool, get_http_pool
+from .utils.meili_client import MeilisearchClient
 from .utils.memory_manager import MemoryManager
 from .utils.tracing import init_tracing, shutdown_tracing
 
@@ -33,6 +34,7 @@ logger = logging.getLogger(__name__)
 
 embedding_cache: ThreadSafeLRUCache | None = None
 memory_manager: MemoryManager | None = None
+meili_client: MeilisearchClient | None = None
 
 
 # ==================== 数据模型 ====================
@@ -125,7 +127,7 @@ class SurrealDBManager:
         return await self.db.query(sql)
 
     # 目标 Schema 版本（与 init_surrealdb.surql 中的 UPSERT 保持一致）
-    SCHEMA_TARGET_VERSION = "2.2.0"
+    SCHEMA_TARGET_VERSION = "2.3.0"
 
     async def ensure_schema(self):
         """确保数据库 Schema 已初始化或已升级（幂等操作 + migration lock + fail-fast）
@@ -258,7 +260,7 @@ class SurrealDBManager:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global embedding_cache, memory_manager
+    global embedding_cache, memory_manager, meili_client
 
     print("[Startup] 初始化服务...")
 
@@ -293,6 +295,24 @@ async def lifespan(app: FastAPI):
     )
     print("[Startup] MemoryManager已初始化")
 
+    # Meilisearch 初始化（可选，失败不影响服务启动，回退到纯 SurrealDB 搜索）
+    if config.meilisearch.enabled:
+        try:
+            meili_client = MeilisearchClient(
+                url=config.meilisearch.url,
+                api_key=config.meilisearch.api_key,
+                index_name=config.meilisearch.index_name,
+                timeout=config.meilisearch.timeout,
+            )
+            await meili_client.connect()
+            await meili_client.ensure_index()
+            await meili_client.configure_index()
+            memory_manager.set_meili_client(meili_client)
+            print("[Startup] Meilisearch已连接并配置")
+        except Exception as e:
+            logger.warning("[Startup] Meilisearch 初始化失败，回退到 SurrealDB 搜索: %s", e)
+            meili_client = None
+
     # OpenTelemetry 追踪（可选，失败不影响服务启动）
     init_tracing(app, config.telemetry)
 
@@ -300,6 +320,8 @@ async def lifespan(app: FastAPI):
 
     print("[Shutdown] 关闭服务...")
     shutdown_tracing()
+    if meili_client:
+        await meili_client.close()
     await close_http_pool()
     await db_manager.disconnect()
 
@@ -352,10 +374,11 @@ async def health_check():
     result = {
         "status": "healthy",
         "service": "minimal-wrapper",
-        "version": "2.1.0",
+        "version": "2.3.0",
         "port": config.port,
         "embedding_service": embedding_health or {"status": "unhealthy"},
         "surrealdb": surrealdb_health,
+        "meilisearch": (await meili_client.health()) if meili_client else {"status": "disabled"},
     }
 
     if embedding_cache:

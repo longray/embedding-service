@@ -1,14 +1,14 @@
 # Embedding Service (OpenCode Memory Stack)
 
 版本与路线图
-- 当前版本: v2.2.0
-- 实施阶段: P0 + P1 + P2 + Phase 3 (SurrealDB 3.0 升级) 已完成
+- 当前版本: v2.3.0
+- 实施阶段: P0 + P1 + P2 + Phase 3 + Polyglot 搜索架构 已完成
 - 详细路线见 ROADMAP.md
 
 ## 开发状态
 
-**当前版本**: v2.2.0
-**实施阶段**: P0 + P1 + P2 + Phase 3 (SurrealDB 3.0 升级) 已完成
+**当前版本**: v2.3.0
+**实施阶段**: P0 + P1 + P2 + Phase 3 + Polyglot 搜索架构 已完成
 
 ### 已完成 ✅
 - ✅ P0 核心功能（Embedding + LLM + 包装层）
@@ -20,6 +20,7 @@
 - ✅ Phase 3B OpenTelemetry 分布式追踪
 - ✅ Phase 3C 安全加固（DB 权限分离 + 运行时凭据）
 - ✅ Phase 3D WebSocket 实时推送（LIVE SELECT）
+- ✅ Phase 3E Polyglot 搜索架构（Meilisearch 全文搜索 + SurrealDB 向量/图）
 
 ### P3 优化路线图 🚀
 
@@ -98,13 +99,14 @@ export WRAPPER_WEBSOCKET_TOKEN=your_secret_token
 ```
 
 ### 核心功能
-- ✅ **记忆管理**：SurrealDB 向量存储，支持混合搜索
+- ✅ **记忆管理**：SurrealDB 向量存储 + Meilisearch 全文搜索，Polyglot 混合搜索架构
 - ✅ **API 认证**：API Key 认证和权限控制
 - ✅ **LRU 缓存**：文本嵌入结果缓存
 - ✅ **HTTP 连接池**：高效 HTTP 请求
 - ✅ **SurrealDB 长期连接**：避免频繁连接开销
 - ✅ **CI/CD**：GitHub Actions 自动测试
 - ✅ **完整测试套件**：150+ 测试用例
+- ✅ **Meilisearch 全文搜索**：CJK 中文分词、日期精确匹配、关键词搜索
 
 ## 技术要求与兼容性
 - 保持向后兼容及现有接口
@@ -113,14 +115,33 @@ export WRAPPER_WEBSOCKET_TOKEN=your_secret_token
 
 ## 快速开始
 
+### 前置条件
+
+- Python 3.11+
+- [uv](https://github.com/astral-sh/uv) 包管理器
+- SurrealDB 3.0+ 运行中
+- Meilisearch 1.4+ 运行中（可选，用于全文搜索优化）
+
 ### 启动最小化包装服务
 
 ```bash
+# 配置 Meilisearch（可选，不配置则回退到 SurrealDB BM25）
+export WRAPPER_MEILI_ENABLED=true
+export WRAPPER_MEILI_URL=http://127.0.0.1:7700
+export WRAPPER_MEILI_API_KEY=your_master_key
+
 # 启动服务
 uv run python -m wrapper.src.main
+```
 
-# 或使用后台模式
-cd D:/embedding_service && uv run python -m wrapper.src.main &
+### 数据迁移（首次启用 Meilisearch 时）
+
+```bash
+# 将 SurrealDB 现有记忆同步到 Meilisearch（幂等，可重复运行）
+export SURREAL_URL=ws://localhost:18002/rpc
+export SURREAL_NS=memory_ns
+export SURREAL_DB=memory_db
+uv run python scripts/migrate_to_meilisearch.py --batch-size 200
 ```
 
 ### 运行测试
@@ -128,6 +149,9 @@ cd D:/embedding_service && uv run python -m wrapper.src.main &
 ```bash
 # 运行核心 API 测试（推荐）
 uv run pytest tests/test_wrapper_api.py -v
+
+# 运行 Meilisearch 集成测试
+uv run pytest tests/test_meili_integration.py -v
 
 # 运行所有测试
 uv run pytest tests/ -v
