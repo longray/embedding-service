@@ -115,8 +115,7 @@ DEFINE INDEX IF NOT EXISTS memory_tenant_project ON memory FIELDS tenant_id, pro
 
 -- 记忆间的关联关系表（SurrealDB RELATE 图边表）
 -- 使用 TYPE RELATION 定义边，IN/OUT 限制端点为 memory 表
-DEFINE TABLE IF NOT EXISTS memory_relation TYPE RELATION SCHEMAFULL
-    IN memory OUT memory;
+DEFINE TABLE IF NOT EXISTS memory_relation TYPE RELATION IN memory OUT memory SCHEMAFULL;
 
 -- 关系类型: related | follow_up | elaboration | contradiction | reference | derived_from
 DEFINE FIELD IF NOT EXISTS relationship_type ON memory_relation TYPE string

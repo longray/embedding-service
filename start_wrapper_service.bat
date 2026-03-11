@@ -1,22 +1,20 @@
 @echo off
 chcp 65001 >nul
 
-title Qwen3-Embedding-0.6B API Service
+title Wrapper Service (Minimal)
 setlocal EnableDelayedExpansion
 
 :: ==================== Configuration ====================
 set "PROJECT_DIR=D:\embedding_service"
 set "UV_PATH=C:\Users\Longray\.local\bin\uv.exe"
 set "PYTHON_PATH=%PROJECT_DIR%\.venv\Scripts\python.exe"
-set "SCRIPT_PATH=%PROJECT_DIR%\src\qwen3_embedding_service\start_embedding.py"
-set "PORT=18000"
+set "PORT=17999"
 set "HEALTH_URL=http://localhost:%PORT%/health"
 set "HEALTH_TIMEOUT=3"
-set MAX_BATCH_SIZE=256
 
 :: ==================== Startup Banner ====================
 echo ============================================
-echo    Qwen3-Embedding-0.6B API Service Startup
+echo       Wrapper Service Startup (Minimal)
 echo ============================================
 echo.
 
@@ -39,7 +37,6 @@ echo.
 :: ==================== Environment Check ====================
 echo [CHECK] Checking environment...
 
-:: Check UV exists
 if not exist "%UV_PATH%" (
     echo [ERROR] uv.exe not found: %UV_PATH%
     echo Please ensure uv is installed correctly
@@ -47,17 +44,9 @@ if not exist "%UV_PATH%" (
     exit /b 1
 )
 
-:: Check Python virtual environment
 if not exist "%PYTHON_PATH%" (
     echo [ERROR] Python interpreter not found: %PYTHON_PATH%
     echo Please ensure virtual environment is created
-    pause
-    exit /b 1
-)
-
-:: Check main script
-if not exist "%SCRIPT_PATH%" (
-    echo [ERROR] Main script not found: %SCRIPT_PATH%
     pause
     exit /b 1
 )
@@ -93,10 +82,9 @@ echo [PASS] Port %PORT% is available
 echo.
 
 :: ==================== Start Service ====================
-echo [START] Starting Embedding Service...
+echo [START] Starting Wrapper Service...
 echo -------------------------------------------
-echo Model Path: %PROJECT_DIR%\src\qwen3_embedding_service\models
-echo Listen Address: http://0.0.0.0:%PORT%
+echo Listen Address: http://0.0.0.0:%PORT% 
 echo Health Check: %HEALTH_URL%
 echo -------------------------------------------
 echo.
@@ -105,7 +93,7 @@ echo.
 cd /d "%PROJECT_DIR%"
 
 :: Start service using uv run
-"%UV_PATH%" run "%PYTHON_PATH%" "%SCRIPT_PATH%"
+"%UV_PATH%" run "%PYTHON_PATH%" -m wrapper.src.main
 
 :: If service exits abnormally
 echo.

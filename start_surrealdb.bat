@@ -34,16 +34,13 @@ echo.
 :: ==================== Health Check ====================
 echo %YELLOW%[CHECK] Checking if SurrealDB is already running...%RESET%
 
-:: Use TCP socket test instead of WebSocket for simpler check
-powershell -NoProfile -Command "try { $c = New-Object System.Net.Sockets.TcpClient; $c.Connect('localhost', %PORT%); $c.Close(); exit 0 } catch { exit 1 }" >nul 2>&1
-
-if %errorlevel% equ 0 (
-    echo %GREEN%[OK] SurrealDB is already running and accepting connections!%RESET%
+curl -sf http://localhost:%PORT%/health >nul 2>&1
+if !errorlevel! equ 0 (
+    echo %GREEN%[OK] SurrealDB is already running and healthy!%RESET%
     echo %CYAN%WebSocket endpoint: %WS_URL%%RESET%
     echo.
-    echo %YELLOW%Database is already available. No need to restart.%RESET%
-    echo.
-    timeout /t 3 /nobreak >nul
+    echo %YELLOW%Press any key to close...%RESET%
+    pause >nul
     exit /b 0
 )
 
@@ -80,23 +77,22 @@ echo %YELLOW%[CHECK] Checking port %PORT% availability...%RESET%
 netstat -ano | findstr ":%PORT%" >nul
 if %errorlevel% equ 0 (
     echo %RED%[WARNING] Port %PORT% is already in use%RESET%
-    echo Another process may be using this port.
-    echo Check with: netstat -ano ^| findstr ":%PORT%"
     echo.
-    echo %YELLOW%Attempting connection test on existing service...%RESET%
-    
-    powershell -NoProfile -Command "try { $c = New-Object System.Net.Sockets.TcpClient; $c.Connect('localhost', %PORT%); $c.Close(); exit 0 } catch { exit 1 }" >nul 2>&1
-    
-    if %errorlevel% equ 0 (
-        echo %GREEN%[OK] Existing service is accepting connections! Using existing instance.%RESET%
-        timeout /t 2 /nobreak >nul
+    echo %YELLOW%Attempting health check on existing service...%RESET%
+    curl -sf http://localhost:%PORT%/health >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo %GREEN%[OK] Existing service is healthy. Using existing instance.%RESET%
+        echo %YELLOW%Press any key to close...%RESET%
+        pause >nul
         exit /b 0
-    ) else (
-        echo %RED%[ERROR] Port %PORT% is in use but service is not responding%RESET%
-        echo Please stop the process using this port and try again.
-        pause
-        exit /b 1
     )
+    echo %YELLOW%[INFO] Port occupied but service not healthy, killing process...%RESET%
+    for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":%PORT%" ^| findstr LISTENING') do (
+        echo [KILL] Terminating PID: %%a
+        taskkill /F /PID %%a >nul 2>&1
+    )
+    timeout /t 2 /nobreak >nul
+    echo %GREEN%[OK] Port %PORT% cleared%RESET%
 )
 
 echo %GREEN%[PASS] Port %PORT% is available%RESET%
