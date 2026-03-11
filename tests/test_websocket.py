@@ -3,7 +3,7 @@
 测试 /ws/memories/live WebSocket 端点的认证和连接功能。
 
 前置条件：
-- SurrealDB 运行在 ws://localhost:8000
+- SurrealDB 运行在 ws://localhost:18002
 - Wrapper 服务运行在 http://localhost:17999
 
 运行方式：

@@ -9,7 +9,7 @@ set "PROJECT_DIR=D:\embedding_service"
 set "UV_PATH=C:\Users\Longray\.local\bin\uv.exe"
 set "EMBEDDING_PORT=18000"
 set "WRAPPER_PORT=17999"
-set "SURREALDB_PORT=8000"
+set "SURREALDB_PORT=18002"
 set "HEALTH_TIMEOUT=3"
 
 :: Color definitions

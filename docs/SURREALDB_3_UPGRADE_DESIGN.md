@@ -132,7 +132,7 @@
 ```
 客户端 → 包装服务 (17999) → Embedding 服务 (18000)
               ↕
-          SurrealDB (8000)
+          SurrealDB (18002)
               ↕
           memory 存储模式（内存，重启丢失）
 ```
@@ -154,7 +154,7 @@
 
 ```python
 # wrapper/src/main.py:71-87
-db = Surreal(config.surrealdb.url)  # ws://localhost:8000/rpc
+db = Surreal(config.surrealdb.url)  # ws://localhost:18002/rpc
 db.connect(config.surrealdb.url)
 db.signin({"username": "root", "password": "root"})
 db.use(config.surrealdb.namespace, config.surrealdb.database)
@@ -300,7 +300,7 @@ wrapper:
 ```
 客户端 → 包装服务 (17999) → Embedding 服务 (18000)
               ↕
-          SurrealDB 3.0 (8000)
+          SurrealDB 3.0 (18002)
               ↕
           RocksDB 持久存储 + HNSW 索引
               ↕
@@ -1138,7 +1138,7 @@ Schema 初始化失败将导致服务直接退出（`SystemExit(1)`），确保�
 | `WRAPPER_HOST` | `0.0.0.0` | 监听地址 | 已有 |
 | `WRAPPER_CACHE_ENABLED` | `true` | 启用 LRU 缓存 | 已有 |
 | `WRAPPER_EMBEDDING_SERVICE_URL` | `http://localhost:18000` | Embedding 服务地址 | 已有 |
-| `WRAPPER_SURREALDB_URL` | `ws://localhost:8000/rpc` | SurrealDB 地址 | 已有 |
+| `WRAPPER_SURREALDB_URL` | `ws://localhost:18002/rpc` | SurrealDB 地址 | 已有 |
 | `WRAPPER_SEARCH_VECTOR_THRESHOLD` | `0.75` | 向量搜索阈值 | 已有 |
 | `WRAPPER_SEARCH_HYBRID_THRESHOLD` | `0.75` | 混合搜索阈值 | 已有 |
 | `WRAPPER_SEARCH_KEYWORD_THRESHOLD` | `0.0` | 关键词搜索阈值 | 已有 |

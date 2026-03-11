@@ -22,7 +22,7 @@ class SurrealDBManager:
     
     # 配置信息（根据实际情况修改）
     CONFIG = {
-        "url": "ws://localhost:8000/rpc",  # WebSocket 连接地址
+        "url": "ws://localhost:18002/rpc",  # WebSocket 连接地址
         "namespace": "test",
         "database": "test",
         "username": "root",
@@ -157,10 +157,10 @@ async def get_user(user_id: str):
 
 """
 终端运行：
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn main:app --host 0.0.0.0 --port 18002 --reload
 
 生产环境：
-uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+uvicorn main:app --host 0.0.0.0 --port 18002 --workers 4
 """
 
 
@@ -177,7 +177,7 @@ from contextlib import asynccontextmanager
 @asynccontextmanager
 async def get_db_connection():
     """纯异步长期连接上下文管理器"""
-    db = Surreal("ws://localhost:8000/rpc")
+    db = Surreal("ws://localhost:18002/rpc")
     try:
         await db.connect()
         await db.signin({"user": "root", "pass": "root"})

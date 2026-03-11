@@ -11,7 +11,7 @@ async def test_database_connection():
     print("=== 测试SurrealDB连接 ===")
 
     # 连接数据库
-    db = Surreal("ws://localhost:8000/rpc")
+    db = Surreal("ws://localhost:18002/rpc")
     await db.connect()
     await db.signin({"user": "root", "pass": "root"})
     await db.use("memory_ns", "memory_db")

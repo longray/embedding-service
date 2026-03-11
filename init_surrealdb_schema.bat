@@ -8,7 +8,7 @@ setlocal EnableDelayedExpansion
 set "PROJECT_DIR=D:\embedding_service"
 set "SURREAL_PATH=C:\Users\Longray\AppData\Local\SurrealDB\surreal.exe"
 set "SCHEMA_FILE=%PROJECT_DIR%\scripts\init_surrealdb.surql"
-set "PORT=8000"
+set "PORT=18002"
 set "HOST=localhost"
 set "USERNAME=root"
 set "PASSWORD=root"

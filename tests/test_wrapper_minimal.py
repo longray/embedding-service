@@ -8,7 +8,7 @@
 
 使用说明：
 1. 确保embedding服务运行在 http://localhost:18000
-2. 确保SurrealDB运行在 ws://localhost:8000
+2. 确保SurrealDB运行在 ws://localhost:18002
 3. 启动wrapper服务: uv run python wrapper/src/main.py
 4. 运行测试: uv run python tests/test_wrapper_minimal.py
 """

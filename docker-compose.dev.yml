@@ -6,14 +6,14 @@ services:
     image: surrealdb/surrealdb:v3.0.1
     container_name: embedding-surrealdb-dev
     ports:
-      - "8000:8000"
-    command: start --user root --pass root --bind 0.0.0.0:8000 rocksdb://data
+      - "18002:18002"
+    command: start --user root --pass root --bind 0.0.0.0:18002 rocksdb://data
     volumes:
       - surrealdb-data-dev:/data
     networks:
       - embedding-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:18002/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -74,7 +74,7 @@ services:
       - WRAPPER_PORT=3001
       - WRAPPER_EMBEDDING_SERVICE_URL=http://embedding-service-dev:18000
       - WRAPPER_LLM_SERVICE_URL=http://llm-service-dev:18001
-      - WRAPPER_SURREALDB_URL=ws://surrealdb:8000/rpc
+      - WRAPPER_SURREALDB_URL=ws://surrealdb:18002/rpc
       - WRAPPER_SURREALDB_NAMESPACE=memory_ns
       - WRAPPER_SURREALDB_DATABASE=memory_db
       - WRAPPER_SURREALDB_USERNAME=root

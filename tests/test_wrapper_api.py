@@ -8,7 +8,7 @@
 
 前置条件：
 - Embedding服务运行在 http://localhost:18000
-- SurrealDB运行在 ws://localhost:8000
+- SurrealDB运行在 ws://localhost:18002
 - Wrapper服务运行在 http://localhost:17999
 
 运行方式：

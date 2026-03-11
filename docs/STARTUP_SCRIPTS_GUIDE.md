@@ -10,7 +10,7 @@ Optimized Windows batch scripts with intelligent health checking for embedding s
 
 **Features**:
 - Checks if Embedding Service (port 18000) is already running
-- Checks if SurrealDB (port 8000) is already running
+- Checks if SurrealDB (port 18002) is already running
 - Only starts services that are not running
 - Waits for services to be ready before completing
 - Visual status summary with colors
@@ -65,7 +65,7 @@ start_surrealdb.bat
 ```
 
 **Health Check**:
-- Endpoint: `ws://localhost:8000/rpc` (WebSocket)
+- Endpoint: `ws://localhost:18002/rpc` (WebSocket)
 - Method: TCP socket connection test
 - Timeout: 3 seconds
 - Success: TCP connection accepted
@@ -95,7 +95,7 @@ User
   v
 start_all_services.bat (Coordinator)
   |-- Health Check: Embedding (HTTP 18000)
-  |-- Health Check: SurrealDB (TCP 8000)
+  |-- Health Check: SurrealDB (TCP 18002)
   |-- Decision: Start / Skip / Error
   |
   +-- start_embedding_service.bat
@@ -126,7 +126,7 @@ Invoke-WebRequest -Uri 'http://localhost:18000/health'
 ### SurrealDB (PowerShell TCP Socket)
 ```powershell
 $c = New-Object System.Net.Sockets.TcpClient
-$c.Connect('localhost', 8000)
+$c.Connect('localhost', 18002)
 $c.Close()
 ```
 
@@ -224,7 +224,7 @@ Edit script variables to customize:
 ```batch
 :: In start_all_services.bat
 set "EMBEDDING_PORT=18000"
-set "SURREALDB_PORT=8000"
+set "SURREALDB_PORT=18002"
 set "HEALTH_TIMEOUT=5"
 set "MAX_WAIT=30"
 

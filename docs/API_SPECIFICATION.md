@@ -46,7 +46,7 @@
                 ▼           ▼           ▼
         ┌──────────┐ ┌──────────┐ ┌──────────┐
         │Embedding│ │   LLM    │ │SurrealDB │
-        │ 18000   │ │  18001   │ │  8000    │
+        │ 18000   │ │  18001   │ │  18002   │
         │(Qwen3)  │ │(MiniCPM) │ │          │
         └──────────┘ └──────────┘ └──────────┘
 ```
@@ -1645,7 +1645,7 @@ async def test_full_workflow():
 | `WRAPPER_CIRCUIT_BREAKER_THRESHOLD` | 5 | 熔断阈值 |
 | `WRAPPER_CIRCUIT_BREAKER_TIMEOUT` | 60 | 熔断恢复时间（秒） |
 | **SurrealDB** |||
-| `WRAPPER_SURREALDB_URL` | ws://localhost:8000/rpc | 连接地址 |
+| `WRAPPER_SURREALDB_URL` | ws://localhost:18002/rpc | 连接地址 |
 | `WRAPPER_SURREALDB_NAMESPACE` | memory_ns | 命名空间 |
 | `WRAPPER_SURREALDB_DATABASE` | memory_db | 数据库名 |
 | `WRAPPER_SURREALDB_POOL_SIZE` | 10 | 连接池大小 |

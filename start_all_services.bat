@@ -14,7 +14,7 @@ set "PROJECT_DIR=D:\embedding_service"
 set "SURREAL_PATH=C:\Users\Longray\AppData\Local\SurrealDB\surreal.exe"
 set "DATA_DIR=%PROJECT_DIR%\surrealdb_data"
 
-set "SURREALDB_PORT=8000"
+set "SURREALDB_PORT=18002"
 set "EMBEDDING_PORT=18000"
 set "WRAPPER_PORT=17999"
 set "MAX_WAIT=30"

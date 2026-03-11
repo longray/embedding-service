@@ -22,7 +22,7 @@ class HTTPConfig:
 
 @dataclass
 class SurrealDBConfig:
-    url: str = "ws://localhost:8000/rpc"
+    url: str = "ws://localhost:18002/rpc"
     namespace: str = "memory_ns"
     database: str = "memory_db"
     username: str = "root"  # 迁移用户（OWNER 权限）
