@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import math
 import random
 import statistics
 import time
@@ -86,7 +85,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def build_dataset(eval_id: str, seed: int) -> tuple[list[MemoryItem], list[QueryCase]]:
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # noqa: S311
 
     intent_specs: list[tuple[str, list[str], list[str], list[str], list[str]]] = [
         (
@@ -229,6 +228,62 @@ def build_dataset(eval_id: str, seed: int) -> tuple[list[MemoryItem], list[Query
             ["学习路径推荐", "知识点覆盖", "错题讲解"],
             ["学习路经", "题目推介", "错题摸式"],
         ),
+        # ========================== v2.3.0 Polyglot 搜索架构测试 ==========================
+        (
+            "date_event",
+            ["2026-03-11", "日期搜索", "tokenizer"],
+            [
+                "2026-03-11 修复了 SurrealDB 日期搜索的 tokenizer 问题，确认 class tokenizer 无法正确处理连字符日期格式。",
+                "2026-02-27 完成了 combat_tools.py 常量拼写错误修复，涉及 DEFAULT_WEAPON_DAMAGE_MAX 等常量。",
+                "2026-03-12 上线 Polyglot 搜索架构 v2.3.0 版本，Meilisearch 接管全文搜索功能。",
+            ],
+            ["日期格式修复", "常量拼写修复", "搜索架构升级"],
+            ["tokeniser日期", "拼写错物", "v2.3升級"],
+        ),
+        (
+            "chinese_nlp",
+            ["中文分词", "情感分析", "命名实体"],
+            [
+                "中文自然语言处理需要专用分词器支持，jieba 和 charabia 是常用的中文分词工具。",
+                "情感分析任务中否定词和转折词对极性判断影响很大，需要特殊处理双重否定。",
+                "命名实体识别在中文文本中需处理嵌套实体和边界模糊问题，常用 CRF 或 BERT 方法。",
+            ],
+            ["分词工具", "极性判断", "实体边界"],
+            ["中文份词", "感情分柝", "命名实休"],
+        ),
+        (
+            "code_ref",
+            ["memory_manager.py", "meili_client.py", "MeilisearchConfig"],
+            [
+                "memory_manager.py 模块负责协调 embedding 服务和数据库操作，支持双写同步和搜索路由。",
+                "meili_client.py 提供异步 Meilisearch 客户端，支持 CJK 中文分词和日期精确匹配。",
+                "config.py 中的 MeilisearchConfig 类定义了 Meilisearch 连接参数、索引名称和超时配置。",
+            ],
+            ["记忆管理模块", "搜索客户端", "配置类"],
+            ["memory_maneger", "meilli_client", "MeiliConfig"],
+        ),
+        (
+            "version_release",
+            ["v2.3.0", "SurrealDB 3.0.1", "Polyglot"],
+            [
+                "v2.3.0 引入了 Polyglot 搜索架构，由 Meilisearch 负责全文搜索，SurrealDB 负责向量和图操作。",
+                "SurrealDB 3.0.1 存在多个 FTS bug 包括 issue 7014 和 7015，因此选择 Meilisearch 替代全文搜索。",
+                "从 v2.2.1 的 class tokenizer 方案迁移到 v2.3.0 的 Polyglot 架构，彻底解决日期分词问题。",
+            ],
+            ["搜索架构版本", "数据库缺陷", "架构迁移"],
+            ["v2.3Polyglot", "SurealDB bug", "tokenisor方案"],
+        ),
+        (
+            "mixed_lang",
+            ["FastAPI structlog", "Docker Compose", "pytest-asyncio"],
+            [
+                "在 FastAPI 项目中使用 structlog 进行结构化日志记录，比标准 logging 模块更清晰直观。",
+                "Docker Compose 配置中需要为 Meilisearch 容器设置 MEILI_MASTER_KEY 环境变量和数据卷。",
+                "pytest-asyncio 框架支持异步测试函数，适合测试 httpx.AsyncClient 发起的 HTTP 请求。",
+            ],
+            ["结构化日志", "容器环境变量", "异步测试框架"],
+            ["Fastapi struclog", "Docker Meilisearh", "pytest异步client"],
+        ),
     ]
 
     items: list[MemoryItem] = []
@@ -250,7 +305,7 @@ def build_dataset(eval_id: str, seed: int) -> tuple[list[MemoryItem], list[Query
 
     should_find_queries: list[QueryCase] = []
     query_counter = 0
-    for intent_id, keywords, _texts, medium_alias, hard_alias in intent_specs:
+    for intent_id, keywords, _texts, _medium_alias, hard_alias in intent_specs:
         query_counter += 1
         should_find_queries.append(
             QueryCase(
@@ -305,6 +360,10 @@ def build_dataset(eval_id: str, seed: int) -> tuple[list[MemoryItem], list[Query
         "油画罩染修复",
         "航海六分仪校准",
         "火山岩浆黏度",
+        # v2.3.0 Polyglot 负面样例
+        "量子纠缠退相干",
+        "2025-12-25 圣诞节",
+        "nonexistent_module.py",
     ]
     vector_negatives = [
         "zzqxv kptra nmdwu",
@@ -313,12 +372,18 @@ def build_dataset(eval_id: str, seed: int) -> tuple[list[MemoryItem], list[Query
         "pqlzx mvnrt aokwe",
         "xxzzq yywwv vvttm",
         "rqplm znxte avkro",
+        # v2.3.0 Polyglot 负面样例
+        "qwmzx ypnkr vvtba",
+        "zzqqw xxpmv rrtnn",
     ]
     hybrid_negatives = [
         "zzqxv 吉他弦 航海象限",
         "pulsar qwerty magma",
         "ancient lyre niello",
         "xvnmq tide violin",
+        # v2.3.0 Polyglot 负面样例
+        "v99.9.9 alien architecture",
+        "2099-01-01 未来事件",
     ]
 
     should_not_find_queries: list[QueryCase] = []
@@ -366,12 +431,22 @@ def build_dataset(eval_id: str, seed: int) -> tuple[list[MemoryItem], list[Query
 
 
 async def ensure_health(client: httpx.AsyncClient, base_url: str) -> None:
+    """检查 wrapper 服务及 Meilisearch 健康状态（v2.3.0 Polyglot）。"""
     response = await client.get(f"{base_url}/health")
     response.raise_for_status()
     payload = response.json()
     if payload.get("status") != "healthy":
         raise RuntimeError(f"wrapper 健康检查失败: {payload}")
-
+    # v2.3.0: 检查 Meilisearch 状态
+    meili_status = payload.get("meilisearch", {})
+    if isinstance(meili_status, dict):
+        status = meili_status.get("status", "unknown")
+    else:
+        status = str(meili_status) if meili_status else "unknown"
+    if status not in ("available", "healthy"):
+        print(f"⚠️  Meilisearch 状态: {status}（关键词搜索将使用 SurrealDB BM25 降级）")
+    else:
+        print(f"✅ Meilisearch 状态: {status}")
 
 async def upload_eval_data(client: httpx.AsyncClient, base_url: str, items: list[MemoryItem]) -> dict[str, Any]:
     payload = {"memories": [{"content": item.content, "metadata": item.metadata} for item in items]}

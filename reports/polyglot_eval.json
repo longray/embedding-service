@@ -1,0 +1,775 @@
+{
+  "eval_id": "eval_9e748eb796",
+  "base_url": "http://localhost:17999",
+  "dataset_size": 51,
+  "query_size": 93,
+  "topk": 5,
+  "threshold": 0.7,
+  "mode_thresholds": {
+    "vector": 0.7,
+    "keyword": 0.0,
+    "hybrid": 0.7
+  },
+  "upload_result": {
+    "total": 51,
+    "success": 51,
+    "failed": 0,
+    "memory_ids": [
+      "memory:snfdog4e9a476u5477tq",
+      "memory:qo98qjvkpg0e6ishg2ab",
+      "memory:y36jly0p7c2mg5qsv7ta",
+      "memory:8yg8esj3f5haodtsptl0",
+      "memory:t8sn40ahvcxtrvlv6s1h",
+      "memory:kpb51ymlztf5an1dxbvb",
+      "memory:2fs9ykmld8r7bzjjre55",
+      "memory:i3h3fgcg113aogr6l6f0",
+      "memory:z88bn9s44qvnkj7ez0j1",
+      "memory:7xwslnrjpxh8gkldb228",
+      "memory:715ojty4mm80vta30fxu",
+      "memory:lgx29rbtjbmt3o9c789a",
+      "memory:pyod48nq79zyge7c6fnd",
+      "memory:p53zdptuc4h95kxa2cm4",
+      "memory:josbgadanbk19ehw390j",
+      "memory:bolsgg7j9g49yokgrne7",
+      "memory:7is9n21k5rstwrimjbez",
+      "memory:o97np4qukyqn7fuvt9ho",
+      "memory:nuy9anml7prl9e17bl4w",
+      "memory:yfur93kazl9prc7k0nw9",
+      "memory:csz6ao9bye2cbhddd25u",
+      "memory:mc4t22dxp330xvkoyaxp",
+      "memory:ygsuyz5u22k1ye4pjf37",
+      "memory:ng7raqqx6xngvolzujyo",
+      "memory:21mnw0kx2p9ms5puxcey",
+      "memory:b1rzcs0in520v8l7rhaz",
+      "memory:4pjyplghyz52lyeyr76i",
+      "memory:6g8el25kd7q751huxeq2",
+      "memory:yh40tn6d6ohq09xro4t7",
+      "memory:2lgpkgy3v0wm2nzq6kvs",
+      "memory:x6uh5fs71ea9306fqj12",
+      "memory:ial14c5nxp8rtoezfcyd",
+      "memory:eu63m2yawpmj3070jc6v",
+      "memory:90jfi8vtmpv28p4btvk0",
+      "memory:vtyh4dp41r2wcyblvnl0",
+      "memory:2wtgiyuvfhgh0mqj8k91",
+      "memory:1exdr8jt59hmcmy0caie",
+      "memory:kr2f163ktru7qbnyq9hs",
+      "memory:xxzkli6r2akd98ar6m9b",
+      "memory:dmk8n8pnkadg4yc8fykh",
+      "memory:4lvlaxk7i1pdkb533oaz",
+      "memory:uqtbbsfwpuw955m2od8n",
+      "memory:s9luk08p2bgoc794o170",
+      "memory:jw9pho2u4wuz9alke4m7",
+      "memory:mpzmj0dpthda1rzrwzpq",
+      "memory:h8a7g0tf2guyx4hceebo",
+      "memory:8u7wl7ikzrupks4fivu3",
+      "memory:1f2fbo19mpnqe459vsst",
+      "memory:tr3lok9s6dzimu5ofpg4",
+      "memory:e1386j0jhbqs60ug3bdq",
+      "memory:fu9dbqey0vdutpdjwant"
+    ]
+  },
+  "upload_elapsed_ms": 3041.82,
+  "modes": {
+    "vector": {
+      "query_count": 25,
+      "should_find_count": 17,
+      "should_not_find_count": 8,
+      "hit_rate_should_find": 1.0,
+      "precision_at_5_should_find": 0.3412,
+      "recall_at_5_should_find": 0.5686,
+      "mrr_should_find": 1.0,
+      "false_positive_rate_eval_should_not_find": 0.25,
+      "false_positive_rate_total_should_not_find": 1.0,
+      "non_eval_contamination_at5": 0.72,
+      "avg_eval_returned": 2.52,
+      "avg_total_returned": 9.64,
+      "median_eval_returned": 3.0,
+      "median_total_returned": 10.0,
+      "difficulty_metrics": {
+        "medium": {
+          "count": 17.0,
+          "hit_rate": 1.0,
+          "mrr": 1.0
+        },
+        "hard_negative": {
+          "count": 8.0,
+          "fp_eval_rate": 0.25
+        }
+      }
+    },
+    "keyword": {
+      "query_count": 45,
+      "should_find_count": 34,
+      "should_not_find_count": 11,
+      "hit_rate_should_find": 0.9118,
+      "precision_at_5_should_find": 0.1824,
+      "recall_at_5_should_find": 0.3039,
+      "mrr_should_find": 0.9118,
+      "false_positive_rate_eval_should_not_find": 0.0,
+      "false_positive_rate_total_should_not_find": 0.0,
+      "non_eval_contamination_at5": 0.5244,
+      "avg_eval_returned": 1.356,
+      "avg_total_returned": 5.133,
+      "median_eval_returned": 1.0,
+      "median_total_returned": 6.0,
+      "difficulty_metrics": {
+        "easy": {
+          "count": 34.0,
+          "hit_rate": 0.9118,
+          "mrr": 0.9118
+        },
+        "hard_negative": {
+          "count": 11.0,
+          "fp_eval_rate": 0.0
+        }
+      }
+    },
+    "hybrid": {
+      "query_count": 93,
+      "should_find_count": 68,
+      "should_not_find_count": 25,
+      "hit_rate_should_find": 0.8676,
+      "precision_at_5_should_find": 0.25,
+      "recall_at_5_should_find": 0.4167,
+      "mrr_should_find": 0.8603,
+      "false_positive_rate_eval_should_not_find": 0.2,
+      "false_positive_rate_total_should_not_find": 0.52,
+      "non_eval_contamination_at5": 0.6344,
+      "avg_eval_returned": 1.828,
+      "avg_total_returned": 7.839,
+      "median_eval_returned": 2.0,
+      "median_total_returned": 10.0,
+      "difficulty_metrics": {
+        "easy": {
+          "count": 34.0,
+          "hit_rate": 0.7353,
+          "mrr": 0.7206
+        },
+        "medium": {
+          "count": 17.0,
+          "hit_rate": 1.0,
+          "mrr": 1.0
+        },
+        "hard": {
+          "count": 17.0,
+          "hit_rate": 1.0,
+          "mrr": 1.0
+        },
+        "hard_negative": {
+          "count": 25.0,
+          "fp_eval_rate": 0.2
+        }
+      }
+    }
+  },
+  "failures": [
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_17",
+      "query": "rqplm znxte avkro",
+      "latency_ms": 44.09,
+      "preview": [
+        {
+          "id": "memory:2n4070lew8m0ay8kfkzv",
+          "intent": null,
+          "score": 0.745307,
+          "content": "BM25关键词搜索测试 cb3b9116",
+          "is_eval": false
+        },
+        {
+          "id": "memory:i0fpxay1m548e8tgfwn2",
+          "intent": null,
+          "score": 0.731045,
+          "content": "BM25关键词搜索测试 f5ae111e",
+          "is_eval": false
+        },
+        {
+          "id": "memory:l5vn7atuq3zszfchcioz",
+          "intent": null,
+          "score": 0.727985,
+          "content": "BM25关键词搜索测试 c32c32a1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "vector",
+      "query_id": "q_not_15",
+      "query": "pqlzx mvnrt aokwe",
+      "latency_ms": 101.05,
+      "preview": [
+        {
+          "id": "memory:2n4070lew8m0ay8kfkzv",
+          "intent": null,
+          "score": 0.776668,
+          "content": "BM25关键词搜索测试 cb3b9116",
+          "is_eval": false
+        },
+        {
+          "id": "memory:0zrnskiew4xz8uyc9mg2",
+          "intent": "date_event",
+          "score": 0.765608,
+          "content": "2026-03-12 上线 Polyglot 搜索架构 v2.3.0 版本，Meilisearch 接管全文搜索功能。 关键线索:tokenizer 评估批次:eval_ce982",
+          "is_eval": false
+        },
+        {
+          "id": "memory:xxzkli6r2akd98ar6m9b",
+          "intent": "date_event",
+          "score": 0.762904,
+          "content": "2026-03-12 上线 Polyglot 搜索架构 v2.3.0 版本，Meilisearch 接管全文搜索功能。 关键线索:tokenizer 评估批次:eval_9e748",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 2
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_9",
+      "query": "SurrealDB",
+      "latency_ms": 13.91,
+      "preview": [
+        {
+          "id": "memory:n1he9zlpcc837a55qp3p",
+          "intent": null,
+          "score": 0.989899,
+          "content": "SurrealDB是一个支持向量搜索的多模型数据库。[605714a1]",
+          "is_eval": false
+        },
+        {
+          "id": "memory:t3h2gsk8eg1nt2dtkd4c",
+          "intent": null,
+          "score": 0.989899,
+          "content": "SurrealDB是一个支持向量搜索的多模型数据库。[a7520a2d]",
+          "is_eval": false
+        },
+        {
+          "id": "memory:0z9918pd3nx2io1igb4h",
+          "intent": null,
+          "score": 0.989899,
+          "content": "SurrealDB是一个支持向量搜索的多模型数据库。[745c15b9]",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_66",
+      "query": "Docker Compose",
+      "latency_ms": 14.66,
+      "preview": [
+        {
+          "id": "memory:1ovsp9qf2ez7kh1iuguz",
+          "intent": "docker_ops",
+          "score": 0.999339,
+          "content": "Docker Compose 可以一键启动多服务开发环境。 关键线索:Docker 评估批次:eval_ce982335f8 样本:docker_ops_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:ddpks45f7ipo6begt24j",
+          "intent": "mixed_lang",
+          "score": 0.999339,
+          "content": "Docker Compose 配置中需要为 Meilisearch 容器设置 MEILI_MASTER_KEY 环境变量和数据卷。 关键线索:Docker Compose 评估批次",
+          "is_eval": false
+        },
+        {
+          "id": "memory:rnu0g11rn54iuc6mjgtm",
+          "intent": "docker_ops",
+          "score": 0.999339,
+          "content": "Docker Compose 可以一键启动多服务开发环境。 关键线索:Docker 评估批次:eval_4afdf4f891 样本:docker_ops_1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 3
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "keyword",
+      "query_id": "q_find_1",
+      "query": "FastAPI",
+      "latency_ms": 10.61,
+      "preview": [
+        {
+          "id": "memory:u3eghgx186f2n4wia9q7",
+          "intent": null,
+          "score": 0.984848,
+          "content": "FastAPI是一个现代、高性能的Python Web框架。[605714a1]",
+          "is_eval": false
+        },
+        {
+          "id": "memory:eoo7g6r6wp3y161q7peu",
+          "intent": null,
+          "score": 0.984848,
+          "content": "FastAPI是一个现代、高性能的Python Web框架。[a7520a2d]",
+          "is_eval": false
+        },
+        {
+          "id": "memory:cavahut8l0ekc58xlg44",
+          "intent": null,
+          "score": 0.984848,
+          "content": "FastAPI是一个现代、高性能的Python Web框架。[745c15b9]",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_41",
+      "query": "传感器",
+      "latency_ms": 180.47,
+      "preview": [
+        {
+          "id": "memory:xbbqywqsghv1437nr375",
+          "intent": null,
+          "score": 0.011475,
+          "content": "",
+          "is_eval": false
+        },
+        {
+          "id": "memory:mzkenwzq8fixz5jdazwa",
+          "intent": null,
+          "score": 0.01129,
+          "content": "",
+          "is_eval": false
+        },
+        {
+          "id": "memory:pq8v6a91dsg9setao8u6",
+          "intent": null,
+          "score": 0.011111,
+          "content": "",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 0
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_25",
+      "query": "2099-01-01 未来事件",
+      "latency_ms": 82.63,
+      "preview": [
+        {
+          "id": "memory:1exdr8jt59hmcmy0caie",
+          "intent": "date_event",
+          "score": 0.011475,
+          "content": "2026-03-11 修复了 SurrealDB 日期搜索的 tokenizer 问题，确认 class tokenizer 无法正确处理连字符日期格式。 关键线索:2026-03",
+          "is_eval": true
+        },
+        {
+          "id": "memory:brme82g7zcbxpw7kz6m5",
+          "intent": "date_event",
+          "score": 0.01129,
+          "content": "2026-03-11 修复了 SurrealDB 日期搜索的 tokenizer 问题，确认 class tokenizer 无法正确处理连字符日期格式。 关键线索:2026-03",
+          "is_eval": false
+        },
+        {
+          "id": "memory:yh0sp3xk54fjwm0p2ghc",
+          "intent": "date_event",
+          "score": 0.011111,
+          "content": "2026-03-11 修复了 SurrealDB 日期搜索的 tokenizer 问题，确认 class tokenizer 无法正确处理连字符日期格式。 关键线索:2026-03",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 3
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_9",
+      "query": "SurrealDB",
+      "latency_ms": 59.47,
+      "preview": [
+        {
+          "id": "memory:t3h2gsk8eg1nt2dtkd4c",
+          "intent": null,
+          "score": 0.01595,
+          "content": "SurrealDB是一个支持向量搜索的多模型数据库。[a7520a2d]",
+          "is_eval": false
+        },
+        {
+          "id": "memory:o6gfirp3w5mc8fv4213c",
+          "intent": null,
+          "score": 0.015423,
+          "content": "SurrealDB是一个支持向量搜索的多模型数据库。[aff70260]",
+          "is_eval": false
+        },
+        {
+          "id": "memory:vvbd93p6qsulvyi54t9e",
+          "intent": null,
+          "score": 0.015294,
+          "content": "SurrealDB是一个支持向量搜索的多模型数据库。[a186a844]",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 0
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_17",
+      "query": "rqplm znxte avkro",
+      "latency_ms": 59.78,
+      "preview": [
+        {
+          "id": "memory:2n4070lew8m0ay8kfkzv",
+          "intent": null,
+          "score": 0.011475,
+          "content": "BM25关键词搜索测试 cb3b9116",
+          "is_eval": false
+        },
+        {
+          "id": "memory:i0fpxay1m548e8tgfwn2",
+          "intent": null,
+          "score": 0.01129,
+          "content": "BM25关键词搜索测试 f5ae111e",
+          "is_eval": false
+        },
+        {
+          "id": "memory:l5vn7atuq3zszfchcioz",
+          "intent": null,
+          "score": 0.011111,
+          "content": "BM25关键词搜索测试 c32c32a1",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 1
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_66",
+      "query": "Docker Compose",
+      "latency_ms": 182.48,
+      "preview": [
+        {
+          "id": "memory:1ovsp9qf2ez7kh1iuguz",
+          "intent": "docker_ops",
+          "score": 0.016393,
+          "content": "Docker Compose 可以一键启动多服务开发环境。 关键线索:Docker 评估批次:eval_ce982335f8 样本:docker_ops_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:rnu0g11rn54iuc6mjgtm",
+          "intent": "docker_ops",
+          "score": 0.016052,
+          "content": "Docker Compose 可以一键启动多服务开发环境。 关键线索:Docker 评估批次:eval_4afdf4f891 样本:docker_ops_1",
+          "is_eval": false
+        },
+        {
+          "id": "memory:ddpks45f7ipo6begt24j",
+          "intent": "mixed_lang",
+          "score": 0.015776,
+          "content": "Docker Compose 配置中需要为 Meilisearch 容器设置 MEILI_MASTER_KEY 环境变量和数据卷。 关键线索:Docker Compose 评估批次",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 3
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_18",
+      "query": "Deployment",
+      "latency_ms": 188.95,
+      "preview": [
+        {
+          "id": "memory:xbbqywqsghv1437nr375",
+          "intent": null,
+          "score": 0.011475,
+          "content": "",
+          "is_eval": false
+        },
+        {
+          "id": "memory:mzkenwzq8fixz5jdazwa",
+          "intent": null,
+          "score": 0.01129,
+          "content": "",
+          "is_eval": false
+        },
+        {
+          "id": "memory:pq8v6a91dsg9setao8u6",
+          "intent": null,
+          "score": 0.011111,
+          "content": "",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_5",
+      "query": "React",
+      "latency_ms": 118.4,
+      "preview": [
+        {
+          "id": "memory:xbbqywqsghv1437nr375",
+          "intent": null,
+          "score": 0.011475,
+          "content": "",
+          "is_eval": false
+        },
+        {
+          "id": "memory:mzkenwzq8fixz5jdazwa",
+          "intent": null,
+          "score": 0.01129,
+          "content": "",
+          "is_eval": false
+        },
+        {
+          "id": "memory:pq8v6a91dsg9setao8u6",
+          "intent": null,
+          "score": 0.011111,
+          "content": "",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_1",
+      "query": "FastAPI",
+      "latency_ms": 64.22,
+      "preview": [
+        {
+          "id": "memory:10z1fol2mnidmbshbrhc",
+          "intent": null,
+          "score": 0.016163,
+          "content": "FastAPI是一个现代、高性能的Python Web框架。[a186a844]",
+          "is_eval": false
+        },
+        {
+          "id": "memory:u3eghgx186f2n4wia9q7",
+          "intent": null,
+          "score": 0.015856,
+          "content": "FastAPI是一个现代、高性能的Python Web框架。[605714a1]",
+          "is_eval": false
+        },
+        {
+          "id": "memory:jwpx0esnfxuluhh2f3nl",
+          "intent": null,
+          "score": 0.015726,
+          "content": "FastAPI是一个现代、高性能的Python Web框架。[84683ec5]",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 0
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_21",
+      "query": "pulsar qwerty magma",
+      "latency_ms": 48.46,
+      "preview": [
+        {
+          "id": "memory:z98db0un0brugoqc5fbq",
+          "intent": null,
+          "score": 0.011475,
+          "content": "BM25关键词搜索测试 da141347",
+          "is_eval": false
+        },
+        {
+          "id": "memory:0zrnskiew4xz8uyc9mg2",
+          "intent": "date_event",
+          "score": 0.01129,
+          "content": "2026-03-12 上线 Polyglot 搜索架构 v2.3.0 版本，Meilisearch 接管全文搜索功能。 关键线索:tokenizer 评估批次:eval_ce982",
+          "is_eval": false
+        },
+        {
+          "id": "memory:xxzkli6r2akd98ar6m9b",
+          "intent": "date_event",
+          "score": 0.011111,
+          "content": "2026-03-12 上线 Polyglot 搜索架构 v2.3.0 版本，Meilisearch 接管全文搜索功能。 关键线索:tokenizer 评估批次:eval_9e748",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 9,
+      "eval_returned": 3
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_10",
+      "query": "2025-12-25 圣诞节",
+      "latency_ms": 90.58,
+      "preview": [
+        {
+          "id": "memory:2d321a7m8kce2od75294",
+          "intent": null,
+          "score": 0.011475,
+          "content": "2026-03-12 完成了 Meilisearch Polyglot 架构的端到端集成测试",
+          "is_eval": false
+        },
+        {
+          "id": "memory:1exdr8jt59hmcmy0caie",
+          "intent": "date_event",
+          "score": 0.01129,
+          "content": "2026-03-11 修复了 SurrealDB 日期搜索的 tokenizer 问题，确认 class tokenizer 无法正确处理连字符日期格式。 关键线索:2026-03",
+          "is_eval": true
+        },
+        {
+          "id": "memory:brme82g7zcbxpw7kz6m5",
+          "intent": "date_event",
+          "score": 0.011111,
+          "content": "2026-03-11 修复了 SurrealDB 日期搜索的 tokenizer 问题，确认 class tokenizer 无法正确处理连字符日期格式。 关键线索:2026-03",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 8,
+      "eval_returned": 3
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_33",
+      "query": "Spring",
+      "latency_ms": 66.32,
+      "preview": [
+        {
+          "id": "memory:xbbqywqsghv1437nr375",
+          "intent": null,
+          "score": 0.011475,
+          "content": "",
+          "is_eval": false
+        },
+        {
+          "id": "memory:mzkenwzq8fixz5jdazwa",
+          "intent": null,
+          "score": 0.01129,
+          "content": "",
+          "is_eval": false
+        },
+        {
+          "id": "memory:pq8v6a91dsg9setao8u6",
+          "intent": null,
+          "score": 0.011111,
+          "content": "",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_14",
+      "query": "Compose",
+      "latency_ms": 78.45,
+      "preview": [
+        {
+          "id": "memory:xbbqywqsghv1437nr375",
+          "intent": null,
+          "score": 0.011475,
+          "content": "",
+          "is_eval": false
+        },
+        {
+          "id": "memory:mzkenwzq8fixz5jdazwa",
+          "intent": null,
+          "score": 0.01129,
+          "content": "",
+          "is_eval": false
+        },
+        {
+          "id": "memory:pq8v6a91dsg9setao8u6",
+          "intent": null,
+          "score": 0.011111,
+          "content": "",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 0
+    },
+    {
+      "kind": "miss_should_find",
+      "mode": "hybrid",
+      "query_id": "q_find_34",
+      "query": "事务",
+      "latency_ms": 233.48,
+      "preview": [
+        {
+          "id": "memory:xbbqywqsghv1437nr375",
+          "intent": null,
+          "score": 0.011475,
+          "content": "",
+          "is_eval": false
+        },
+        {
+          "id": "memory:mzkenwzq8fixz5jdazwa",
+          "intent": null,
+          "score": 0.01129,
+          "content": "",
+          "is_eval": false
+        },
+        {
+          "id": "memory:pq8v6a91dsg9setao8u6",
+          "intent": null,
+          "score": 0.011111,
+          "content": "",
+          "is_eval": false
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 0
+    },
+    {
+      "kind": "false_positive_should_not_find",
+      "mode": "hybrid",
+      "query_id": "q_not_15",
+      "query": "pqlzx mvnrt aokwe",
+      "latency_ms": 48.39,
+      "preview": [
+        {
+          "id": "memory:2n4070lew8m0ay8kfkzv",
+          "intent": null,
+          "score": 0.011475,
+          "content": "BM25关键词搜索测试 cb3b9116",
+          "is_eval": false
+        },
+        {
+          "id": "memory:0zrnskiew4xz8uyc9mg2",
+          "intent": "date_event",
+          "score": 0.01129,
+          "content": "2026-03-12 上线 Polyglot 搜索架构 v2.3.0 版本，Meilisearch 接管全文搜索功能。 关键线索:tokenizer 评估批次:eval_ce982",
+          "is_eval": false
+        },
+        {
+          "id": "memory:xxzkli6r2akd98ar6m9b",
+          "intent": "date_event",
+          "score": 0.011111,
+          "content": "2026-03-12 上线 Polyglot 搜索架构 v2.3.0 版本，Meilisearch 接管全文搜索功能。 关键线索:tokenizer 评估批次:eval_9e748",
+          "is_eval": true
+        }
+      ],
+      "total_returned": 10,
+      "eval_returned": 2
+    }
+  ]
+}

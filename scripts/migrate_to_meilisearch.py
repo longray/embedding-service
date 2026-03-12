@@ -128,6 +128,7 @@ def build_meili_doc(record: dict) -> dict:
         "id": to_meili_id(record_id),
         "surreal_id": record_id,
         "content": record.get("content", ""),
+        "metadata": record.get("metadata", {}),
         "tenant_id": record.get("tenant_id", "default"),
         "type": record.get("type", "general"),
         "tags": record.get("tags", []),
@@ -173,7 +174,7 @@ async def fetch_batch(
     """分页读取 SurrealDB 记忆"""
     if tenant_id:
         q = (
-            "SELECT id, content, tenant_id, type, tags, project_id, "
+            "SELECT id, content, metadata, tenant_id, type, tags, project_id, "
             "source_id, source_timestamp, created_at "
             "FROM memory WHERE tenant_id = $tenant_id "
             f"ORDER BY created_at ASC LIMIT {batch_size} START {offset}"
@@ -181,7 +182,7 @@ async def fetch_batch(
         result = await db.query(q, {"tenant_id": tenant_id})
     else:
         q = (
-            "SELECT id, content, tenant_id, type, tags, project_id, "
+            "SELECT id, content, metadata, tenant_id, type, tags, project_id, "
             "source_id, source_timestamp, created_at "
             f"FROM memory ORDER BY created_at ASC LIMIT {batch_size} START {offset}"
         )

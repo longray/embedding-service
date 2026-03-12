@@ -153,6 +153,7 @@ class MemoryManager:
                                 "id": self._to_meili_id(record_id),
                                 "surreal_id": record_id,
                                 "content": memory.get("content", ""),
+                                "metadata": memory.get("metadata", {}),
                                 "tenant_id": effective_tenant_id,
                                 "type": memory.get("type", "general"),
                                 "tags": memory.get("tags", []),

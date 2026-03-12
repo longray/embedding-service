@@ -202,5 +202,5 @@ DEFINE USER IF NOT EXISTS runtime_user ON DATABASE
 UPSERT schema_version:current CONTENT {
     version: '2.3.0',
     applied_at: time::now(),
-    description: 'Polyglot 架构: Meilisearch 全文搜索 + SurrealDB 向量/图/存储; BM25 索引保留为降级路径'
+    description: 'Polyglot 架构: Meilisearch 全文搜索 + SurrealDB 向量/图/存储 - BM25 索引保留为降级路径'
 };
