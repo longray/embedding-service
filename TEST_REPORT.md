@@ -190,7 +190,7 @@
 | 最小化包装服务 | 17999 | ✅ 运行中 | 2.3.0 ✅ |
 | 完整包装服务 | 3001 | ❌ 未启动 | - |
 | SurrealDB | 18002 | ✅ 运行中 | - |
-| Meilisearch | 7701 | ✅ 运行中 | 1.38.2 |
+| Meilisearch | 18003 | ✅ 运行中 | 1.38.2 |
 
 ### 5. Meilisearch 配置问题
 
@@ -198,7 +198,7 @@
 - 需要配置环境变量启用 Meilisearch：
   ```bash
   export WRAPPER_MEILI_ENABLED=true
-  export WRAPPER_MEILI_URL=http://127.0.0.1:7701
+  export WRAPPER_MEILI_URL=http://127.0.0.1:18003
   export WRAPPER_MEILI_API_KEY=your_master_key
   ```
 

@@ -45,14 +45,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Technical Details
 - **Meilisearch 版本**：v1.38.2（charabia v0.9.x）
-- **端口配置**：Meilisearch 7701（避免与代理冲突）
+- **端口配置**：Meilisearch 18003（避免与代理冲突）
 - **HNSW 索引**：`DEFINE INDEX memory_embedding ON memory FIELDS embedding HNSW`
 - **RRF 融合算法**：`score = 1/(k+rank)`，k=60
 
 ### Migration Notes
 ```bash
 # 1. 启动 Meilisearch
-nohup meilisearch --http-addr 127.0.0.1:7701 --master-key "YOUR_KEY" --env development &
+nohup meilisearch --http-addr 127.0.0.1:18003 --master-key "YOUR_KEY" --env development &
 
 # 2. 运行数据迁移（幂等，可重复）
 export SURREAL_URL=ws://localhost:18002/rpc
