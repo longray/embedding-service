@@ -1,0 +1,6 @@
+title = "gitleaks config"
+
+[allowlist]
+description = "Meilisearch default master key for local development"
+paths = ['''start_all_services.bat''']
+regexes = ['''RDo25RtbmF8BSyLyOjBgpBOH8XZo1unrbu83Gz_rX4M''']
