@@ -107,6 +107,26 @@ export WRAPPER_WEBSOCKET_TOKEN=your_secret_token
 - ✅ **CI/CD**：GitHub Actions 自动测试
 - ✅ **完整测试套件**：150+ 测试用例
 - ✅ **Meilisearch 全文搜索**：CJK 中文分词、日期精确匹配、关键词搜索
+- ✅ **Meilisearch 代码搜索优化**：104词代码术语字典、代码标识符搜索、双字段策略
+
+### Meilisearch 代码搜索优化
+
+**优化功能**：
+- **104词代码术语字典**：FastAPI, Python, Meilisearch, SurrealDB, Docker, Kubernetes 等常用代码术语
+- **代码标识符搜索**：支持 `meili_client.py`, `config.surrealdb.url` 等带点号/下划线的标识符
+- **双字段策略**：搜索字段（content_zh, content_search, code）+ 精确匹配字段（date, version, ip_address, email）
+- **中文分词优化**：CJK 中文分词，支持中文代码注释和文档搜索
+- **nonSeparatorTokens**：`-`, `.`, `/`, `:`, `@`, `_` 不作为分隔符，保持代码标识符完整性
+
+**使用场景**：
+- 代码文件名搜索：`meili_client.py`, `memory_manager.py`
+- 配置项搜索：`config.surrealdb.url`, `wrapper.meili.enabled`
+- 版本号搜索：`v2.3.0`, `v3.0.1`
+- IP地址搜索：`192.168.1.1`, `127.0.0.1`
+- 日期搜索：`2026-03-12`
+
+**详细文档**：查看 [meilisearch_code/README.md](meilisearch_code/README.md) 了解完整配置和使用指南。
+
 
 ## 技术要求与兼容性
 - 保持向后兼容及现有接口

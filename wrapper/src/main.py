@@ -45,8 +45,18 @@ class EmbeddingRequest(BaseModel):
     model: str = Field(default="Qwen3-Embedding-0.6B", description="模型名称")
 
 
+class MemoryItem(BaseModel):
+    content: str = Field(..., min_length=1, description="记忆内容")
+    type: str = Field(default="general", description="记忆类型")
+    tags: list[str] = Field(default_factory=list, description="标签列表")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="元数据")
+    project_id: str = Field(default="global", description="项目ID")
+    source: str = Field(default="api", description="来源")
+    source_id: str | None = Field(default=None, description="来源ID")
+    source_timestamp: str | None = Field(default=None, description="来源时间戳")
+    classification_confidence: float | None = Field(default=None, description="分类置信度")
 class MemoryUploadRequest(BaseModel):
-    memories: list[dict] = Field(..., description="记忆列表")
+    memories: list[MemoryItem] = Field(..., description="记忆列表")
     tenant_id: str = Field(default="default", description="租户ID")
 
 
@@ -423,7 +433,7 @@ async def upload_memories(request: MemoryUploadRequest):
 
     try:
         result = await memory_manager.upload_memories(
-            request.memories,
+            [m.model_dump() for m in request.memories],
             tenant_id=request.tenant_id,
         )
         return result

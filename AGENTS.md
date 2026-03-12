@@ -78,3 +78,91 @@ uv run pyright
 - 已移除 prometheus_client 依赖及相关监控代码
 - 使用 structlog 进行日志记录
 - API 认证通过环境变量 `WRAPPER_AUTH_ENABLED` 控制
+
+
+## Meilisearch 使用指南
+
+### 代码搜索索引配置
+
+**位置**: `meilisearch_code/`
+**端口**: 18003
+**索引**: code_search_index
+
+### 使用方式
+
+**1. 全文搜索（中文、代码）**
+```python
+from config import MeiliConfig
+index = MeiliConfig.get_index()
+
+# 中文搜索
+index.search("用户服务")
+
+# 代码搜索
+index.search("UserService")
+
+# 组合搜索
+index.search("python fastapi")
+```
+
+**2. 精确匹配（IP、邮箱、版本）**
+```python
+# IP 地址
+index.search("", {"filter": 'ip_address = "192.168.1.100"'})
+
+# 邮箱
+index.search("", {"filter": 'email = "developer@example.com"'})
+
+# 版本号
+index.search("", {"filter": 'version = "v2.1.0"'})
+```
+
+**3. 混合搜索**
+```python
+# 全文搜索 + 过滤器
+index.search("用户", {"filter": 'language = "java" AND status = "active"'})
+```
+
+### 双字段策略
+
+- **精确字段**（file_path, version, email, ip_address）→ 使用 filter
+- **搜索字段**（*_zh, *_search）→ 使用全文搜索
+
+### 代码搜索优化
+
+**104词代码术语字典**：
+- FastAPI, Python, Meilisearch, SurrealDB, Docker, Kubernetes 等常用代码术语
+- 版本号：v2.3.0, v3.0.1
+- IP地址：192.168.1.1, 127.0.0.1
+- 日期：2026-03-12
+
+**nonSeparatorTokens 配置**：
+- `-`, `.`, `/`, `:`, `@`, `_` 不作为分隔符
+- 支持代码标识符搜索：`meili_client.py`, `config.surrealdb.url`
+
+**使用示例**：
+```python
+# 搜索文件名
+index.search("meili_client.py")
+
+# 搜索配置项
+index.search("config.surrealdb.url")
+
+# 搜索版本号
+index.search("v2.3.0")
+```
+
+### 管理命令
+
+```bash
+cd meilisearch_code
+
+# 初始化索引
+uv run python init_index.py
+
+# 运行测试
+uv run python test_search.py
+
+# 监控索引
+uv run python monitor_index.py
+```

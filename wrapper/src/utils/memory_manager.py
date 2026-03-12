@@ -19,6 +19,7 @@ from .tracing import get_tracer
 
 logger = logging.getLogger(__name__)
 
+
 class MemoryManager:
     """记忆管理器，协调 embedding 服务和数据库操作
 
@@ -57,6 +58,7 @@ class MemoryManager:
 
     def set_meili_client(self, client: MeilisearchClient) -> None:
         self._meili = client
+
     async def close(self) -> None:
         """关闭资源"""
 
@@ -159,6 +161,13 @@ class MemoryManager:
                                 "tags": memory.get("tags", []),
                                 "project_id": memory.get("project_id", "global"),
                             }
+                            # 额外字段，方便 Meilisearch 的过滤与字段级搜索
+                            meili_doc["ip_address"] = memory.get("metadata", {}).get("ip_address") or memory.get(
+                                "metadata", {}
+                            ).get("ip")
+                            meili_doc["email"] = memory.get("metadata", {}).get("email")
+                            meili_doc["version"] = memory.get("metadata", {}).get("version")
+                            meili_doc["code"] = memory.get("content", "")  # 代码搜索字段
                             if "source_id" in memory:
                                 meili_doc["source_id"] = memory["source_id"]
                             if "source_timestamp" in memory:
@@ -202,6 +211,7 @@ class MemoryManager:
         limit: int = 10,
         threshold: float = 0.7,
         tenant_id: str | None = None,
+        filters: str | None = None,
     ) -> dict[str, Any]:
         """搜索记忆"""
         if mode not in ("vector", "keyword", "hybrid"):
@@ -222,10 +232,12 @@ class MemoryManager:
                     embeddings = await self._get_embeddings([query])
                     results = await self._search_by_vector(embeddings[0], limit, threshold, effective_tenant_id)
                 elif mode == "keyword":
-                    results = await self._search_by_keyword(query, limit, effective_tenant_id)
+                    results = await self._search_by_keyword(query, limit, effective_tenant_id, filter_expr=filters)
                 else:
                     embeddings = await self._get_embeddings([query])
-                    results = await self._hybrid_search(query, embeddings[0], limit, threshold, effective_tenant_id)
+                    results = await self._hybrid_search(
+                        query, embeddings[0], limit, threshold, effective_tenant_id, filters
+                    )
 
                 span.set_attribute("search.result_count", len(results))
                 return {"results": results, "total": len(results), "mode": mode, "query": query}
@@ -264,10 +276,12 @@ class MemoryManager:
             span.set_attribute("search.vector.result_count", len(results))
             return results
 
-    async def _search_by_keyword(self, query_text: str, limit: int, tenant_id: str) -> list[dict[str, Any]]:
+    async def _search_by_keyword(
+        self, query_text: str, limit: int, tenant_id: str, filter_expr: str | None = None
+    ) -> list[dict[str, Any]]:
         """全文搜索：优先使用 Meilisearch，降级到 SurrealDB BM25"""
         if self._meili:
-            return await self._search_by_keyword_meili(query_text, limit, tenant_id)
+            return await self._search_by_keyword_meili(query_text, limit, tenant_id, filter_expr=filter_expr)
         return await self._search_by_keyword_surreal(query_text, limit, tenant_id)
 
     async def _search_by_keyword_meili(
@@ -275,6 +289,7 @@ class MemoryManager:
         query_text: str,
         limit: int,
         tenant_id: str,
+        filter_expr: str | None = None,
     ) -> list[dict[str, Any]]:
         """Meilisearch 全文搜索（支持 CJK 分词、日期精确匹配）"""
         assert self._meili is not None  # 由 _search_by_keyword 保证
@@ -283,10 +298,10 @@ class MemoryManager:
             span.set_attribute("search.keyword.engine", "meilisearch")
             span.set_attribute("search.keyword.query", query_text[:100])
 
-            filter_expr = f"tenant_id = '{tenant_id}'"
+            actual_filter = filter_expr or f"tenant_id = '{tenant_id}'"
             result = await self._meili.search(
                 query_text,
-                filter_expr=filter_expr,
+                filter_expr=actual_filter,
                 limit=limit,
             )
             results = self._format_meili_results(result)
@@ -326,13 +341,14 @@ class MemoryManager:
         limit: int,
         threshold: float,
         tenant_id: str,
+        filter_expr: str | None = None,
     ) -> list[dict[str, Any]]:
         """RRF 混合搜索：并行执行向量+关键词搜索，然后用 RRF 算法融合"""
         tracer = get_tracer()
         with tracer.start_as_current_span("search.hybrid") as span:
             tasks = [
                 self._search_by_vector(embedding, limit * 2, threshold, tenant_id),
-                self._search_by_keyword(query_text, limit * 2, tenant_id),
+                self._search_by_keyword(query_text, limit * 2, tenant_id, filter_expr=filter_expr),
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -432,15 +448,17 @@ class MemoryManager:
             # 使用 surreal_id 还原完整的 SurrealDB record ID
             doc_id = hit.get("surreal_id") or self._from_meili_id(str(hit.get("id", "")))
             score = hit.get("_rankingScore", 0.0)
-            results.append({
-                "id": str(doc_id),
-                "content": hit.get("content", ""),
-                "metadata": hit.get("metadata", {}),
-                "type": hit.get("type", "general"),
-                "tags": hit.get("tags", []),
-                "project_id": hit.get("project_id", "global"),
-                "score": round(float(score), 6),
-            })
+            results.append(
+                {
+                    "id": str(doc_id),
+                    "content": hit.get("content", ""),
+                    "metadata": hit.get("metadata", {}),
+                    "type": hit.get("type", "general"),
+                    "tags": hit.get("tags", []),
+                    "project_id": hit.get("project_id", "global"),
+                    "score": round(float(score), 6),
+                }
+            )
         return results
 
     def _build_result_item(self, item: dict[str, Any], score: float) -> dict[str, Any]:

@@ -41,19 +41,62 @@ class MeilisearchClient:
 
     # 记忆索引的默认配置
     DEFAULT_INDEX_SETTINGS: ClassVar[dict[str, Any]] = {
-        "searchableAttributes": ["content"],
+        # 将更多字段设为可搜索字段，支持代码/元数据等多类型搜索
+        "searchableAttributes": ["content_zh", "title_zh", "tags_zh", "content_search", "code", "content"],
         "filterableAttributes": [
             "tenant_id",
             "type",
             "tags",
             "project_id",
             "date",
+            "ip_address",
+            "email",
+            "version",
             "created_at",
             "source_id",
         ],
         "sortableAttributes": ["date", "created_at"],
         # 让日期格式 2026-03-11 在全文搜索时保持整体，不被 - 分割
-        "nonSeparatorTokens": ["-"],
+        "nonSeparatorTokens": [".", "-", "@", ":", "/", "_"],
+        "localizedAttributes": [
+            {"locales": ["zho"], "attributePatterns": ["*_zh"]}
+        ],
+        "typoTolerance": {
+            "enabled": True,
+            "disableOnAttributes": ["file_path", "version", "email", "ip_address"]
+        },
+        "dictionary": [
+            # 版本前缀
+            "v1", "v2", "v3", "v4", "v5",
+            "alpha", "beta", "rc", "release", "snapshot",
+            # 编程语言
+            "python", "java", "javascript", "typescript",
+            "go", "rust", "cpp", "csharp", "ruby",
+            "php", "swift", "kotlin", "scala",
+            # 常见命名
+            "http", "https", "api", "www", "localhost",
+            "com", "cn", "org", "net", "io", "dev",
+            "get", "post", "put", "delete", "patch",
+            # 代码术语
+            "class", "interface", "enum", "struct",
+            "function", "method", "property", "attribute",
+            "import", "export", "require", "include",
+            "public", "private", "protected", "static",
+            "async", "await", "promise", "callback",
+            # 框架/库
+            "django", "flask", "fastapi", "spring",
+            "react", "vue", "angular", "next", "nuxt",
+            "tensorflow", "pytorch", "sklearn",
+            # 常见 ID 前缀
+            "ID", "NO", "NUM", "CODE", "KEY",
+            "ORD", "PAY", "TRK", "INV", "USR",
+            # 时间
+            "2025", "2026", "2027", "2028",
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+            # IP 段
+            "192", "168", "172", "10", "127", "0", "1",
+        ],
     }
 
     def __init__(

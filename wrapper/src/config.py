@@ -70,8 +70,8 @@ class TelemetryConfig:
 
 @dataclass
 class MeilisearchConfig:
-    url: str = "http://localhost:7700"
-    api_key: str = "masterKey_change_in_production"
+    url: str = "http://localhost:18003"
+    api_key: str = "RDo25RtbmF8BSyLyOjBgpBOH8XZo1unrbu83Gz_rX4M"
     index_name: str = "memories"
     timeout: float = 30.0
     enabled: bool = True

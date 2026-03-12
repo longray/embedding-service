@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  meilisearch:
+    image: getmeili/meilisearch:v1.12.0
+    container_name: meilisearch_code
+    ports:
+      - "18003:7700"
+    environment:
+      - MEILI_MASTER_KEY=meili_master_key_2026_safe
+      - MEILI_ENV=production
+      - MEILI_NO_ANALYTICS=true
+      - MEILI_MAX_INDEX_SIZE=10737418240
+      - MEILI_MAX_TASK_DB_SIZE=10737418240
+    volumes:
+      - meilisearch_code_data:/meili_data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 1G
+
+volumes:
+  meilisearch_code_data:
