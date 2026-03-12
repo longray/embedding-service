@@ -270,7 +270,7 @@ app = FastAPI(
     1. /v1/chat/completions - 兼容 OpenAI 格式的对话接口
     2. /generate - 简单生成接口（支持缓存）
     """,
-    version="1.0.0",
+    version="2.3.0",
 )
 
 app.add_middleware(

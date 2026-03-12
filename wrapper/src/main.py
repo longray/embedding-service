@@ -326,7 +326,7 @@ async def lifespan(app: FastAPI):
     await db_manager.disconnect()
 
 
-app = FastAPI(title="Minimal Wrapper Service", version="2.2.0", lifespan=lifespan)
+app = FastAPI(title="Minimal Wrapper Service", version="2.3.0", lifespan=lifespan)
 
 
 # ==================== 异常处理 ====================
