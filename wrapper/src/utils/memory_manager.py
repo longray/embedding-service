@@ -101,7 +101,7 @@ class MemoryManager:
             success_count = 0
             failed_count = 0
             memory_ids: list[str] = []
-            errors: list[str] = []
+            errors: list[str | dict[str, Any]] = []
             meili_docs: list[dict[str, Any]] = []
 
             # 批量获取 embeddings
@@ -147,10 +147,23 @@ class MemoryManager:
                         {"tenant_id": effective_tenant_id, "hash": memory_data["content_hash"]},
                     )
                     logger.info(f"Content hash check: hash={memory_data['content_hash']}, existing={existing}")
-                    if existing and len(existing) > 0 and len(existing[0]) > 0:
+                    existing_records = self._extract_records(existing)
+                    logger.info(
+                        f"Extracted records: type={type(existing_records)}, len={len(existing_records)}, records={existing_records}"
+                    )
+                    if existing_records:
+                        existing_id = str(existing_records[0].get("id", ""))
                         failed_count += 1
-                        errors.append("Content hash duplicate detected")
-                        logger.info("Content hash duplicate detected, skipping")
+                        errors.append(
+                            {
+                                "type": "duplicate",
+                                "duplicate_type": "hash",
+                                "message": "Content hash duplicate detected",
+                                "existing_id": existing_id,
+                                "retryable": False,
+                            }
+                        )
+                        logger.info(f"Content hash duplicate detected, existing_id={existing_id}, skipping")
                         continue
 
                     similar = await self._search_by_vector(
@@ -164,9 +177,21 @@ class MemoryManager:
                     if similar:
                         print(f"[DEBUG] Similar items: {similar}")
                         similarity_score = similar[0].get("score", 0)
-                        logger.info(f"Semantic duplicate found: similarity={similarity_score:.3f}")
+                        existing_id = similar[0].get("id", "")
+                        logger.info(
+                            f"Semantic duplicate found: similarity={similarity_score:.3f}, existing_id={existing_id}"
+                        )
                         failed_count += 1
-                        errors.append(f"Semantic duplicate detected (similarity: {similarity_score:.3f})")
+                        errors.append(
+                            {
+                                "type": "duplicate",
+                                "duplicate_type": "semantic",
+                                "message": f"Semantic duplicate detected (similarity: {similarity_score:.3f})",
+                                "existing_id": existing_id,
+                                "similarity": similarity_score,
+                                "retryable": False,
+                            }
+                        )
                         continue
 
                     result = await self._db.create("memory", memory_data)

@@ -6,53 +6,57 @@ import pytest
 
 
 BASE_URL = "http://localhost:17999"
-TENANT_ID = "test-semantic-dedup"
+
+
+def get_unique_tenant_id():
+    return f"test-dedup-{int(time.time() * 1000)}"
 
 
 @pytest.mark.asyncio
 async def test_semantic_deduplication_high_similarity():
-    """测试高相似度去重（>= 0.95）"""
-    timestamp = int(time.time())
-    base_content = f"今天天气很好，阳光明媚 {timestamp}"
+    timestamp = time.time()
+    tenant_id = get_unique_tenant_id()
+    base_content = f"今天天气很好，阳光明媚，测试时间戳 {timestamp}"
 
     async with httpx.AsyncClient(timeout=30) as client:
-        # 第一条：应该成功
         r1 = await client.post(
             f"{BASE_URL}/api/v1/memories",
             json={
                 "memories": [{"content": base_content, "type": "test", "tags": ["semantic-test"]}],
-                "tenant_id": TENANT_ID,
+                "tenant_id": tenant_id,
             },
         )
         result1 = r1.json()
-        assert result1["success"] == 1, "第一条记忆应该成功插入"
+        print(f"[DEBUG] First upload result: {result1}")
+        assert result1["success"] == 1, f"第一条记忆应该成功插入，但得到: {result1}"
         assert len(result1["memory_ids"]) == 1
 
-        # 第二条：高度相似（加了"的"），应该被拒绝
-        similar_content = f"今天的天气很好，阳光明媚 {timestamp}"
+        similar_content = f"今天的天气很好，阳光明媚，测试时间戳 {timestamp}"
         r2 = await client.post(
             f"{BASE_URL}/api/v1/memories",
             json={
                 "memories": [{"content": similar_content, "type": "test", "tags": ["semantic-test"]}],
-                "tenant_id": TENANT_ID,
+                "tenant_id": tenant_id,
             },
         )
         result2 = r2.json()
         assert result2["success"] == 0, "高度相似的记忆应该被拒绝"
         assert result2["failed"] == 1
         assert len(result2["errors"]) == 1
-        assert "Semantic duplicate detected" in result2["errors"][0]
-        assert "similarity:" in result2["errors"][0]
 
-        # 提取相似度分数
-        error_msg = result2["errors"][0]
-        similarity = float(error_msg.split("similarity: ")[1].rstrip(")"))
+        error = result2["errors"][0]
+        assert error["type"] == "duplicate"
+        assert error["duplicate_type"] == "semantic"
+        assert "Semantic duplicate detected" in error["message"]
+        assert error["retryable"] == False
+
+        similarity = error["similarity"]
         assert similarity >= 0.95, f"相似度应该 >= 0.95，实际: {similarity}"
 
 
 @pytest.mark.asyncio
 async def test_semantic_deduplication_medium_similarity():
-    """测试中等相似度（< 0.95）应该被接受"""
+    tenant_id = get_unique_tenant_id()
     timestamp = int(time.time())
     base_content = f"机器学习是人工智能的重要分支 {timestamp}"
 
@@ -62,7 +66,7 @@ async def test_semantic_deduplication_medium_similarity():
             f"{BASE_URL}/api/v1/memories",
             json={
                 "memories": [{"content": base_content, "type": "test", "tags": ["semantic-test"]}],
-                "tenant_id": TENANT_ID,
+                "tenant_id": tenant_id,
             },
         )
         assert r1.json()["success"] == 1
@@ -73,7 +77,7 @@ async def test_semantic_deduplication_medium_similarity():
             f"{BASE_URL}/api/v1/memories",
             json={
                 "memories": [{"content": different_content, "type": "test", "tags": ["semantic-test"]}],
-                "tenant_id": TENANT_ID,
+                "tenant_id": tenant_id,
             },
         )
         result2 = r2.json()
@@ -82,7 +86,7 @@ async def test_semantic_deduplication_medium_similarity():
 
 @pytest.mark.asyncio
 async def test_semantic_deduplication_low_similarity():
-    """测试低相似度（完全不同主题）应该被接受"""
+    tenant_id = get_unique_tenant_id()
     timestamp = int(time.time())
 
     async with httpx.AsyncClient(timeout=30) as client:
@@ -91,7 +95,7 @@ async def test_semantic_deduplication_low_similarity():
             f"{BASE_URL}/api/v1/memories",
             json={
                 "memories": [{"content": f"今天下雨了 {timestamp}", "type": "test", "tags": ["semantic-test"]}],
-                "tenant_id": TENANT_ID,
+                "tenant_id": tenant_id,
             },
         )
         assert r1.json()["success"] == 1
@@ -103,7 +107,7 @@ async def test_semantic_deduplication_low_similarity():
                 "memories": [
                     {"content": f"Python是一门优秀的编程语言 {timestamp}", "type": "test", "tags": ["semantic-test"]}
                 ],
-                "tenant_id": TENANT_ID,
+                "tenant_id": tenant_id,
             },
         )
         assert r2.json()["success"] == 1, "完全不同主题的记忆应该被接受"
@@ -111,7 +115,7 @@ async def test_semantic_deduplication_low_similarity():
 
 @pytest.mark.asyncio
 async def test_content_hash_deduplication():
-    """测试内容哈希去重（完全相同内容）"""
+    tenant_id = get_unique_tenant_id()
     timestamp = int(time.time())
     content = f"完全相同的内容 {timestamp}"
 
@@ -121,7 +125,7 @@ async def test_content_hash_deduplication():
             f"{BASE_URL}/api/v1/memories",
             json={
                 "memories": [{"content": content, "type": "test", "tags": ["hash-test"]}],
-                "tenant_id": TENANT_ID,
+                "tenant_id": tenant_id,
             },
         )
         assert r1.json()["success"] == 1
@@ -131,17 +135,24 @@ async def test_content_hash_deduplication():
             f"{BASE_URL}/api/v1/memories",
             json={
                 "memories": [{"content": content, "type": "test", "tags": ["hash-test"]}],
-                "tenant_id": TENANT_ID,
+                "tenant_id": tenant_id,
             },
         )
         result2 = r2.json()
+        print(f"[DEBUG] Hash dedup result: {result2}")
         assert result2["success"] == 0, "完全相同的内容应该被拒绝"
-        assert "Content hash duplicate detected" in result2["errors"][0]
+
+        error = result2["errors"][0]
+        print(f"[DEBUG] Error type: {type(error)}, Error: {error}")
+        assert error["type"] == "duplicate"
+        assert error["duplicate_type"] == "hash"
+        assert "Content hash duplicate detected" in error["message"]
+        assert error["retryable"] == False
 
 
 @pytest.mark.asyncio
 async def test_batch_deduplication():
-    """测试批量上传时的去重"""
+    tenant_id = get_unique_tenant_id()
     timestamp = int(time.time())
 
     async with httpx.AsyncClient(timeout=30) as client:
@@ -153,10 +164,14 @@ async def test_batch_deduplication():
                     {"content": f"批量测试第一条 {timestamp}", "type": "test", "tags": ["batch-test"]},
                     {"content": f"批量测试的第一条 {timestamp}", "type": "test", "tags": ["batch-test"]},
                 ],
-                "tenant_id": TENANT_ID,
+                "tenant_id": tenant_id,
             },
         )
         result = r.json()
         assert result["success"] == 1, "批量上传应该成功1条"
         assert result["failed"] == 1, "批量上传应该失败1条"
-        assert "Semantic duplicate detected" in result["errors"][0]
+
+        error = result["errors"][0]
+        assert error["type"] == "duplicate"
+        assert error["duplicate_type"] == "semantic"
+        assert "Semantic duplicate detected" in error["message"]
