@@ -233,6 +233,30 @@ uv run pytest tests/test_meili_integration.py -v
 - Meilisearch 1.4+ 运行中（默认端口 7700）
 - 配置 `WRAPPER_MEILI_ENABLED=true` 环境变量
 - 不需要 Meilisearch 也可运行（mock 测试）
+
+### 语义去重测试 (5个) - v2.3.1 新增
+
+**测试文件**: `tests/test_semantic_deduplication.py`
+
+| 测试 | 覆盖内容 |
+|------|----------|
+| test_semantic_deduplication_high_similarity | 高相似度去重（>= 0.95）应该被拒绝 |
+| test_semantic_deduplication_medium_similarity | 中等相似度（< 0.95）应该被接受 |
+| test_semantic_deduplication_low_similarity | 低相似度（完全不同主题）应该被接受 |
+| test_content_hash_deduplication | 内容哈希去重（完全相同内容）应该被拒绝 |
+| test_batch_deduplication | 批量上传时的去重机制 |
+
+**运行方式**:
+```bash
+uv run pytest tests/test_semantic_deduplication.py -v
+```
+
+**测试验证**:
+- ✅ 语义相似度 >= 0.95 的记忆被正确拒绝
+- ✅ 语义相似度 < 0.95 的记忆被正确接受
+- ✅ 完全相同内容的哈希去重正常工作
+- ✅ 批量上传时去重机制正常工作
+
 ### 集成测试 (2个)
 
 ## 测试报告

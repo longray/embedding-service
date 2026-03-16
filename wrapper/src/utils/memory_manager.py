@@ -7,6 +7,7 @@
 """
 
 import asyncio
+import hashlib
 import json
 import logging
 import re
@@ -121,8 +122,10 @@ class MemoryManager:
 
             for memory, embedding in zip(memories, embeddings, strict=False):
                 try:
+                    content = memory.get("content", "")
                     memory_data: dict[str, Any] = {
-                        "content": memory.get("content", ""),
+                        "content": content,
+                        "content_hash": hashlib.md5(content.encode("utf-8"), usedforsecurity=False).hexdigest(),
                         "embedding": embedding,
                         "tenant_id": effective_tenant_id,
                         "type": memory.get("type", "general"),
@@ -139,12 +142,44 @@ class MemoryManager:
                     if "classification_confidence" in memory:
                         memory_data["classification_confidence"] = memory["classification_confidence"]
 
+                    existing = await self._db.query(
+                        "SELECT id FROM memory WHERE tenant_id = $tenant_id AND content_hash = $hash LIMIT 1",
+                        {"tenant_id": effective_tenant_id, "hash": memory_data["content_hash"]},
+                    )
+                    logger.info(f"Content hash check: hash={memory_data['content_hash']}, existing={existing}")
+                    if existing and len(existing) > 0 and len(existing[0]) > 0:
+                        failed_count += 1
+                        errors.append("Content hash duplicate detected")
+                        logger.info("Content hash duplicate detected, skipping")
+                        continue
+
+                    similar = await self._search_by_vector(
+                        embedding=embedding,
+                        limit=1,
+                        threshold=0.95,
+                        tenant_id=effective_tenant_id,
+                    )
+                    print(f"[DEBUG] Semantic search result: found={len(similar)} items, threshold=0.95")
+                    logger.info(f"Semantic search result: found={len(similar)} items, threshold=0.95")
+                    if similar:
+                        print(f"[DEBUG] Similar items: {similar}")
+                        similarity_score = similar[0].get("score", 0)
+                        logger.info(f"Semantic duplicate found: similarity={similarity_score:.3f}")
+                        failed_count += 1
+                        errors.append(f"Semantic duplicate detected (similarity: {similarity_score:.3f})")
+                        continue
+
                     result = await self._db.create("memory", memory_data)
                     record_id: str | None = None
                     if isinstance(result, list) and len(result) > 0:
                         record_id = str(result[0].get("id", "")) or None
                     elif isinstance(result, dict) and result.get("id"):
                         record_id = str(result["id"])
+
+                    if not record_id:
+                        logger.warning(
+                            f"SurrealDB create returned no ID. Result type: {type(result)}, Result: {result}"
+                        )
 
                     if record_id:
                         memory_ids.append(record_id)
@@ -252,27 +287,26 @@ class MemoryManager:
         threshold: float,
         tenant_id: str,
     ) -> list[dict[str, Any]]:
-        """KNN 向量搜索（利用 HNSW 索引）"""
+        """向量相似度搜索（利用 HNSW 索引）"""
         tracer = get_tracer()
         with tracer.start_as_current_span("search.vector") as span:
-            ef_search = max(self._hnsw_ef_search, 4 * limit)
-            span.set_attribute("search.vector.ef", ef_search)
-            span.set_attribute("search.vector.k", limit)
+            span.set_attribute("search.vector.limit", limit)
+            span.set_attribute("search.vector.threshold", threshold)
 
-            knn_op = f"<|{int(limit)},{int(ef_search)}|>"
-            emb_literal = json.dumps(embedding)
             q = (  # nosec B608
                 "SELECT id, content, metadata, type, tags, project_id, "  # nosec B608
-                "vector::distance::knn() AS distance "
+                "vector::similarity::cosine(embedding, $query_embedding) AS score "
                 "FROM memory "
                 "WHERE tenant_id = $tenant_id "
-                f"AND embedding {knn_op} {emb_literal} "  # nosec B608
-                "ORDER BY distance ASC"
+                "AND vector::similarity::cosine(embedding, $query_embedding) >= $threshold "
+                "ORDER BY score DESC "
+                f"LIMIT {int(limit)}"
             )
-            result = await self._db.query(q, {"tenant_id": tenant_id})
+            result = await self._db.query(
+                q, {"tenant_id": tenant_id, "query_embedding": embedding, "threshold": threshold}
+            )
 
-            max_distance = 1.0 - threshold
-            results = self._format_vector_results(result, max_distance)
+            results = self._format_similarity_results(result)
             span.set_attribute("search.vector.result_count", len(results))
             return results
 
@@ -426,6 +460,16 @@ class MemoryManager:
             # distance → similarity score (cosine: similarity = 1 - distance)
             score = round(1.0 - float(distance), 6)
             results.append(self._build_result_item(item, score=score))
+        return results
+
+    def _format_similarity_results(self, db_result: Any) -> list[dict[str, Any]]:
+        raw_items = self._extract_records(db_result)
+        results: list[dict[str, Any]] = []
+        for item in raw_items:
+            score = item.get("score")
+            if score is None:
+                continue
+            results.append(self._build_result_item(item, score=float(score)))
         return results
 
     def _format_keyword_results(self, db_result: Any) -> list[dict[str, Any]]:

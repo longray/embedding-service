@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.1] - 2026-03-16
+
+### Fixed
+- **语义去重功能修复**：修复向量相似度搜索无法找到相似记忆的问题
+  - 问题：使用 `vector::distance::knn()` 的 KNN 查询无法返回相似记忆
+  - 解决：改用 `vector::similarity::cosine()` 直接计算余弦相似度
+  - 影响：语义去重现在能正确识别和拒绝相似度 >= 0.95 的重复记忆
+  - 测试：新增 5 个 pytest 测试验证去重功能（高/中/低相似度、哈希去重、批量去重）
+
+### Added
+- **语义去重测试套件**：`tests/test_semantic_deduplication.py`
+  - 测试高相似度去重（>= 0.95）
+  - 测试中等相似度接受（< 0.95）
+  - 测试低相似度接受（完全不同主题）
+  - 测试内容哈希去重（完全相同内容）
+  - 测试批量上传去重
+
+### Technical Details
+- **修改文件**：`wrapper/src/utils/memory_manager.py`
+- **查询优化**：使用 `vector::similarity::cosine(embedding, $query_embedding) >= $threshold` 在数据库层面过滤
+- **性能**：直接返回相似度分数，无需距离到相似度的转换
+- **测试覆盖**：5/5 测试通过（8.51秒）
+
 ## [2.3.0] - 2026-03-12
 
 ### Added
