@@ -45,6 +45,14 @@
 | `/api/v1/memories` | POST | 批量上传记忆 | 🌍 公开 |
 | `/api/v1/memories/search` | POST | 搜索记忆 | 🌍 公开 |
 | `/ws/memories/live` | WebSocket | 实时推送记忆变更 | 🔓 可选 |
+| `/api/v1/hnsw/stats` | GET | **NEW** HNSW 索引统计 | 🌍 公开 |
+| `/api/v1/hnsw/optimize` | POST | **NEW** 优化 HNSW 参数 | 🌍 公开 |
+| `/api/v1/hnsw/rebuild` | POST | **NEW** 重建 HNSW 索引 | 🌍 公开 |
+| `/api/v1/cache/stats` | GET | **NEW** 缓存统计 | 🌍 公开 |
+| `/api/v1/cache/clear` | POST | **NEW** 清空缓存 | 🌍 公开 |
+| `/api/v1/cache/warmup` | POST | **NEW** 预热缓存 | 🌍 公开 |
+| `/api/v1/prefetch/related` | POST | **NEW** 预取关联记忆 | 🌍 公开 |
+| `/api/v1/prefetch/popular` | POST | **NEW** 预取热门记忆 | 🌍 公开 |
 
 ### 完整包装服务（端口 3001）
 

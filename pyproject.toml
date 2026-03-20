@@ -36,6 +36,9 @@ dependencies = [
 
     # === Meilisearch (全文搜索) ===
     "httpx>=0.26.0,<1.0.0",            # Meilisearch REST API 客户端（复用项目已有依赖）
+    
+    # === 缓存 (Phase A-B3) ===
+    "aiocache>=0.12.0",                # 异步缓存支持
 ]
 
 [project.optional-dependencies]

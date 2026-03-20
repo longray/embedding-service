@@ -21,6 +21,20 @@ class HTTPConfig:
 
 
 @dataclass
+class TLSConfig:
+    """TLS/HTTPS configuration for the wrapper service."""
+
+    enabled: bool = False
+    cert_path: str = ""
+    key_path: str = ""
+    # For development: generate self-signed certs
+    # For production: use Let's Encrypt or purchased certificate
+    min_version: str = "1.2"
+    # Redirect HTTP to HTTPS
+    redirect_http: bool = True
+
+
+@dataclass
 class SurrealDBConfig:
     url: str = "ws://localhost:18002/rpc"
     namespace: str = "memory_ns"
@@ -58,6 +72,23 @@ class SearchConfig:
     # 多租户
     default_tenant_id: str = "default"  # API 未传 tenant_id 时使用
 
+    # 动态去重阈值（Phase A-B6）
+    dedup_thresholds: dict[str, float] = field(
+        default_factory=lambda: {
+            "preference": 0.88,  # 用户偏好（宽松，偏好会改变）
+            "decision": 0.90,  # 决策记录（保留历史）
+            "long-term": 0.93,  # 长期记忆（中等）
+            "general": 0.95,  # 一般记忆（严格）
+            "daily": 1.0,  # 日志（不去重）
+        }
+    )
+    default_dedup_threshold: float = 0.95  # 默认严格阈值
+
+    # 查询缓存配置（Phase A-B3）
+    cache_enabled: bool = True
+    cache_ttl: int = 300  # 5分钟
+
+
 @dataclass
 class TelemetryConfig:
     """OpenTelemetry 追踪配置"""
@@ -84,6 +115,7 @@ class AppConfig:
     debug: bool = False
     cache: CacheConfig = field(default_factory=CacheConfig)
     http: HTTPConfig = field(default_factory=HTTPConfig)
+    tls: TLSConfig = field(default_factory=TLSConfig)  # TLS/HTTPS 配置
     surrealdb: SurrealDBConfig = field(default_factory=SurrealDBConfig)
     service: ServiceConfig = field(default_factory=ServiceConfig)
     search: SearchConfig = field(default_factory=SearchConfig)
@@ -104,7 +136,9 @@ def load_config():
     cfg.surrealdb.password = os.getenv("WRAPPER_SURREALDB_PASSWORD", cfg.surrealdb.password)
     cfg.surrealdb.runtime_username = os.getenv("WRAPPER_SURREALDB_RUNTIME_USERNAME", cfg.surrealdb.runtime_username)
     cfg.surrealdb.runtime_password = os.getenv("WRAPPER_SURREALDB_RUNTIME_PASSWORD", cfg.surrealdb.runtime_password)
-    cfg.surrealdb.use_runtime_credentials = os.getenv("WRAPPER_SURREALDB_USE_RUNTIME_CREDENTIALS", "true").lower() == "true"
+    cfg.surrealdb.use_runtime_credentials = (
+        os.getenv("WRAPPER_SURREALDB_USE_RUNTIME_CREDENTIALS", "true").lower() == "true"
+    )
 
     # Meilisearch 配置
     cfg.meilisearch.enabled = os.getenv("WRAPPER_MEILI_ENABLED", "true").lower() == "true"
@@ -134,6 +168,13 @@ def load_config():
     cfg.telemetry.service_name = os.getenv("WRAPPER_OTEL_SERVICE_NAME", cfg.telemetry.service_name)
     cfg.telemetry.otlp_endpoint = os.getenv("WRAPPER_OTEL_ENDPOINT", cfg.telemetry.otlp_endpoint)
     cfg.telemetry.sample_rate = float(os.getenv("WRAPPER_OTEL_SAMPLE_RATE", str(cfg.telemetry.sample_rate)))
+
+    # TLS/HTTPS 配置
+    cfg.tls.enabled = os.getenv("WRAPPER_TLS_ENABLED", "false").lower() == "true"
+    cfg.tls.cert_path = os.getenv("WRAPPER_TLS_CERT_PATH", cfg.tls.cert_path)
+    cfg.tls.key_path = os.getenv("WRAPPER_TLS_KEY_PATH", cfg.tls.key_path)
+    cfg.tls.min_version = os.getenv("WRAPPER_TLS_MIN_VERSION", cfg.tls.min_version)
+    cfg.tls.redirect_http = os.getenv("WRAPPER_TLS_REDIRECT_HTTP", "true").lower() == "true"
 
     return cfg
 

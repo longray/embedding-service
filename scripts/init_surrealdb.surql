@@ -67,12 +67,12 @@ DEFINE FIELD IF NOT EXISTS metadata    ON memory TYPE object FLEXIBLE
 -- ==================== memory 索引 ====================
 
 -- 向量搜索索引（HNSW）
--- M=12: SurrealDB 默认值，1K-100K 数据量下平衡精度与内存
--- EFC=200: Oracle 建议 200-300，索引构建质量更高
--- DIST=COSINE: 语义搜索推荐（契约验证确认支持）
+-- M=16: 1K-100K数据量下平衡精度与内存（推荐16-24）
+-- EFC=200: Oracle建议200-300，索引构建质量更高
+-- DIST=COSINE: 语义搜索推荐
 DEFINE INDEX IF NOT EXISTS memory_embedding_hnsw ON memory
     FIELDS embedding HNSW DIMENSION 1024 DIST COSINE
-    EFC 200 M 12;
+    EFC 200 M 16;
 
 -- 全文搜索索引（BM25）— 降级路径
 -- ⚠️ 主搜索引擎已迁移至 Meilisearch（Polyglot 架构 v2.3.0）
