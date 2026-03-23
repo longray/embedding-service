@@ -2,7 +2,28 @@
 
 ## 版本历史
 
-### v2.3.0 (当前) - Polyglot 搜索架构 ✅
+### v2.3.1 (当前) - 同步冲突解决 ✅
+**发布日期**: 2026-03-23
+
+**核心功能**:
+- Embedding 服务（Qwen3-Embedding-0.6B）
+- LLM 服务（MiniCPM4-0.5B）
+- 最小化包装服务（端口 17999，无熔断器）
+  - LRU 缓存
+  - HTTP 连接池
+  - SurrealDB 长期连接
+  - 三个核心 API：`/v1/embeddings`、`/api/v1/memories`、`/api/v1/memories/search`
+- 包装层服务（端口 3001，完整功能）
+- API 认证授权（API Key + 权限控制）
+- 记忆管理系统（SurrealDB + 向量搜索）
+- **Polyglot 搜索架构**（Meilisearch 全文搜索 + SurrealDB 向量/图）
+- **同步冲突解决**（多设备/多用户/离线编辑场景）
+- CI/CD（GitHub Actions）
+- **完整测试套件（150+ 测试用例）**
+
+---
+
+### v2.3.0 - Polyglot 搜索架构 ✅
 **发布日期**: 2026-03-12
 
 **核心功能**:

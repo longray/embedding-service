@@ -1,14 +1,14 @@
 # Embedding Service (OpenCode Memory Stack)
 
 版本与路线图
-- 当前版本: v2.3.0
-- 实施阶段: P0 + P1 + P2 + Phase 3 + Polyglot 搜索架构 已完成
+- 当前版本: v2.3.1
+- 实施阶段: P0 + P1 + P2 + Phase 3 + Polyglot 搜索架构 + 同步冲突解决 已完成
 - 详细路线见 ROADMAP.md
 
 ## 开发状态
 
-**当前版本**: v2.3.0
-**实施阶段**: P0 + P1 + P2 + Phase 3 + Polyglot 搜索架构 已完成
+**当前版本**: v2.3.1
+**实施阶段**: P0 + P1 + P2 + Phase 3 + Polyglot 搜索架构 + 同步冲突解决 已完成
 
 ### 已完成 ✅
 - ✅ P0 核心功能（Embedding + LLM + 包装层）
