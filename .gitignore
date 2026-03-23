@@ -32,6 +32,7 @@ scripts/apply_schema_fix.py
 scripts/init_surrealdb_v2.surql
 scripts/update_schema.py
 scripts/update_schema_simple.py
+scripts/archive/
 
 # 旧方案文档（已归档，不纳入版本控制）
 EXECUTION_REPORT.md
