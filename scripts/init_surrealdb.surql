@@ -198,9 +198,59 @@ DEFINE USER IF NOT EXISTS runtime_user ON DATABASE
     DURATION FOR SESSION 12h, FOR TOKEN 1h
     COMMENT 'Runtime application user with data-only permissions';
 
+-- ==================== conflict 表 ====================
+
+DEFINE TABLE IF NOT EXISTS conflict TYPE NORMAL SCHEMAFULL;
+
+DEFINE FIELD IF NOT EXISTS source_id ON conflict TYPE string;
+    -- 原始记忆 source_id，用于关联冲突的记忆
+
+DEFINE FIELD IF NOT EXISTS local_hash ON conflict TYPE string;
+    -- 本地内容哈希值
+
+DEFINE FIELD IF NOT EXISTS server_hash ON conflict TYPE string;
+    -- 服务端内容哈希值
+
+DEFINE FIELD IF NOT EXISTS local_content ON conflict TYPE option<string>;
+    -- 本地内容（可选存储）
+
+DEFINE FIELD IF NOT EXISTS server_content ON conflict TYPE option<string>;
+    -- 服务端内容（可选存储）
+
+DEFINE FIELD IF NOT EXISTS local_mtime ON conflict TYPE int DEFAULT 0;
+    -- 本地修改时间戳
+
+DEFINE FIELD IF NOT EXISTS server_mtime ON conflict TYPE int DEFAULT 0;
+    -- 服务端修改时间戳
+
+DEFINE FIELD IF NOT EXISTS tenant_id ON conflict TYPE string DEFAULT 'default';
+    -- 多租户隔离字段
+
+DEFINE FIELD IF NOT EXISTS status ON conflict TYPE string DEFAULT 'pending';
+    -- 状态: pending | resolved
+
+DEFINE FIELD IF NOT EXISTS resolution ON conflict TYPE option<string>;
+    -- 解决方案: use_local | use_remote | keep_both
+
+DEFINE FIELD IF NOT EXISTS resolved_at ON conflict TYPE option<datetime>;
+    -- 解决时间戳
+
+DEFINE FIELD IF NOT EXISTS created_at ON conflict TYPE datetime DEFAULT time::now();
+    -- 创建时间戳
+
+DEFINE FIELD IF NOT EXISTS updated_at ON conflict TYPE datetime DEFAULT time::now();
+    -- 更新时间戳
+
+-- 冲突表索引
+DEFINE INDEX IF NOT EXISTS conflict_source_tenant ON conflict FIELDS source_id, tenant_id;
+    -- 按 source_id 和 tenant 查询冲突
+
+DEFINE INDEX IF NOT EXISTS conflict_status_tenant ON conflict FIELDS status, tenant_id;
+    -- 按状态和租户过滤冲突
+
 -- 更新版本号
 UPSERT schema_version:current CONTENT {
-    version: '2.3.0',
+    version: '2.3.1',
     applied_at: time::now(),
-    description: 'Polyglot 架构: Meilisearch 全文搜索 + SurrealDB 向量/图/存储 - BM25 索引保留为降级路径'
+    description: 'Phase B: 同步冲突解决 - conflict 表 + 冲突持久化与解决策略'
 };

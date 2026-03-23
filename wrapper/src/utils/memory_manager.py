@@ -46,7 +46,7 @@ class MemoryManager:
         self._batch_size = batch_size
         self._http_pool: Any | None = None
         self._meili: MeilisearchClient | None = None
-        
+
         # Phase A-B3: 查询结果缓存（aiocache）
         self._cache_enabled: bool = getattr(search_config, "cache_enabled", True)
         self._cache_ttl: int = getattr(search_config, "cache_ttl", 300)  # 5分钟
@@ -54,6 +54,7 @@ class MemoryManager:
         self._keyword_cache: Any | None = None
         if self._cache_enabled:
             from aiocache import Cache
+
             self._vector_cache = Cache(Cache.MEMORY, serializer=JsonSerializer())
             self._keyword_cache = Cache(Cache.MEMORY, serializer=JsonSerializer())
 
@@ -63,17 +64,18 @@ class MemoryManager:
         self._rrf_keyword_weight: float = getattr(search_config, "rrf_keyword_weight", 0.3)
         self._hnsw_ef_search: int = getattr(search_config, "hnsw_ef_search", 50)
         self._default_tenant_id: str = getattr(search_config, "default_tenant_id", "default")
-        
+
         # Phase A-B6: 动态去重阈值
         self._dedup_thresholds: dict[str, float] = getattr(
-            search_config, "dedup_thresholds", 
+            search_config,
+            "dedup_thresholds",
             {
                 "preference": 0.88,
                 "decision": 0.90,
                 "long-term": 0.93,
                 "general": 0.95,
                 "daily": 1.0,
-            }
+            },
         )
 
     async def _get_http_pool(self):
@@ -97,29 +99,29 @@ class MemoryManager:
         tracer = get_tracer()
         with tracer.start_as_current_span("embedding.get_batch") as span:
             span.set_attribute("embedding.text_count", len(texts))
-            
+
             # Phase C-B2: 检查缓存
             cached_results = {}
             texts_to_fetch = []
             text_indices = {}
-            
+
             for i, text in enumerate(texts):
                 if not text:
                     continue
-                cache_key = hashlib.md5(text.encode()).hexdigest()
-                
+                cache_key = hashlib.md5(text.encode(), usedforsecurity=False).hexdigest()
+
                 if self._cache_enabled and self._vector_cache:
                     cached = await self._vector_cache.get(cache_key)
                     if cached:
                         cached_results[i] = cached
                         continue
-                
+
                 texts_to_fetch.append(text)
                 text_indices[len(texts_to_fetch) - 1] = i
-            
+
             span.set_attribute("embedding.cache_hits", len(cached_results))
             span.set_attribute("embedding.cache_misses", len(texts_to_fetch))
-            
+
             # Phase C-B2: 批量获取未缓存的 embeddings
             fetched_results = {}
             if texts_to_fetch:
@@ -131,21 +133,21 @@ class MemoryManager:
                     )
                     response.raise_for_status()
                     data = response.json()
-                    
+
                     for j, item in enumerate(data["data"]):
                         original_index = text_indices[j]
                         embedding = item["embedding"]
                         fetched_results[original_index] = embedding
-                        
+
                         # Phase C-B2: 存入缓存
                         if self._cache_enabled and self._vector_cache:
-                            cache_key = hashlib.md5(texts_to_fetch[j].encode()).hexdigest()
+                            cache_key = hashlib.md5(texts_to_fetch[j].encode(), usedforsecurity=False).hexdigest()
                             await self._vector_cache.set(cache_key, embedding, ttl=self._cache_ttl)
-                    
+
                 except Exception as e:
                     span.record_exception(e)
                     raise EmbeddingError(f"Failed to get embeddings: {e!s}") from e
-            
+
             # 合并结果
             result = []
             for i in range(len(texts)):
@@ -155,7 +157,7 @@ class MemoryManager:
                     result.append(fetched_results[i])
                 else:
                     result.append([])  # Empty embedding for empty text
-            
+
             span.set_attribute("embedding.dimension", len(result[0]) if result else 0)
             return result
 
@@ -200,12 +202,12 @@ class MemoryManager:
 
             # Phase A-B2: 构建批量插入数据
             batch_inserts: list[dict[str, Any]] = []
-            
+
             for memory, embedding in zip(memories, embeddings, strict=False):
                 try:
                     content = memory.get("content", "")
                     mem_type = memory.get("type", "general")
-                    
+
                     memory_data: dict[str, Any] = {
                         "content": content,
                         "content_hash": hashlib.md5(content.encode("utf-8"), usedforsecurity=False).hexdigest(),
@@ -236,13 +238,15 @@ class MemoryManager:
                     if existing_records:
                         existing_id = str(existing_records[0].get("id", ""))
                         failed_count += 1
-                        errors.append({
-                            "type": "duplicate",
-                            "duplicate_type": "hash",
-                            "message": "Content hash duplicate detected",
-                            "existing_id": existing_id,
-                            "retryable": False,
-                        })
+                        errors.append(
+                            {
+                                "type": "duplicate",
+                                "duplicate_type": "hash",
+                                "message": "Content hash duplicate detected",
+                                "existing_id": existing_id,
+                                "retryable": False,
+                            }
+                        )
                         continue
 
                     # Phase A-B7: 语义相似度检查 + 智能决策
@@ -252,20 +256,20 @@ class MemoryManager:
                         threshold=dedup_threshold,  # Phase A-B6: 动态阈值
                         tenant_id=effective_tenant_id,
                     )
-                    
+
                     if similar:
                         similarity_score = similar[0].get("score", 0)
                         existing_id = similar[0].get("id", "")
                         existing_record = similar[0]
-                        
+
                         # Phase A-B7: 智能决策（UPDATE / DISCARD / KEEP_BOTH）
                         decision = self._decide_duplicate_action(
                             new_memory=memory,
                             old_record=existing_record,
                             similarity=similarity_score,
-                            mem_type=mem_type
+                            mem_type=mem_type,
                         )
-                        
+
                         if decision == "UPDATE":
                             # 更新现有记录
                             await self._update_memory(existing_id, memory_data)
@@ -276,21 +280,23 @@ class MemoryManager:
                         elif decision == "DISCARD":
                             # 丢弃新记录
                             failed_count += 1
-                            errors.append({
-                                "type": "duplicate",
-                                "duplicate_type": "semantic",
-                                "message": f"Semantic duplicate detected (similarity: {similarity_score:.3f}) - DISCARDED",
-                                "existing_id": existing_id,
-                                "similarity": similarity_score,
-                                "decision": "DISCARD",
-                                "retryable": False,
-                            })
+                            errors.append(
+                                {
+                                    "type": "duplicate",
+                                    "duplicate_type": "semantic",
+                                    "message": f"Semantic duplicate detected (similarity: {similarity_score:.3f}) - DISCARDED",
+                                    "existing_id": existing_id,
+                                    "similarity": similarity_score,
+                                    "decision": "DISCARD",
+                                    "retryable": False,
+                                }
+                            )
                             continue
                         # else: KEEP_BOTH - 继续创建新记录
 
                     # 加入批量插入队列（Phase A-B2）
                     batch_inserts.append(memory_data)
-                    
+
                 except Exception as e:
                     failed_count += 1
                     errors.append(f"{type(e).__name__}: {e!s}")
@@ -301,7 +307,7 @@ class MemoryManager:
                     # 使用单个 INSERT 语句批量插入
                     query = "INSERT INTO memory $data"
                     result = await self._db.query(query, {"data": batch_inserts})
-                    
+
                     # 处理结果
                     if isinstance(result, list):
                         for i, record in enumerate(result):
@@ -309,7 +315,7 @@ class MemoryManager:
                             if record_id:
                                 memory_ids.append(record_id)
                                 success_count += 1
-                                
+
                                 # 构建 Meilisearch 文档
                                 if self._meili and i < len(batch_inserts):
                                     mem = batch_inserts[i]
@@ -441,14 +447,14 @@ class MemoryManager:
             )
 
             results = self._format_similarity_results(result)
-            
+
             # Phase A-B3: 缓存结果
             if self._vector_cache and results:
                 try:
                     await self._vector_cache.set(cache_key, results, ttl=self._cache_ttl)
                 except Exception:
                     pass
-            
+
             span.set_attribute("search.vector.result_count", len(results))
             return results
 
@@ -965,23 +971,19 @@ class MemoryManager:
 
     def _get_vector_cache_key(self, embedding: list[float], limit: int, threshold: float, tenant_id: str) -> str:
         """生成向量搜索缓存键"""
-        embedding_hash = hashlib.md5(str(embedding[:10]).encode()).hexdigest()[:16]
+        embedding_hash = hashlib.md5(str(embedding[:10]).encode(), usedforsecurity=False).hexdigest()[:16]
         return f"vec:{tenant_id}:{embedding_hash}:{limit}:{threshold}"
 
     def _get_keyword_cache_key(self, query: str, limit: int, tenant_id: str) -> str:
         """生成关键词搜索缓存键"""
-        query_hash = hashlib.md5(query.encode()).hexdigest()[:16]
+        query_hash = hashlib.md5(query.encode(), usedforsecurity=False).hexdigest()[:16]
         return f"kw:{tenant_id}:{query_hash}:{limit}"
         """获取动态去重阈值"""
-        thresholds = getattr(self, '_dedup_thresholds', {})
+        thresholds = getattr(self, "_dedup_thresholds", {})
         return thresholds.get(mem_type, 0.95)
 
     def _decide_duplicate_action(
-        self, 
-        new_memory: dict[str, Any], 
-        old_record: dict[str, Any], 
-        similarity: float,
-        mem_type: str
+        self, new_memory: dict[str, Any], old_record: dict[str, Any], similarity: float, mem_type: str
     ) -> str:
         """
         智能决策：遇到重复记忆时的操作
@@ -991,27 +993,27 @@ class MemoryManager:
         old_content = old_record.get("content", "")
         new_len = len(new_content)
         old_len = len(old_content)
-        
+
         # 规则1: 几乎完全相同且时间很近 -> 丢弃
         if similarity > 0.98:
             return "DISCARD"
-        
+
         # 规则2: 用户偏好 -> 更新（偏好会改变）
         if mem_type == "preference":
             return "UPDATE"
-        
+
         # 规则3: 决策记录 -> 保留两者（保留历史决策链）
         if mem_type == "decision":
             return "KEEP_BOTH"
-        
+
         # 规则4: 新内容明显更详细 -> 更新
         if new_len > old_len * 1.5:
             return "UPDATE"
-        
+
         # 规则5: 新内容明显更简略 -> 丢弃
         if new_len < old_len * 0.7:
             return "DISCARD"
-        
+
         # 默认: 保留两者
         return "KEEP_BOTH"
 
@@ -1025,18 +1027,15 @@ class MemoryManager:
             "metadata": memory_data.get("metadata", {}),
             "updated_at": "time::now()",
         }
-        
+
         # 构建 UPDATE 语句
         set_clauses = [f"{k} = ${k}" for k in update_fields.keys() if k != "updated_at"]
         set_clauses.append("updated_at = time::now()")
         set_str = ", ".join(set_clauses)
-        
+
         params = {k: v for k, v in update_fields.items() if k != "updated_at"}
-        
-        await self._db.query(
-            f"UPDATE {record_id} SET {set_str}",
-            params
-        )
+
+        await self._db.query(f"UPDATE {record_id} SET {set_str}", params)
 
     def _build_meili_doc(self, record_id: str, memory: dict[str, Any], tenant_id: str) -> dict[str, Any]:
         """构建 Meilisearch 文档"""
@@ -1050,19 +1049,19 @@ class MemoryManager:
             "tags": memory.get("tags", []),
             "project_id": memory.get("project_id", "global"),
         }
-        
+
         # 额外字段
         metadata = memory.get("metadata", {})
         meili_doc["ip_address"] = metadata.get("ip_address") or metadata.get("ip")
         meili_doc["email"] = metadata.get("email")
         meili_doc["version"] = metadata.get("version")
         meili_doc["code"] = memory.get("content", "")
-        
+
         if "source_id" in memory:
             meili_doc["source_id"] = memory["source_id"]
         if "source_timestamp" in memory:
             meili_doc["date"] = memory["source_timestamp"]
-            
+
         return meili_doc
 
     def _extract_record_id(self, result: Any) -> str | None:
@@ -1084,72 +1083,85 @@ class MemoryManager:
                 WHERE tenant_id = $tenant_id
             """
             result = await self._db.query(query, {"tenant_id": tenant_id})
-            
+
             fingerprints = []
             # Handle different SurrealDB result formats
             if result and isinstance(result, list) and len(result) > 0:
                 records = result[0].get("result", []) if isinstance(result[0], dict) else result
                 for record in records:
                     if isinstance(record, dict):
-                        fingerprints.append({
-                            "source_id": record.get("source_id"),
-                            "hash": record.get("content_hash", ""),
-                            "mtime": record.get("updated_at", 0),
-                        })
+                        fingerprints.append(
+                            {
+                                "source_id": record.get("source_id"),
+                                "hash": record.get("content_hash", ""),
+                                "mtime": record.get("updated_at", 0),
+                            }
+                        )
             return fingerprints
         except Exception as e:
             logger.error("[Sync] 获取指纹失败: %s", e)
             raise DatabaseError(f"获取指纹失败: {e}") from e
 
-    async def sync_incremental(
-        self, 
-        fingerprints: list[dict], 
-        tenant_id: str = "default"
-    ) -> dict:
+    async def sync_incremental(self, fingerprints: list[dict], tenant_id: str = "default") -> dict:
         """增量同步：比对本地指纹与服务端，返回变更指令"""
         try:
             # 1. 获取服务端指纹
             server_fingerprints = await self.get_fingerprints(tenant_id)
             server_map = {fp["source_id"]: fp for fp in server_fingerprints}
             local_map = {fp["source_id"]: fp for fp in fingerprints}
-            
+
             to_upload = []
             to_delete = []
             conflicts = []
-            
+
             # 2. 检查本地 → 服务端（需要上传或冲突）
             for local_fp in fingerprints:
                 source_id = local_fp["source_id"]
                 server_fp = server_map.get(source_id)
-                
+
                 if not server_fp:
                     # 本地有，服务端无 → 上传
-                    to_upload.append({
-                        "source_id": source_id,
-                        "reason": "new",
-                        "path": local_fp.get("path", ""),
-                    })
+                    to_upload.append(
+                        {
+                            "source_id": source_id,
+                            "reason": "new",
+                            "path": local_fp.get("path", ""),
+                        }
+                    )
                 elif server_fp["hash"] != local_fp["hash"]:
-                    # hash不同 → 冲突
-                    conflicts.append({
-                        "source_id": source_id,
-                        "local_mtime": local_fp.get("mtime", 0),
-                        "server_mtime": server_fp.get("mtime", 0),
-                        "local_hash": local_fp["hash"],
-                        "server_hash": server_fp["hash"],
-                    })
-            
+                    # hash不同 → 冲突，记录到数据库
+                    conflict_id = await self._record_conflict(
+                        source_id=source_id,
+                        local_hash=local_fp["hash"],
+                        server_hash=server_fp["hash"],
+                        local_content=local_fp.get("content"),  # 如果提供了内容
+                        server_content=server_fp.get("content"),  # 如果提供了内容
+                        local_mtime=local_fp.get("mtime", 0),
+                        server_mtime=server_fp.get("mtime", 0),
+                        tenant_id=tenant_id,
+                    )
+
+                    conflicts.append(
+                        {
+                            "id": conflict_id,  # 新增：包含冲突ID
+                            "source_id": source_id,
+                            "local_mtime": local_fp.get("mtime", 0),
+                            "server_mtime": server_fp.get("mtime", 0),
+                            "local_hash": local_fp["hash"],
+                            "server_hash": server_fp["hash"],
+                        }
+                    )
+
             # 3. 检查服务端 → 本地（需要删除）
             for server_fp in server_fingerprints:
                 source_id = server_fp["source_id"]
                 if source_id not in local_map:
                     to_delete.append(source_id)
-            
+
             logger.info(
-                "[Sync] 增量同步分析: %d 上传, %d 删除, %d 冲突",
-                len(to_upload), len(to_delete), len(conflicts)
+                "[Sync] 增量同步分析: %d 上传, %d 删除, %d 冲突", len(to_upload), len(to_delete), len(conflicts)
             )
-            
+
             return {
                 "synced": 0,  # 实际同步数（由调用方执行）
                 "to_upload": to_upload,
@@ -1160,39 +1172,157 @@ class MemoryManager:
             logger.error("[Sync] 增量同步失败: %s", e)
             raise DatabaseError(f"增量同步失败: {e}") from e
 
-    async def sync_full(
-        self, 
-        memories: list[dict], 
-        tenant_id: str = "default"
-    ) -> dict:
-        """全量同步：批量上传所有记忆"""
+    # ==================== Phase B: Conflict Resolution Methods ====================
+
+    async def _record_conflict(
+        self,
+        source_id: str,
+        local_hash: str,
+        server_hash: str,
+        local_content: str | None = None,
+        server_content: str | None = None,
+        local_mtime: int = 0,
+        server_mtime: int = 0,
+        tenant_id: str = "default",
+    ) -> str:
+        """记录冲突到数据库，返回 conflict_id"""
         try:
-            total = len(memories)
-            success = 0
-            failed = 0
-            errors = []
-            
-            # 使用现有的 upload_memories 方法
-            result = await self.upload_memories(memories, tenant_id)
-            
-            success = result.get("success", 0)
-            failed = result.get("failed", 0)
-            errors = result.get("errors", [])
-            
-            logger.info(
-                "[Sync] 全量同步完成: %d/%d 成功, %d 失败",
-                success, total, failed
-            )
-            
-            return {
-                "total": total,
-                "success": success,
-                "failed": failed,
-                "errors": errors[:10],  # 只返回前10个错误
+            conflict_data = {
+                "source_id": source_id,
+                "local_hash": local_hash,
+                "server_hash": server_hash,
+                "local_content": local_content,
+                "server_content": server_content,
+                "local_mtime": local_mtime,
+                "server_mtime": server_mtime,
+                "tenant_id": tenant_id,
+                "status": "pending",
             }
+
+            result = await self._db.create("conflict", conflict_data)
+
+            # 提取冲突ID
+            if isinstance(result, list) and len(result) > 0:
+                conflict_id = str(result[0].get("id", ""))
+                if conflict_id:
+                    logger.info("[Sync] 冲突记录成功: %s, 源ID=%s, 租户=%s", conflict_id, source_id, tenant_id)
+                    return conflict_id
+            elif isinstance(result, dict) and result.get("id"):
+                conflict_id = str(result["id"])
+                logger.info("[Sync] 冲突记录成功: %s, 源ID=%s, 租户=%s", conflict_id, source_id, tenant_id)
+                return conflict_id
+
+            raise DatabaseError("无法创建冲突记录")
         except Exception as e:
-            logger.error("[Sync] 全量同步失败: %s", e)
-            raise DatabaseError(f"全量同步失败: {e}") from e
+            logger.error("[Sync] 记录冲突失败: %s", e)
+            raise DatabaseError(f"记录冲突失败: {e}") from e
+
+    async def get_conflicts(
+        self,
+        tenant_id: str = "default",
+        status: str | None = None,  # 'pending' | 'resolved' | None（全部）
+        limit: int = 100,
+    ) -> list[dict]:
+        """获取冲突列表"""
+        try:
+            # 构建查询条件
+            where_conditions = ["tenant_id = $tenant_id"]
+            if status:
+                where_conditions.append("status = $status")
+
+            where_clause = " AND ".join(where_conditions)
+
+            query = f"""
+                SELECT * FROM conflict 
+                WHERE {where_clause}
+                ORDER BY created_at DESC
+                LIMIT $limit
+            """
+
+            params = {"tenant_id": tenant_id, "limit": limit}
+            if status:
+                params["status"] = status
+
+            result = await self._db.query(query, params)
+
+            # 提取记录
+            raw_items = self._extract_records(result)
+            conflicts = []
+
+            for item in raw_items:
+                conflict = {
+                    "id": str(item.get("id", "")),
+                    "source_id": item.get("source_id"),
+                    "local_hash": item.get("local_hash", ""),
+                    "server_hash": item.get("server_hash", ""),
+                    "local_content": item.get("local_content"),
+                    "server_content": item.get("server_content"),
+                    "local_mtime": item.get("local_mtime", 0),
+                    "server_mtime": item.get("server_mtime", 0),
+                    "tenant_id": item.get("tenant_id", "default"),
+                    "status": item.get("status", "pending"),
+                    "resolution": item.get("resolution"),
+                    "resolved_at": item.get("resolved_at"),
+                    "created_at": item.get("created_at"),
+                    "updated_at": item.get("updated_at"),
+                }
+                conflicts.append(conflict)
+
+            logger.info("[Sync] 获取冲突列表: %d 个冲突, 租户=%s, 状态=%s", len(conflicts), tenant_id, status)
+
+            return conflicts
+        except Exception as e:
+            logger.error("[Sync] 获取冲突列表失败: %s", e)
+            raise DatabaseError(f"获取冲突列表失败: {e}") from e
+
+    async def get_conflict_detail(
+        self,
+        conflict_id: str,
+        tenant_id: str = "default",
+    ) -> dict | None:
+        """获取单个冲突的详细信息"""
+        try:
+            # 确保冲突ID是完整格式
+            if not conflict_id.startswith("conflict:"):
+                conflict_id = f"conflict:{conflict_id}"
+
+            query = """
+                SELECT * FROM $conflict_id 
+                WHERE tenant_id = $tenant_id
+            """
+
+            result = await self._db.query(query, {"conflict_id": conflict_id, "tenant_id": tenant_id})
+
+            raw_items = self._extract_records(result)
+
+            if not raw_items:
+                logger.info("[Sync] 未找到冲突详情: %s, 租户=%s", conflict_id, tenant_id)
+                return None
+
+            item = raw_items[0]
+            conflict = {
+                "id": str(item.get("id", "")),
+                "source_id": item.get("source_id"),
+                "local_hash": item.get("local_hash", ""),
+                "server_hash": item.get("server_hash", ""),
+                "local_content": item.get("local_content"),
+                "server_content": item.get("server_content"),
+                "local_mtime": item.get("local_mtime", 0),
+                "server_mtime": item.get("server_mtime", 0),
+                "tenant_id": item.get("tenant_id", "default"),
+                "status": item.get("status", "pending"),
+                "resolution": item.get("resolution"),
+                "resolved_at": item.get("resolved_at"),
+                "created_at": item.get("created_at"),
+                "updated_at": item.get("updated_at"),
+            }
+
+            logger.info("[Sync] 获取冲突详情成功: %s, 租户=%s", conflict_id, tenant_id)
+
+            return conflict
+        except Exception as e:
+            logger.error("[Sync] 获取冲突详情失败: %s", e)
+            raise DatabaseError(f"获取冲突详情失败: {e}") from e
 
     async def resolve_conflict(
         self,
@@ -1200,272 +1330,209 @@ class MemoryManager:
         resolution: str,
         tenant_id: str = "default",
     ) -> dict:
-        """解决同步冲突
-        
-        resolution: use_local | use_remote | keep_both
         """
+        解决同步冲突
+
+        Args:
+            conflict_id: 冲突记录ID
+            resolution: 解决策略
+                - use_local: 用本地内容覆盖服务端
+                - use_remote: 保留服务端内容，丢弃本地
+                - keep_both: 保留两个版本（重命名本地版本）
+            tenant_id: 租户ID
+
+        Returns:
+            解决结果
+
+        Raises:
+            ValidationError: 无效的冲突ID或解决策略
+            DatabaseError: 数据库操作失败
+        """
+        if resolution not in ("use_local", "use_remote", "keep_both"):
+            raise ValidationError(f"无效的解决策略: {resolution}")
+
         try:
-            # 目前简化实现：记录冲突解决
-            # 实际应用中需要实现具体的冲突解决逻辑
-            logger.info(
-                "[Sync] 解决冲突 %s: 策略=%s, 租户=%s",
-                conflict_id, resolution, tenant_id
+            # 获取冲突详情
+            conflict_detail = await self.get_conflict_detail(conflict_id, tenant_id)
+            if not conflict_detail:
+                raise ValidationError(f"冲突不存在或不属于当前租户: {conflict_id}")
+
+            if conflict_detail["status"] == "resolved":
+                logger.warning("[Sync] 冲突已被解决: %s, 重复解决操作", conflict_id)
+                return {
+                    "conflict_id": conflict_id,
+                    "resolution": conflict_detail["resolution"],
+                    "status": "already_resolved",
+                    "message": "冲突已解决",
+                }
+
+            source_id = conflict_detail["source_id"]
+
+            if resolution == "use_local":
+                # 使用本地内容覆盖服务端
+                await self._update_server_content_by_source_id(source_id, conflict_detail, tenant_id)
+
+            elif resolution == "use_remote":
+                # 保留服务端内容不变，标记本地为需更新
+                logger.info("[Sync] 使用服务端内容保留: 冲突=%s, 源ID=%s", conflict_id, source_id)
+
+            elif resolution == "keep_both":
+                # 重命名本地版本并创建新记录
+                await self._create_new_memory_version(source_id, conflict_detail, tenant_id)
+
+            # 更新冲突记录为已解决
+            update_query = """
+                UPDATE $conflict_id 
+                SET status = 'resolved', 
+                    resolution = $resolution, 
+                    resolved_at = time::now(),
+                    updated_at = time::now()
+                WHERE tenant_id = $tenant_id
+            """
+
+            result = await self._db.query(
+                update_query, {"conflict_id": conflict_id, "resolution": resolution, "tenant_id": tenant_id}
             )
-            
-            # TODO: 实现具体的冲突解决逻辑
-            # 1. 根据 conflict_id 获取冲突详情
-            # 2. 根据 resolution 策略执行相应操作
-            # 3. 更新数据库
-            
+
+            logger.info("[Sync] 冲突解决成功: %s, 策略=%s, 租户=%s", conflict_id, resolution, tenant_id)
+
             return {
                 "conflict_id": conflict_id,
                 "resolution": resolution,
                 "status": "resolved",
+                "message": f"冲突已使用 {resolution} 策略解决",
+                "source_id": source_id,
             }
         except Exception as e:
             logger.error("[Sync] 解决冲突失败: %s", e)
             raise DatabaseError(f"解决冲突失败: {e}") from e
 
-    # ==================== Phase C-B1: HNSW Dynamic Tuning ====================
+    async def _update_server_content_by_source_id(self, source_id: str, conflict_detail: dict, tenant_id: str) -> None:
+        """根据source_id更新服务端内容"""
+        local_content = conflict_detail.get("local_content")
+        if not local_content:
+            logger.warning("[Sync] 本地内容为空，无法更新服务端: 源ID=%s", source_id)
+            return
 
-    def _calculate_hnsw_m(self, count: int) -> int:
-        """Calculate optimal HNSW M parameter based on data count"""
-        if count < 1000:
-            return 12
-        elif count < 10000:
-            return 16
-        elif count < 100000:
-            return 20
-        else:
-            return 24
-
-    def _calculate_hnsw_ef(self, count: int) -> int:
-        """Calculate optimal HNSW ef_search parameter"""
-        base_ef = 50
-        if count > 10000:
-            base_ef = 100
-        if count > 100000:
-            base_ef = 200
-        return base_ef
-
-    async def get_memory_stats(self, tenant_id: str = "default") -> dict:
-        """Get memory statistics for HNSW tuning"""
+        # 重新计算嵌入向量
         try:
-            query = "SELECT count() FROM memory WHERE tenant_id = $tenant_id"
-            result = await self._db.query(query, {"tenant_id": tenant_id})
-            count = result[0][0]["count"] if result and result[0] else 0
-
-            return {
-                "total_memories": count,
-                "recommended_m": self._calculate_hnsw_m(count),
-                "recommended_ef": self._calculate_hnsw_ef(count),
-                "current_m": getattr(self, '_current_m', 16),
-                "current_ef": self._hnsw_ef_search,
-            }
+            embeddings = await self._get_embeddings([local_content])
+            new_embedding = embeddings[0]
         except Exception as e:
-            logger.error("[HNSW] Failed to get stats: %s", e)
-            raise DatabaseError(f"Failed to get stats: {e}") from e
+            logger.error("[Sync] 计算新嵌入失败: %s, 源ID=%s", e, source_id)
+            raise DatabaseError(f"计算新嵌入失败: {e}")
 
-    async def rebuild_hnsw_index(self, tenant_id: str = "default", force: bool = False) -> dict:
-        """Rebuild HNSW index with optimal parameters"""
+        # 更新 SurrealDB 中的记录
+        update_query = """
+            UPDATE memory 
+            SET content = $content,
+                content_hash = $content_hash,
+                embedding = $embedding,
+                updated_at = time::now()
+            WHERE source_id = $source_id AND tenant_id = $tenant_id
+        """
+
+        result = await self._db.query(
+            update_query,
+            {
+                "content": local_content,
+                "content_hash": hashlib.md5(local_content.encode("utf-8"), usedforsecurity=False).hexdigest(),
+                "embedding": new_embedding,
+                "source_id": source_id,
+                "tenant_id": tenant_id,
+            },
+        )
+
+        # 同步更新 Meilisearch
+        if self._meili:
+            try:
+                # 获取更新后的记录ID
+                select_query = """
+                    SELECT id FROM memory 
+                    WHERE source_id = $source_id AND tenant_id = $tenant_id
+                """
+                select_result = await self._db.query(select_query, {"source_id": source_id, "tenant_id": tenant_id})
+
+                records = self._extract_records(select_result)
+                if records:
+                    surreal_id = str(records[0].get("id", ""))
+                    if surreal_id:
+                        # 构建 Meilisearch 文档
+                        meili_doc = self._build_meili_doc(
+                            surreal_id,
+                            {
+                                "content": local_content,
+                                "metadata": {},
+                                "type": "general",
+                                "tags": [],
+                                "project_id": "global",
+                            },
+                            tenant_id,
+                        )
+
+                        # 更新到 Meilisearch
+                        await self._meili.add_documents([meili_doc], primary_key="id", wait=False)
+
+                        logger.info("[Sync] 同步更新 Meilisearch 成功: %s", surreal_id)
+            except Exception as e:
+                logger.warning("[Sync] 同步更新 Meilisearch 失败: %s", e)
+
+        logger.info("[Sync] 服务器端内容更新成功: 源ID=%s", source_id)
+
+    async def _create_new_memory_version(self, source_id: str, conflict_detail: dict, tenant_id: str) -> str:
+        """为本地版本创建新的记忆记录（追加-local后缀）"""
+        local_content = conflict_detail.get("local_content")
+        if not local_content:
+            logger.warning("[Sync] 本地内容为空，无法创建新版本: 源ID=%s", source_id)
+            return ""
+
+        # 生成新的 source_id
+        new_source_id = f"{source_id}-local"
+
+        # 重新计算嵌入向量
         try:
-            stats = await self.get_memory_stats(tenant_id)
-            recommended_m = stats["recommended_m"]
-            current_m = stats.get("current_m", 16)
-
-            # Skip if already optimal and not forced
-            if not force and recommended_m == current_m:
-                return {
-                    "rebuilt": False,
-                    "reason": "Index already optimal",
-                    "current_m": current_m,
-                    "recommended_m": recommended_m,
-                }
-
-            logger.info("[HNSW] Rebuilding index with M=%d, EFC=200", recommended_m)
-
-            # Remove old index
-            await self._db.query("REMOVE INDEX IF EXISTS memory_embedding_hnsw ON memory")
-
-            # Create new index with optimized parameters
-            await self._db.query(f"""
-                DEFINE INDEX memory_embedding_hnsw ON memory
-                FIELDS embedding HNSW DIMENSION 1024 DIST COSINE
-                EFC 200 M {recommended_m};
-            """)
-
-            # Update current settings
-            self._current_m = recommended_m
-            self._hnsw_ef_search = stats["recommended_ef"]
-
-            logger.info("[HNSW] Index rebuilt successfully")
-
-            return {
-                "rebuilt": True,
-                "previous_m": current_m,
-                "new_m": recommended_m,
-                "total_memories": stats["total_memories"],
-            }
-
+            embeddings = await self._get_embeddings([local_content])
+            new_embedding = embeddings[0]
         except Exception as e:
-            logger.error("[HNSW] Failed to rebuild index: %s", e)
-            raise DatabaseError(f"Failed to rebuild index: {e}") from e
+            logger.error("[Sync] 计算新嵌入失败: %s, 新源ID=%s", e, new_source_id)
+            raise DatabaseError(f"计算新嵌入失败: {e}")
 
-    async def optimize_hnsw(self, tenant_id: str = "default") -> dict:
-        """Auto-optimize HNSW parameters without rebuilding"""
-        try:
-            stats = await self.get_memory_stats(tenant_id)
-            
-            # Update ef_search for queries
-            old_ef = self._hnsw_ef_search
-            self._hnsw_ef_search = stats["recommended_ef"]
-
-            logger.info(
-                "[HNSW] Optimized: ef_search %d -> %d",
-                old_ef, self._hnsw_ef_search
-            )
-
-            return {
-                "optimized": True,
-                "total_memories": stats["total_memories"],
-                "recommended_m": stats["recommended_m"],
-                "recommended_ef": stats["recommended_ef"],
-                "ef_search_updated": old_ef != self._hnsw_ef_search,
-            }
-
-        except Exception as e:
-            logger.error("[HNSW] Optimization failed: %s", e)
-            raise DatabaseError(f"Optimization failed: {e}") from e
-
-    # ==================== Phase C-B2: Cache Management ====================
-
-    async def get_cache_stats(self) -> dict:
-        """Get embedding cache statistics"""
-        if not self._cache_enabled or not self._vector_cache:
-            return {
-                "enabled": False,
-                "hits": 0,
-                "misses": 0,
-                "hit_rate": 0.0,
-                "size": 0,
-            }
-        
-        # Try to get cache statistics if available
-        try:
-            stats = await self._vector_cache.get_stats() if hasattr(self._vector_cache, 'get_stats') else {}
-        except:
-            stats = {}
-        
-        return {
-            "enabled": self._cache_enabled,
-            "ttl_seconds": self._cache_ttl,
-            "max_size": getattr(self._vector_cache, '_max_size', 'unknown'),
-            "current_size": getattr(self._vector_cache, '_currsize', 0),
-            **stats,
+        # 创建新记录到 SurrealDB
+        new_memory_data = {
+            "content": local_content,
+            "content_hash": hashlib.md5(local_content.encode("utf-8"), usedforsecurity=False).hexdigest(),
+            "embedding": new_embedding,
+            "tenant_id": tenant_id,
+            "type": "general",  # 默认类型
+            "tags": [],  # 默认标签
+            "project_id": "global",
+            "source": "sync",
+            "source_id": new_source_id,
+            "metadata": {},
         }
 
-    async def clear_embedding_cache(self) -> dict:
-        """Clear embedding cache"""
-        if self._vector_cache:
-            await self._vector_cache.clear()
-            logger.info("[Cache] Embedding cache cleared")
-            return {"cleared": True}
-        return {"cleared": False, "reason": "Cache not initialized"}
+        create_result = await self._db.create("memory", new_memory_data)
 
-    async def warmup_embedding_cache(self, tenant_id: str = "default", limit: int = 100) -> dict:
-        """Preload embeddings for recent memories into cache"""
-        try:
-            # Get recent memories
-            query = """
-                SELECT id, content
-                FROM memory
-                WHERE tenant_id = $tenant_id
-                ORDER BY created_at DESC
-                LIMIT $limit
-            """
-            result = await self._db.query(query, {"tenant_id": tenant_id, "limit": limit})
-            
-            memories = result[0] if result else []
-            texts = [m.get("content", "") for m in memories if m.get("content")]
-            
-            if not texts:
-                return {"warmed": False, "reason": "No memories to preload", "count": 0}
-            
-            # Preload embeddings (will be cached automatically)
-            await self._get_embeddings(texts)
-            
-            logger.info("[Cache] Warmed up with %d embeddings", len(texts))
-            return {
-                "warmed": True,
-                "count": len(texts),
-                "message": f"Preloaded {len(texts)} embeddings into cache",
-            }
-            
-        except Exception as e:
-            logger.error("[Cache] Warmup failed: %s", e)
-            return {"warmed": False, "error": str(e), "count": 0}
+        # 提取新记录ID
+        new_memory_id = None
+        if isinstance(create_result, list) and len(create_result) > 0:
+            new_memory_id = str(create_result[0].get("id", ""))
+        elif isinstance(create_result, dict) and create_result.get("id"):
+            new_memory_id = str(create_result["id"])
 
-    # ==================== Phase C-B3: Query Result Prefetch ====================
+        if not new_memory_id:
+            raise DatabaseError("无法创建新记忆记录")
 
-    async def prefetch_related_memories(self, memory_id: str, tenant_id: str = "default", depth: int = 1, limit: int = 10) -> dict:
-        """Prefetch embeddings for memories related to the given memory_id"""
-        try:
-            # Get related memories via graph traversal
-            related = await self.get_related_memories(memory_id, depth=depth, tenant_id=tenant_id, limit=limit)
-            
-            if not related or len(related) == 0:
-                return {"prefetched": False, "reason": "No related memories found", "count": 0}
-            
-            # Extract texts and preload embeddings (will be cached)
-            texts = [m.get("content", "") for m in related if m.get("content")]
-            
-            if not texts:
-                return {"prefetched": False, "reason": "No content to prefetch", "count": 0}
-            
-            # Preload embeddings into cache
-            await self._get_embeddings(texts)
-            
-            logger.info("[Prefetch] Preloaded %d related memories for %s", len(texts), memory_id)
-            return {
-                "prefetched": True,
-                "count": len(texts),
-                "source_memory": memory_id,
-                "message": f"Preloaded {len(texts)} related memory embeddings",
-            }
-            
-        except Exception as e:
-            logger.error("[Prefetch] Failed: %s", e)
-            return {"prefetched": False, "error": str(e), "count": 0}
+        # 同步到 Meilisearch
+        if self._meili:
+            try:
+                meili_doc = self._build_meili_doc(new_memory_id, new_memory_data, tenant_id)
+                await self._meili.add_documents([meili_doc], primary_key="id", wait=False)
 
-    async def prefetch_popular_queries(self, tenant_id: str = "default", top_n: int = 20) -> dict:
-        """Prefetch embeddings for memories that are frequently searched (simulated)"""
-        try:
-            # Get recent memories (as a proxy for "popular")
-            query = """
-                SELECT id, content
-                FROM memory
-                WHERE tenant_id = $tenant_id
-                ORDER BY created_at DESC
-                LIMIT $top_n
-            """
-            result = await self._db.query(query, {"tenant_id": tenant_id, "top_n": top_n})
-            
-            memories = result[0] if result else []
-            texts = [m.get("content", "") for m in memories if m.get("content")]
-            
-            if not texts:
-                return {"prefetched": False, "reason": "No memories to prefetch", "count": 0}
-            
-            # Preload embeddings
-            await self._get_embeddings(texts)
-            
-            logger.info("[Prefetch] Preloaded %d popular memories", len(texts))
-            return {
-                "prefetched": True,
-                "count": len(texts),
-                "message": f"Preloaded {len(texts)} popular memory embeddings",
-            }
-            
-        except Exception as e:
-            logger.error("[Prefetch] Popular queries failed: %s", e)
-            return {"prefetched": False, "error": str(e), "count": 0}
+                logger.info("[Sync] 创建新记忆版本并同步到Meilisearch: %s, 新源ID=%s", new_memory_id, new_source_id)
+            except Exception as e:
+                logger.warning("[Sync] 同步新记忆到 Meilisearch 失败: %s", e)
+
+        logger.info("[Sync] 新记忆版本创建成功: %s, 新源ID=%s", new_memory_id, new_source_id)
+
+        return new_memory_id

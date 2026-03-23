@@ -150,6 +150,21 @@ export WRAPPER_WEBSOCKET_TOKEN=your_secret_token
 - SurrealDB 3.0+ 运行中
 - Meilisearch 1.4+ 运行中（可选，用于全文搜索优化）
 
+### 从零开始初始化
+
+```bash
+# 1. 启动数据库和搜索引擎
+docker-compose up -d surrealdb meilisearch
+
+# 2. 等待服务就绪（约 10-15 秒）
+sleep 15
+
+# 3. 一键初始化所有服务
+uv run python scripts/init_all.py
+
+# 详细文档请查看: [scripts/README.md](scripts/README.md)
+```
+
 ### 启动最小化包装服务
 
 ```bash
@@ -181,8 +196,42 @@ uv run pytest tests/test_wrapper_api.py -v
 # 运行 Meilisearch 集成测试
 uv run pytest tests/test_meili_integration.py -v
 
+# 运行同步冲突解决测试
+uv run pytest tests/test_phase_b_sync.py -v
+
 # 运行所有测试
 uv run pytest tests/ -v
+```
+
+### 同步冲突解决
+
+详细的多设备、多用户、离线编辑同步指南，请查看：
+
+📖 **[同步冲突解决最佳实践](docs/SYNC_CONFLICT_RESOLUTION.md)**
+
+**快速开始**：
+```python
+import httpx
+
+# 1. 增量同步
+response = await httpx.post(
+    "http://localhost:17999/api/v1/sync/incremental",
+    json={
+        "fingerprints": [
+            {"path": "test.md", "mtime": 1711234567890,
+             "hash": "abc123", "source_id": "entry-001"}
+        ],
+        "tenant_id": "default"
+    }
+)
+
+# 2. 检查冲突
+if response.json()["conflicts"]:
+    # 3. 解决冲突
+    await httpx.post(
+        f"http://localhost:17999/api/v1/sync/conflicts/{conflict_id}/resolve",
+        json={"resolution": "use_local", "tenant_id": "default"}
+    )
 ```
 
 ## 文件位置

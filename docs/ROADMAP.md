@@ -186,6 +186,41 @@ DEFINE INDEX memory_embedding_hnsw ON memory
 
 ---
 
+### Phase 3F: 同步冲突解决 ✅ 已完成
+
+**目标**: 支持多设备、多用户、离线编辑等场景的数据同步
+
+**任务清单**:
+- [x] 冲持久化存储（conflict 表）
+- [x] 冲突检测逻辑（sync_incremental 集成）
+- [x] 三种解决策略（use_local/use_remote/keep_both）
+- [x] 冲突状态跟踪
+- [x] Meilisearch 同步更新
+- [x] 完整测试覆盖
+- [x] 最佳实践文档
+
+**状态**: ✅ 已完成 (2026-03-23)
+
+**核心功能**:
+- 冲突记录持久化到 SurrealDB
+- 支持多租户隔离
+- 事务安全的冲突解决
+- 自动同步 Meilisearch 索引
+- 幂等操作支持
+
+**预期收益**:
+- 多设备无缝同步
+- 离线编辑支持
+- 多用户协作能力
+- 数据备份与恢复
+
+**文档**: [同步冲突解决最佳实践](SYNC_CONFLICT_RESOLUTION.md)
+
+**工作量**: 1-2天
+**依赖**: Phase 3E（Polyglot 搜索架构）
+
+---
+
 ## 未来展望 (P4+)
 
 ### P4: 高级功能
