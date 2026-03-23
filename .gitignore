@@ -8,6 +8,7 @@ history.txt
 # 数据目录
 data/
 surrealdb_data/
+backups/
 
 # 缓存
 __pycache__/
