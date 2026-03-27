@@ -29,10 +29,41 @@
 - **涉及范围**: `wrapper/src/utils/memory_manager.py` 第 1363-1372 行
 - **修复**: 用 `WHERE type::string(id) = $conflict_id` 替代 `FROM $conflict_id`
 
+### 代码质量修复 ✅ 已完成
+
+#### B-006: SCHEMA_TARGET_VERSION 版本号未更新 ✅
+
+- **问题**: `SCHEMA_TARGET_VERSION = "2.3.0"` 未随版本更新
+- **修复**: 更新为 `"2.4.1"`
+- **文件**: `wrapper/src/main.py:213`
+
+#### B-007: FastAPI app 定义位置错误 ✅
+
+- **问题**: `app = FastAPI(...)` 缩进在 lifespan 函数内，导致模块级别无法访问
+- **修复**: 移到 lifespan 函数外部模块级别
+- **文件**: `wrapper/src/main.py:411`
+- **影响**: Pyright 34 个 "app is not defined" 错误，测试 11 个失败
+
+#### B-008: 重复 API 端点定义 ✅
+
+- **问题**: `analyze_memory_code` 和 `cluster_memories_leiden` 定义了两次
+- **修复**: 删除重复的代码块（28 行）
+- **文件**: `wrapper/src/main.py:941-970`
+
+#### B-009: tree_sitter 导入类型错误 ✅
+
+- **问题**: 可选导入 `tree_sitter` 导致 Pyright 报错
+- **修复**: 添加 `# type: ignore` 标记
+- **文件**: `wrapper/src/utils/code_analyzer.py:15-16`
+
 **E2E 验证**:
 1. 上传 memory → 获取 fingerprints ✅
 2. 修改本地 hash → sync_preview 检测到 conflict ✅
 3. 调用 resolve → conflict 解决成功 ✅
+
+**质量验证**:
+- Pyright 类型检查: 34 errors → 0 errors ✅
+- 同步测试: 32/32 passed ✅
 
 ---
 

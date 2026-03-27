@@ -24,9 +24,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - 修复：用 `WHERE type::string(id) = $conflict_id` 替代 `FROM $conflict_id`
     - 文件：`wrapper/src/utils/memory_manager.py` 第 1367-1372 行
 
+- **代码质量修复**
+  - 修复 `SCHEMA_TARGET_VERSION`: `2.3.0` → `2.4.1`
+  - 修复 `app = FastAPI()` 缩进错误（在 lifespan 函数内导致路由注册失败）
+  - 删除重复的 API 端点定义（`analyze_memory_code`, `cluster_memories_leiden` 各两份）
+  - 添加 `tree_sitter` 导入的类型忽略标记 `# type: ignore`
+
 ### Verification
 
 - E2E 测试通过：上传 memory → 获取 fingerprints → 检测 conflict → 解决 conflict
+- Pyright 类型检查：34 errors → 0 errors
+- 同步测试：32/32 passed
 
 ---
 

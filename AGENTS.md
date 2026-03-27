@@ -70,10 +70,15 @@ uv run pyright
 
 ## 最近变更
 
-- **v2.4.1 sync_preview conflict 检测修复**：
+- **v2.4.1 sync_preview conflict 检测修复 + 代码质量修复**：
   - 修复 `get_fingerprints` 返回空导致无法检测冲突
   - B-005-B: SurrealDB 3.0 SDK 结果解析逻辑错误（改用 `_extract_records()`）
   - B-005-C: `get_conflict_detail` 参数化表名语法错误（改用 `type::string(id)`）
+  - 修复 `SCHEMA_TARGET_VERSION`: `2.3.0` → `2.4.1`
+  - 修复 `app = FastAPI()` 缩进错误（从 lifespan 内移到模块级别）
+  - 删除重复 API 定义（`analyze_memory_code`, `cluster_memories_leiden`）
+  - 添加 `tree_sitter` 导入类型忽略标记
+  - Pyright: 34 errors → 0 errors, 测试 32/32 passed
   - E2E 测试通过：上传 → 查指纹 → 检测冲突 → 解决冲突
 - **v2.4.0 API 行为优化**：
   - `/api/v1/sync/incremental` → `/api/v1/sync/preview`（旧路由保留为别名）
