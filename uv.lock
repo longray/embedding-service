@@ -18,6 +18,15 @@ wheels = [
 ]
 
 [[package]]
+name = "aiocache"
+version = "0.12.3"
+source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
+sdist = { url = "https://mirrors.aliyun.com/pypi/packages/7a/64/b945b8025a9d1e6e2138845f4022165d3b337f55f50984fbc6a4c0a1e355/aiocache-0.12.3.tar.gz", hash = "sha256:f528b27bf4d436b497a1d0d1a8f59a542c153ab1e37c3621713cb376d44c4713" }
+wheels = [
+    { url = "https://mirrors.aliyun.com/pypi/packages/37/d7/15d67e05b235d1ed8c3ce61688fe4d84130e72af1657acadfaac3479f4cf/aiocache-0.12.3-py2.py3-none-any.whl", hash = "sha256:889086fc24710f431937b87ad3720a289f7fc31c4fd8b68e9f918b9bacd8270d" },
+]
+
+[[package]]
 name = "aiohttp"
 version = "3.9.5"
 source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
@@ -1370,6 +1379,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "addict" },
+    { name = "aiocache" },
     { name = "aiohttp" },
     { name = "datasets" },
     { name = "fastapi" },
@@ -1404,6 +1414,7 @@ tracing = [
 [package.metadata]
 requires-dist = [
     { name = "addict", specifier = ">=2.4.0,<2.5.0" },
+    { name = "aiocache", specifier = ">=0.12.0" },
     { name = "aiohttp", specifier = ">=3.8.0,<3.10.0" },
     { name = "datasets", specifier = ">=2.14.0,<2.15.0" },
     { name = "fastapi", specifier = ">=0.115.0,<0.116.0" },
