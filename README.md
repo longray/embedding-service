@@ -1,13 +1,13 @@
 # Embedding Service (OpenCode Memory Stack)
 
 版本与路线图
-- 当前版本: v2.3.1
+- 当前版本: v2.4.0
 - 实施阶段: P0 + P1 + P2 + Phase 3 + Polyglot 搜索架构 + 同步冲突解决 已完成
 - 详细路线见 ROADMAP.md
 
 ## 开发状态
 
-**当前版本**: v2.3.1
+**当前版本**: v2.4.0
 **实施阶段**: P0 + P1 + P2 + Phase 3 + Polyglot 搜索架构 + 同步冲突解决 已完成
 
 ### 已完成 ✅
@@ -45,6 +45,7 @@
 | `/api/v1/memories` | POST | 批量上传记忆 | 🌍 公开 |
 | `/api/v1/memories/search` | POST | 搜索记忆 | 🌍 公开 |
 | `/ws/memories/live` | WebSocket | 实时推送记忆变更 | 🔓 可选 |
+| `/api/v1/memories/clear` | DELETE | **NEW** 清空所有记忆（调试专用） | 🔐 API Key |
 | `/api/v1/hnsw/stats` | GET | **NEW** HNSW 索引统计 | 🌍 公开 |
 | `/api/v1/hnsw/optimize` | POST | **NEW** 优化 HNSW 参数 | 🌍 公开 |
 | `/api/v1/hnsw/rebuild` | POST | **NEW** 重建 HNSW 索引 | 🌍 公开 |
@@ -53,6 +54,11 @@
 | `/api/v1/cache/warmup` | POST | **NEW** 预热缓存 | 🌍 公开 |
 | `/api/v1/prefetch/related` | POST | **NEW** 预取关联记忆 | 🌍 公开 |
 | `/api/v1/prefetch/popular` | POST | **NEW** 预取热门记忆 | 🌍 公开 |
+| `/api/v1/sync/preview` | POST | 同步预览（差异分析） | 🌍 公开 |
+| `/api/v1/sync/incremental` | POST | 同步预览（兼容别名） | 🌍 公开 |
+| `/api/v1/sync/full` | POST | 全量同步 | 🌍 公开 |
+| `/api/v1/sync/fingerprints` | GET | 获取服务端指纹 | 🌍 公开 |
+| `/api/v1/sync/conflicts/{id}/resolve` | POST | 解决同步冲突 | 🌍 公开 |
 
 ### 完整包装服务（端口 3001）
 
@@ -177,6 +183,75 @@ export WRAPPER_MEILI_API_KEY=your_master_key
 uv run python -m wrapper.src.main
 ```
 
+### 调试清空记忆数据（v2.3.1+）
+
+**清空 API 端点**：`DELETE /api/v1/memories/clear`
+
+**安全机制**：
+1. 先清空 Meilisearch（验证 `WRAPPER_MEILI_API_KEY`）
+2. 如果 Meilisearch 清空成功 → 再清空 SurrealDB
+3. 如果 API key 错误 → Meilisearch 清空失败，SurrealDB 不被清空
+
+**使用方法**：
+```bash
+# 从环境变量 MEILI_MASTER_KEY 获取 API Key
+# 默认值：masterKey_change_in_production（生产环境需修改）
+export MEILI_MASTER_KEY=<your_api_key>
+
+# 正确的 key（会清空所有数据）
+curl -X DELETE http://localhost:17999/api/v1/memories/clear \
+  -H "WRAPPER_MEILI_API_KEY: <your_api_key>"
+
+# 错误的 key（只返回 403，保护数据）
+curl -X DELETE http://localhost:17999/api/v1/memories/clear \
+  -H "WRAPPER_MEILI_API_KEY: wrong_key"
+```
+
+**API Key 配置**：
+- 环境变量：`MEILI_MASTER_KEY`
+- Docker Compose 配置：见 `docker-compose.yml` 第 106 行
+- Wrapper 配置：见 `wrapper/src/config.py` 第 146 行
+- 默认值：`masterKey_change_in_production`（生产环境需修改）
+
+**响应示例**：
+
+成功 (200)：
+```json
+{
+  "success": true,
+  "message": "所有记忆数据已清空"
+}
+```
+
+失败 (401 - 缺少 key)：
+```json
+{
+  "detail": "Missing WRAPPER_MEILI_API_KEY header"
+}
+```
+
+失败 (403 - key 错误)：
+```json
+{
+  "detail": "Invalid WRAPPER_MEILI_API_KEY"
+}
+```
+
+失败 (500 - 清空失败)：
+```json
+{
+  "detail": "清空失败: ..."
+}
+```
+
+**清空脚本**：
+```bash
+# 清空后端所有数据（SurrealDB + Meilisearch）
+cd D:/embedding_service
+export WRAPPER_MEILI_API_KEY={去环境变量找}
+uv run python scripts/clear_all_data.py
+```
+
 ### 数据迁移（首次启用 Meilisearch 时）
 
 ```bash
@@ -213,9 +288,9 @@ uv run pytest tests/ -v
 ```python
 import httpx
 
-# 1. 增量同步
+# 1. 同步预览（分析差异）
 response = await httpx.post(
-    "http://localhost:17999/api/v1/sync/incremental",
+    "http://localhost:17999/api/v1/sync/preview",
     json={
         "fingerprints": [
             {"path": "test.md", "mtime": 1711234567890,
@@ -227,7 +302,7 @@ response = await httpx.post(
 
 # 2. 检查冲突
 if response.json()["conflicts"]:
-    # 3. 解决冲突
+    # 3. 解决冲突（大小写不敏感）
     await httpx.post(
         f"http://localhost:17999/api/v1/sync/conflicts/{conflict_id}/resolve",
         json={"resolution": "use_local", "tenant_id": "default"}

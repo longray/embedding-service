@@ -78,16 +78,15 @@ class TestSyncFingerprints:
         assert call_args[1]["tenant_id"] == "tenant-a"
 
 
-class TestSyncIncremental:
-    """Tests for sync_incremental endpoint (B-B2)"""
+class TestSyncPreview:
+    """Tests for sync_preview endpoint (B-B2)"""
 
     @pytest.mark.asyncio
-    async def test_sync_incremental_new_entries(self):
+    async def test_sync_preview_new_entries(self):
         """Test detecting new entries to upload"""
         from wrapper.src.utils.memory_manager import MemoryManager
 
         mock_db = AsyncMock()
-        # Server has no entries
         mock_db.query = AsyncMock(return_value=[{"result": []}])
 
         manager = MemoryManager(
@@ -99,7 +98,7 @@ class TestSyncIncremental:
             {"source_id": "entry-001", "hash": "abc123", "mtime": 1234567890, "path": "test.md"},
         ]
 
-        result = await manager.sync_incremental(fingerprints=local_fingerprints, tenant_id="test-tenant")
+        result = await manager.sync_preview(fingerprints=local_fingerprints, tenant_id="test-tenant")
 
         assert len(result["to_upload"]) == 1
         assert result["to_upload"][0]["source_id"] == "entry-001"
@@ -108,12 +107,11 @@ class TestSyncIncremental:
         assert len(result["conflicts"]) == 0
 
     @pytest.mark.asyncio
-    async def test_sync_incremental_deleted_entries(self):
+    async def test_sync_preview_deleted_entries(self):
         """Test detecting entries to delete"""
         from wrapper.src.utils.memory_manager import MemoryManager
 
         mock_db = AsyncMock()
-        # Server has entry that local doesn't have
         mock_db.query = AsyncMock(
             return_value=[
                 {
@@ -129,16 +127,16 @@ class TestSyncIncremental:
             embedding_service_url="http://localhost:18000",
         )
 
-        local_fingerprints = []  # Empty local
+        local_fingerprints = []
 
-        result = await manager.sync_incremental(fingerprints=local_fingerprints, tenant_id="test-tenant")
+        result = await manager.sync_preview(fingerprints=local_fingerprints, tenant_id="test-tenant")
 
         assert len(result["to_delete"]) == 1
         assert result["to_delete"][0] == "entry-old"
         assert len(result["to_upload"]) == 0
 
     @pytest.mark.asyncio
-    async def test_sync_incremental_conflicts(self):
+    async def test_sync_preview_conflicts(self):
         """Test detecting conflicts (same source_id, different hash)"""
         from wrapper.src.utils.memory_manager import MemoryManager
 
@@ -152,6 +150,7 @@ class TestSyncIncremental:
                 }
             ]
         )
+        mock_db.create = AsyncMock(return_value=[{"id": "conflict:abc123"}])
 
         manager = MemoryManager(
             db=mock_db,
@@ -162,7 +161,7 @@ class TestSyncIncremental:
             {"source_id": "entry-001", "hash": "local-hash", "mtime": 1234567891, "path": "test.md"},
         ]
 
-        result = await manager.sync_incremental(fingerprints=local_fingerprints, tenant_id="test-tenant")
+        result = await manager.sync_preview(fingerprints=local_fingerprints, tenant_id="test-tenant")
 
         assert len(result["conflicts"]) == 1
         assert result["conflicts"][0]["source_id"] == "entry-001"
@@ -170,7 +169,7 @@ class TestSyncIncremental:
         assert result["conflicts"][0]["server_hash"] == "server-hash"
 
     @pytest.mark.asyncio
-    async def test_sync_incremental_unchanged_entries(self):
+    async def test_sync_preview_unchanged_entries(self):
         """Test that unchanged entries don't appear in results"""
         from wrapper.src.utils.memory_manager import MemoryManager
 
@@ -194,9 +193,8 @@ class TestSyncIncremental:
             {"source_id": "entry-001", "hash": "same-hash", "mtime": 1234567890, "path": "test.md"},
         ]
 
-        result = await manager.sync_incremental(fingerprints=local_fingerprints, tenant_id="test-tenant")
+        result = await manager.sync_preview(fingerprints=local_fingerprints, tenant_id="test-tenant")
 
-        # Same hash = no action needed
         assert len(result["to_upload"]) == 0
         assert len(result["to_delete"]) == 0
         assert len(result["conflicts"]) == 0
@@ -218,13 +216,14 @@ class TestSyncFull:
             embedding_service_url="http://localhost:18000",
         )
 
-        # Mock upload_memories to avoid embedding calls
         with patch.object(manager, "upload_memories", new_callable=AsyncMock) as mock_upload:
             mock_upload.return_value = {
-                "total": 2,
-                "success": 2,
+                "total": 1,
+                "success": 1,
                 "failed": 0,
-                "errors": [],
+                "updated": 0,
+                "skipped": [],
+                "memory_ids": [],
             }
 
             memories = [
@@ -237,6 +236,43 @@ class TestSyncFull:
             assert result["total"] == 2
             assert result["success"] == 2
             assert result["failed"] == 0
+            assert result["skipped"] == []
+
+    @pytest.mark.asyncio
+    async def test_sync_full_with_skipped(self):
+        """Test full sync with skipped duplicates"""
+        from wrapper.src.utils.memory_manager import MemoryManager
+
+        mock_db = AsyncMock()
+
+        manager = MemoryManager(
+            db=mock_db,
+            embedding_service_url="http://localhost:18000",
+        )
+
+        with patch.object(manager, "upload_memories", new_callable=AsyncMock) as mock_upload:
+            mock_upload.return_value = {
+                "total": 1,
+                "success": 0,
+                "failed": 0,
+                "updated": 0,
+                "skipped": [
+                    {"local_id": "entry-001", "existing_id": "memory:aaa", "reason": "hash", "similarity": None}
+                ],
+                "memory_ids": [],
+            }
+
+            memories = [
+                {"content": "Duplicate content", "type": "general", "source_id": "entry-001", "local_id": "entry-001"},
+            ]
+
+            result = await manager.sync_full(memories=memories, tenant_id="test-tenant")
+
+            assert result["total"] == 1
+            assert result["success"] == 0
+            assert len(result["skipped"]) == 1
+            assert result["skipped"][0]["local_id"] == "entry-001"
+            assert result["skipped"][0]["reason"] == "hash"
 
     @pytest.mark.asyncio
     async def test_sync_full_with_failures(self):
@@ -250,14 +286,32 @@ class TestSyncFull:
             embedding_service_url="http://localhost:18000",
         )
 
-        with patch.object(manager, "upload_memories", new_callable=AsyncMock) as mock_upload:
-            mock_upload.return_value = {
-                "total": 3,
-                "success": 2,
-                "failed": 1,
-                "errors": ["Error: entry-002 failed"],
-            }
+        call_count = 0
 
+        async def mock_upload_side_effect(memories, tenant_id):
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 2:
+                return {
+                    "total": 1,
+                    "success": 1,
+                    "failed": 0,
+                    "updated": 0,
+                    "skipped": [],
+                    "memory_ids": [],
+                }
+            else:
+                return {
+                    "total": 1,
+                    "success": 0,
+                    "failed": 1,
+                    "updated": 0,
+                    "skipped": [],
+                    "memory_ids": [],
+                    "errors": ["upload failed"],
+                }
+
+        with patch.object(manager, "upload_memories", new_callable=AsyncMock, side_effect=mock_upload_side_effect):
             memories = [
                 {"content": "Test 1", "type": "general", "source_id": "entry-001"},
                 {"content": "Test 2", "type": "general", "source_id": "entry-002"},
@@ -335,8 +389,15 @@ class TestResolveConflict:
 class TestSyncAPIEndpoints:
     """Tests for FastAPI endpoints (B-B1)"""
 
-    def test_sync_incremental_endpoint_exists(self):
-        """Test that sync_incremental endpoint is registered"""
+    def test_sync_preview_endpoint_exists(self):
+        """Test that sync_preview endpoint is registered"""
+        from wrapper.src.main import app
+
+        routes = [route.path for route in app.routes]
+        assert "/api/v1/sync/preview" in routes
+
+    def test_sync_incremental_endpoint_backward_compat(self):
+        """Test that legacy sync_incremental endpoint still exists"""
         from wrapper.src.main import app
 
         routes = [route.path for route in app.routes]
@@ -380,22 +441,22 @@ class TestSyncDataModels:
         assert fp.hash == "abc123def456"
         assert fp.source_id == "entry-001"
 
-    def test_sync_incremental_request_model(self):
-        """Test SyncIncrementalRequest model"""
-        from wrapper.src.main import SyncIncrementalRequest, SyncFingerprint
+    def test_sync_preview_request_model(self):
+        """Test SyncPreviewRequest model"""
+        from wrapper.src.main import SyncPreviewRequest, SyncFingerprint
 
         fp = SyncFingerprint(path="test.md", mtime=1234567890, hash="abc123", source_id="entry-001")
 
-        request = SyncIncrementalRequest(fingerprints=[fp], tenant_id="test-tenant")
+        request = SyncPreviewRequest(fingerprints=[fp], tenant_id="test-tenant")
 
         assert len(request.fingerprints) == 1
         assert request.tenant_id == "test-tenant"
 
-    def test_sync_incremental_response_model(self):
-        """Test SyncIncrementalResponse model"""
-        from wrapper.src.main import SyncIncrementalResponse
+    def test_sync_preview_response_model(self):
+        """Test SyncPreviewResponse model"""
+        from wrapper.src.main import SyncPreviewResponse
 
-        response = SyncIncrementalResponse(
+        response = SyncPreviewResponse(
             synced=5,
             to_upload=[{"source_id": "entry-001", "reason": "new"}],
             to_delete=["entry-old"],
@@ -406,6 +467,30 @@ class TestSyncDataModels:
         assert len(response.to_upload) == 1
         assert len(response.to_delete) == 1
         assert len(response.conflicts) == 1
+
+    def test_sync_incremental_request_model_backward_compat(self):
+        """Test SyncIncrementalRequest model still works"""
+        from wrapper.src.main import SyncIncrementalRequest, SyncFingerprint
+
+        fp = SyncFingerprint(path="test.md", mtime=1234567890, hash="abc123", source_id="entry-001")
+
+        request = SyncIncrementalRequest(fingerprints=[fp], tenant_id="test-tenant")
+
+        assert len(request.fingerprints) == 1
+        assert request.tenant_id == "test-tenant"
+
+    def test_sync_incremental_response_model_backward_compat(self):
+        """Test SyncIncrementalResponse model still works"""
+        from wrapper.src.main import SyncIncrementalResponse
+
+        response = SyncIncrementalResponse(
+            synced=5,
+            to_upload=[{"source_id": "entry-001", "reason": "new"}],
+            to_delete=["entry-old"],
+            conflicts=[{"source_id": "entry-002", "local_hash": "abc", "server_hash": "def"}],
+        )
+
+        assert response.synced == 5
 
     def test_conflict_resolution_request_model(self):
         """Test ConflictResolutionRequest model"""
@@ -443,7 +528,7 @@ class TestSyncIntegration:
             {"source_id": "entry-002", "hash": "hash2", "mtime": 1234567891, "path": "test2.md"},
         ]
 
-        inc_result = await manager.sync_incremental(fingerprints=local_fps, tenant_id="test")
+        inc_result = await manager.sync_preview(fingerprints=local_fps, tenant_id="test")
 
         assert len(inc_result["to_upload"]) == 2
         assert len(inc_result["conflicts"]) == 0

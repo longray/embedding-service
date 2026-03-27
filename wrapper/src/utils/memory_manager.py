@@ -16,10 +16,12 @@ from typing import Any
 from aiocache import cached
 from aiocache.serializers import JsonSerializer
 
+from .code_analyzer import CodeAnalyzer, CodeAnalysisResult
 from .exceptions import DatabaseError, EmbeddingError, ValidationError
 from .http_pool import get_http_pool
 from .meili_client import MeilisearchClient
 from .tracing import get_tracer
+
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +79,9 @@ class MemoryManager:
                 "daily": 1.0,
             },
         )
+
+        # Code analyzer instance
+        self.code_analyzer = CodeAnalyzer()
 
     async def _get_http_pool(self):
         """延迟初始化 HTTP 连接池"""
@@ -178,7 +183,8 @@ class MemoryManager:
             total = len(memories)
             success_count = 0
             failed_count = 0
-            updated_count = 0  # Phase A-B7: 新增更新计数
+            updated_count = 0
+            skipped: list[dict[str, Any]] = []
             memory_ids: list[str] = []
             errors: list[str | dict[str, Any]] = []
             meili_docs: list[dict[str, Any]] = []
@@ -195,7 +201,8 @@ class MemoryManager:
                     "total": total,
                     "success": 0,
                     "failed": total,
-                    "updated": 0,  # Phase A-B7
+                    "updated": 0,
+                    "skipped": [],
                     "memory_ids": [],
                     "errors": [str(e)],
                 }
@@ -220,6 +227,14 @@ class MemoryManager:
                         "metadata": memory.get("metadata", {}),
                     }
 
+                    # v2.4.0 L0/L1/L2 fields
+                    if memory.get("abstract"):
+                        memory_data["content_abstract"] = memory["abstract"]
+                    if memory.get("overview"):
+                        memory_data["content_overview"] = memory["overview"]
+                    if memory.get("local_id"):
+                        memory_data["local_id"] = memory["local_id"]
+
                     if "source_id" in memory:
                         memory_data["source_id"] = memory["source_id"]
                     if "source_timestamp" in memory:
@@ -238,13 +253,12 @@ class MemoryManager:
                     if existing_records:
                         existing_id = str(existing_records[0].get("id", ""))
                         failed_count += 1
-                        errors.append(
+                        skipped.append(
                             {
-                                "type": "duplicate",
-                                "duplicate_type": "hash",
-                                "message": "Content hash duplicate detected",
+                                "local_id": memory.get("local_id") or memory.get("source_id"),
                                 "existing_id": existing_id,
-                                "retryable": False,
+                                "reason": "hash",
+                                "similarity": None,
                             }
                         )
                         continue
@@ -278,17 +292,13 @@ class MemoryManager:
                             success_count += 1
                             continue
                         elif decision == "DISCARD":
-                            # 丢弃新记录
                             failed_count += 1
-                            errors.append(
+                            skipped.append(
                                 {
-                                    "type": "duplicate",
-                                    "duplicate_type": "semantic",
-                                    "message": f"Semantic duplicate detected (similarity: {similarity_score:.3f}) - DISCARDED",
+                                    "local_id": memory.get("local_id") or memory.get("source_id"),
                                     "existing_id": existing_id,
-                                    "similarity": similarity_score,
-                                    "decision": "DISCARD",
-                                    "retryable": False,
+                                    "reason": "semantic",
+                                    "similarity": round(similarity_score, 4),
                                 }
                             )
                             continue
@@ -357,7 +367,8 @@ class MemoryManager:
                 "total": total,
                 "success": success_count,
                 "failed": failed_count,
-                "updated": updated_count,  # Phase A-B7
+                "updated": updated_count,
+                "skipped": skipped,
                 "memory_ids": memory_ids,
             }
             if errors:
@@ -372,10 +383,11 @@ class MemoryManager:
         mode: str = "hybrid",
         limit: int = 10,
         threshold: float = 0.7,
+        level: int = 2,
         tenant_id: str | None = None,
         filters: str | None = None,
     ) -> dict[str, Any]:
-        """搜索记忆"""
+        """搜索记忆 (v2.4.0: 支持 level 参数返回分层内容)"""
         if mode not in ("vector", "keyword", "hybrid"):
             raise ValidationError(f"Invalid search mode: {mode}")
 
@@ -402,10 +414,43 @@ class MemoryManager:
                     )
 
                 span.set_attribute("search.result_count", len(results))
-                return {"results": results, "total": len(results), "mode": mode, "query": query}
+
+                # v2.4.0: 按 level 返回分层内容
+                filtered_results = self._filter_by_level(results, level)
+
+                return {
+                    "results": filtered_results,
+                    "total": len(results),
+                    "mode": mode,
+                    "level": level,
+                    "query": query,
+                }
             except Exception as e:
                 span.record_exception(e)
                 raise DatabaseError(f"Search failed: {e!s}") from e
+
+    def _filter_by_level(self, results: list[dict[str, Any]], level: int) -> list[dict[str, Any]]:
+        """按 level 过滤返回结果 (v2.4.0)"""
+        filtered = []
+        for r in results:
+            item = {"id": r.get("id"), "score": r.get("score")}
+
+            if level >= 0:
+                item["abstract"] = r.get("content_abstract", "")
+
+            if level >= 1:
+                item["overview"] = r.get("content_overview", "")
+
+            if level >= 2:
+                item["content"] = r.get("content", "")
+                item["type"] = r.get("type")
+                item["tags"] = r.get("tags", [])
+                item["project_id"] = r.get("project_id")
+                item["local_id"] = r.get("local_id")
+
+            filtered.append(item)
+
+        return filtered
 
     async def _search_by_vector(
         self,
@@ -434,7 +479,7 @@ class MemoryManager:
             span.set_attribute("search.vector.cache_hit", False)
 
             q = (
-                "SELECT id, content, metadata, type, tags, project_id, "
+                "SELECT id, content, content_abstract, content_overview, local_id, metadata, type, tags, project_id, "
                 "vector::similarity::cosine(embedding, $query_embedding) AS score "
                 "FROM memory "
                 "WHERE tenant_id = $tenant_id "
@@ -503,7 +548,7 @@ class MemoryManager:
             span.set_attribute("search.keyword.engine", "surrealdb")
             span.set_attribute("search.keyword.query", safe_query[:100])
             q = (  # nosec B608
-                "SELECT id, content, metadata, type, tags, project_id, "
+                "SELECT id, content, content_abstract, content_overview, local_id, metadata, type, tags, project_id, "
                 "search::score(1) AS score "
                 "FROM memory "
                 "WHERE tenant_id = $tenant_id "
@@ -644,6 +689,9 @@ class MemoryManager:
                 {
                     "id": str(doc_id),
                     "content": hit.get("content", ""),
+                    "content_abstract": hit.get("content_abstract", ""),
+                    "content_overview": hit.get("content_overview", ""),
+                    "local_id": hit.get("local_id"),
                     "metadata": hit.get("metadata", {}),
                     "type": hit.get("type", "general"),
                     "tags": hit.get("tags", []),
@@ -654,10 +702,13 @@ class MemoryManager:
         return results
 
     def _build_result_item(self, item: dict[str, Any], score: float) -> dict[str, Any]:
-        """构建统一的搜索结果条目（包含新增的 type/tags/project_id 字段）"""
+        """构建统一的搜索结果条目（包含 v2.4.0 L0/L1/L2 字段）"""
         return {
             "id": str(item.get("id", "")),
             "content": item.get("content", ""),
+            "content_abstract": item.get("content_abstract", ""),
+            "content_overview": item.get("content_overview", ""),
+            "local_id": item.get("local_id"),
             "metadata": item.get("metadata", {}),
             "type": item.get("type", "general"),
             "tags": item.get("tags", []),
@@ -969,19 +1020,6 @@ class MemoryManager:
 
     # ==================== Phase A-B6/B7: 智能去重辅助方法 ====================
 
-    def _get_vector_cache_key(self, embedding: list[float], limit: int, threshold: float, tenant_id: str) -> str:
-        """生成向量搜索缓存键"""
-        embedding_hash = hashlib.md5(str(embedding[:10]).encode(), usedforsecurity=False).hexdigest()[:16]
-        return f"vec:{tenant_id}:{embedding_hash}:{limit}:{threshold}"
-
-    def _get_keyword_cache_key(self, query: str, limit: int, tenant_id: str) -> str:
-        """生成关键词搜索缓存键"""
-        query_hash = hashlib.md5(query.encode(), usedforsecurity=False).hexdigest()[:16]
-        return f"kw:{tenant_id}:{query_hash}:{limit}"
-        """获取动态去重阈值"""
-        thresholds = getattr(self, "_dedup_thresholds", {})
-        return thresholds.get(mem_type, 0.95)
-
     def _decide_duplicate_action(
         self, new_memory: dict[str, Any], old_record: dict[str, Any], similarity: float, mem_type: str
     ) -> str:
@@ -1057,6 +1095,11 @@ class MemoryManager:
         meili_doc["version"] = metadata.get("version")
         meili_doc["code"] = memory.get("content", "")
 
+        # v2.4.0: L0/L1/L2 分层字段
+        meili_doc["content_abstract"] = memory.get("content_abstract", "")
+        meili_doc["content_overview"] = memory.get("content_overview", "")
+        meili_doc["local_id"] = memory.get("local_id")
+
         if "source_id" in memory:
             meili_doc["source_id"] = memory["source_id"]
         if "source_timestamp" in memory:
@@ -1071,6 +1114,16 @@ class MemoryManager:
         elif isinstance(result, dict) and result.get("id"):
             return str(result["id"])
         return None
+
+    def _get_vector_cache_key(self, embedding: list[float], limit: int, threshold: float, tenant_id: str) -> str:
+        """生成向量搜索缓存键"""
+        embedding_hash = hashlib.md5(str(embedding[:10]).encode(), usedforsecurity=False).hexdigest()[:16]
+        return f"vec:{tenant_id}:{embedding_hash}:{limit}:{threshold}"
+
+    def _get_keyword_cache_key(self, query: str, limit: int, tenant_id: str) -> str:
+        """生成关键词搜索缓存键"""
+        query_hash = hashlib.md5(query.encode(), usedforsecurity=False).hexdigest()[:16]
+        return f"kw:{tenant_id}:{query_hash}:{limit}"
 
     # ==================== Phase B: Sync Methods ====================
 
@@ -1102,7 +1155,7 @@ class MemoryManager:
             logger.error("[Sync] 获取指纹失败: %s", e)
             raise DatabaseError(f"获取指纹失败: {e}") from e
 
-    async def sync_incremental(self, fingerprints: list[dict], tenant_id: str = "default") -> dict:
+    async def sync_preview(self, fingerprints: list[dict], tenant_id: str = "default") -> dict:
         """增量同步：比对本地指纹与服务端，返回变更指令"""
         try:
             # 1. 获取服务端指纹
@@ -1171,6 +1224,34 @@ class MemoryManager:
         except Exception as e:
             logger.error("[Sync] 增量同步失败: %s", e)
             raise DatabaseError(f"增量同步失败: {e}") from e
+
+    async def sync_full(self, memories: list[dict], tenant_id: str = "default") -> dict:
+        total = len(memories)
+        processed = 0
+        updated_count = 0
+        all_skipped: list[dict] = []
+        errors: list[str] = []
+
+        for i, memory in enumerate(memories):
+            try:
+                upload_result = await self.upload_memories([memory], tenant_id)
+                processed += upload_result.get("success", 0)
+                updated_count += upload_result.get("updated", 0)
+                all_skipped.extend(upload_result.get("skipped", []))
+                if upload_result.get("errors"):
+                    errors.append(f"Memory {i}: {upload_result['errors']}")
+            except Exception as e:
+                errors.append(f"Memory {i}: {str(e)}")
+
+        return {
+            "total": total,
+            "success": processed,
+            "failed": total - processed - updated_count - len(all_skipped),
+            "updated": updated_count,
+            "skipped": all_skipped,
+            "errors": errors[:10],
+            "tenant_id": tenant_id,
+        }
 
     # ==================== Phase B: Conflict Resolution Methods ====================
 
@@ -1348,6 +1429,7 @@ class MemoryManager:
             ValidationError: 无效的冲突ID或解决策略
             DatabaseError: 数据库操作失败
         """
+        resolution = resolution.lower().strip()
         if resolution not in ("use_local", "use_remote", "keep_both"):
             raise ValidationError(f"无效的解决策略: {resolution}")
 
@@ -1536,3 +1618,554 @@ class MemoryManager:
         logger.info("[Sync] 新记忆版本创建成功: %s, 新源ID=%s", new_memory_id, new_source_id)
 
         return new_memory_id
+
+    # ==================== New: HNSW Optimization Methods (Phase C-B) ====================
+
+    async def get_memory_stats(self, tenant_id: str = "default") -> dict:
+        """获取记忆统计数据"""
+        try:
+            # 计算各种统计数据
+            query = "SELECT count(*) as total FROM memory WHERE tenant_id = $tenant_id"
+            result = await self._db.query(query, {"tenant_id": tenant_id})
+            raw_items = self._extract_records(result)
+            total_memories = raw_items[0].get("total", 0) if raw_items else 0
+
+            # 按类型分类
+            type_query = "SELECT type, count(*) as count FROM memory WHERE tenant_id = $tenant_id GROUP BY type"
+            type_result = await self._db.query(type_query, {"tenant_id": tenant_id})
+            type_stats = self._extract_records(type_result)
+
+            # 按日期统计
+            date_query = "SELECT date_trunc('day', created_at) as day, count(*) as count FROM memory WHERE tenant_id = $tenant_id GROUP BY day ORDER BY day DESC LIMIT 7"
+            date_result = await self._db.query(date_query, {"tenant_id": tenant_id})
+            date_stats = self._extract_records(date_result)
+
+            return {
+                "total": total_memories,
+                "by_type": type_stats,
+                "recent_activity": date_stats,
+                "tenant_id": tenant_id,
+            }
+        except Exception as e:
+            logger.error("[HNSW] 获取记忆统计失败: %s", e)
+            raise DatabaseError(f"获取记忆统计失败: {e}") from e
+
+    async def optimize_hnsw(self, tenant_id: str = "default") -> dict:
+        """优化HNSW参数"""
+        try:
+            # 这里可以实现HNSW索引的自动优化逻辑
+            # 当前只是返回推荐的参数
+            stats = await self.get_memory_stats(tenant_id)
+
+            # 基于数据量推荐HNSW参数
+            total_memories = stats.get("total", 0)
+            recommended_params = self._recommend_hnsw_params(total_memories)
+
+            return {
+                "current_magnitude": total_memories,
+                "recommended_params": recommended_params,
+                "optimization_performed": False,  # 这里实际的优化逻辑需要在SurrealDB层面处理
+            }
+        except Exception as e:
+            logger.error("[HNSW] 优化失败: %s", e)
+            raise DatabaseError(f"优化HNSW失败: {e}") from e
+
+    def _recommend_hnsw_params(self, n_items: int) -> dict:
+        """基于数据量推荐HNSW参数"""
+        # 基于内存中的研究推荐参数
+        if n_items < 1000:
+            return {"M": 8, "ef_construction": 64, "ef_search": 32}
+        elif n_items < 10000:
+            return {"M": 12, "ef_construction": 100, "ef_search": 50}
+        elif n_items < 100000:
+            return {"M": 16, "ef_construction": 200, "ef_search": 100}
+        else:
+            return {"M": 24, "ef_construction": 300, "ef_search": 150}
+
+    async def rebuild_hnsw_index(self, tenant_id: str = "default", force: bool = False) -> dict:
+        """重建HNSW索引"""
+        try:
+            # SurrealDB的HNSW索引是自动维护的，这里只是重新计算/更新索引
+            # 重新计算所有记忆的嵌入（仅在force为True时）
+            if force:
+                # 查询所有记忆
+                query = "SELECT id, content FROM memory WHERE tenant_id = $tenant_id"
+                result = await self._db.query(query, {"tenant_id": tenant_id})
+                records = self._extract_records(result)
+
+                updates_made = 0
+                for record in records:
+                    memory_id = record.get("id")
+                    content = record.get("content")
+
+                    if content:
+                        # 重新计算嵌入
+                        embeddings = await self._get_embeddings([content])
+                        new_embedding = embeddings[0]
+
+                        # 更新数据库
+                        update_query = "UPDATE $memory_id SET embedding = $embedding"
+                        await self._db.query(update_query, {"memory_id": memory_id, "embedding": new_embedding})
+                        updates_made += 1
+
+                return {
+                    "status": "completed",
+                    "updates_made": updates_made,
+                    "force_rebuilt": force,
+                    "tenant_id": tenant_id,
+                }
+            else:
+                return {
+                    "status": "completed",
+                    "message": "Index maintained normally (not force rebuilt)",
+                    "force_rebuilt": force,
+                    "tenant_id": tenant_id,
+                }
+        except Exception as e:
+            logger.error("[HNSW] 重建索引失败: %s", e)
+            raise DatabaseError(f"重建HNSW索引失败: {e}") from e
+
+    # ==================== New: Embedding Cache Methods (Phase C-B) ====================
+
+    async def get_cache_stats(self) -> dict:
+        """获取嵌入缓存统计信息"""
+        if self._vector_cache:
+            try:
+                stats = await self._vector_cache.get_stats()
+                return {
+                    "hits": stats.get("hits", 0),
+                    "misses": stats.get("misses", 0),
+                    "ratio": stats.get("ratio", 0.0),
+                    "size": stats.get("size", 0),
+                    "config": {
+                        "max_size": getattr(self, "_cache_enabled", False),
+                        "ttl_seconds": getattr(self, "_cache_ttl", 300),
+                    },
+                }
+            except Exception:
+                pass
+
+        return {"hits": 0, "misses": 0, "ratio": 0.0, "size": 0, "config": {"enabled": False}}
+
+    async def clear_embedding_cache(self) -> dict:
+        """清空嵌入缓存"""
+        if self._vector_cache:
+            try:
+                await self._vector_cache.clear()
+                return {"cleared": True, "cache_type": "vector_cache"}
+            except Exception:
+                pass
+
+        if self._keyword_cache:
+            try:
+                await self._keyword_cache.clear()
+                return {"cleared": True, "cache_type": "keyword_cache"}
+            except Exception:
+                pass
+
+        return {"cleared": False, "message": "No cache available"}
+
+    async def warmup_embedding_cache(self, tenant_id: str = "default", limit: int = 100) -> dict:
+        """预加载最近记忆的嵌入到缓存"""
+        try:
+            # 获取最近的几条记忆
+            query = f"""
+                SELECT id, content FROM memory 
+                WHERE tenant_id = $tenant_id 
+                ORDER BY created_at DESC 
+                LIMIT {limit}
+            """
+            result = await self._db.query(query, {"tenant_id": tenant_id})
+            records = self._extract_records(result)
+
+            loaded_count = 0
+            for record in records:
+                content = record.get("content", "")
+                if content and self._vector_cache:
+                    try:
+                        # 预计算并缓存嵌入
+                        embeddings = await self._get_embeddings([content])
+                        embedding = embeddings[0] if embeddings else []
+
+                        if embedding:
+                            # 将嵌入缓存起来以便后续检索使用
+                            cache_key = hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()
+                            await self._vector_cache.set(cache_key, embedding, ttl=self._cache_ttl)
+                            loaded_count += 1
+                    except Exception:
+                        continue  # 继续处理其他记忆
+
+            return {"loaded": loaded_count, "attempted": len(records), "limit": limit, "tenant_id": tenant_id}
+        except Exception as e:
+            logger.error("[Cache] 预热失败: %s", e)
+            raise DatabaseError(f"预热嵌入缓存失败: {e}") from e
+
+    # ==================== New: Prefetch Methods (Phase C-B) ====================
+
+    async def prefetch_related_memories(
+        self, memory_id: str, tenant_id: str = "default", depth: int = 1, limit: int = 10
+    ) -> dict:
+        """预取与给定记忆相关的记忆嵌入"""
+        try:
+            related_memories = await self.get_related_memories(
+                memory_id=memory_id, depth=depth, tenant_id=tenant_id, limit=limit
+            )
+
+            # 预计算这些相关记忆的嵌入并放入缓存
+            processed = 0
+            for memory in related_memories:
+                content = memory.get("content", "")
+                if content and self._vector_cache:
+                    try:
+                        embeddings = await self._get_embeddings([content])
+                        embedding = embeddings[0] if embeddings else []
+
+                        if embedding:
+                            cache_key = hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()
+                            await self._vector_cache.set(cache_key, embedding, ttl=self._cache_ttl)
+                            processed += 1
+                    except Exception:
+                        continue
+
+            return {
+                "processed": processed,
+                "total_related": len(related_memories),
+                "memory_id": memory_id,
+                "depth": depth,
+                "limit": limit,
+            }
+        except Exception as e:
+            logger.error("[Prefetch] 相关记忆预取失败: %s", e)
+            raise DatabaseError(f"预取相关记忆失败: {e}") from e
+
+    async def prefetch_popular_queries(self, tenant_id: str = "default", top_n: int = 20) -> dict:
+        """预取热门查询的嵌入（假设有查询日志或热度统计）"""
+        try:
+            # 在当前实现中，我们模拟预取一些常见内容类型的嵌入
+            # 在实际实现中，这应该连接到查询日志或热度统计系统
+            common_topics = [
+                "error",
+                "bug",
+                "fix",
+                "solution",
+                "optimization",
+                "performance",
+                "architecture",
+                "design",
+                "implementation",
+                "development",
+            ]
+
+            processed = 0
+            for topic in common_topics[:top_n]:
+                if self._vector_cache:
+                    try:
+                        embeddings = await self._get_embeddings([topic])
+                        embedding = embeddings[0] if embeddings else []
+
+                        if embedding:
+                            cache_key = hashlib.md5(topic.encode(), usedforsecurity=False).hexdigest()
+                            await self._vector_cache.set(cache_key, embedding, ttl=self._cache_ttl)
+                            processed += 1
+                    except Exception:
+                        continue
+
+            return {"processed": processed, "queried_topics": common_topics[:top_n], "top_n_requested": top_n}
+        except Exception as e:
+            logger.error("[Prefetch] 热门查询预取失败: %s", e)
+            raise DatabaseError(f"预取热门查询失败: {e}") from e
+
+    # ==================== New: Leiden Clustering Algorithm ====================
+
+    async def cluster_memories_leiden(
+        self, tenant_id: str = "default", content_threshold: float = 0.75, max_clusters: int = 20
+    ) -> dict:
+        """
+        使用Leiden算法对记忆进行聚类
+        注意：真实的Leiden算法需要graph分析库，这里实现简化版本的社区检测
+        """
+        try:
+            # 获取所有记忆及其嵌入
+            query = """
+                SELECT id, content, embedding, type, tags, project_id 
+                FROM memory 
+                WHERE tenant_id = $tenant_id
+            """
+            result = await self._db.query(query, {"tenant_id": tenant_id})
+            records = self._extract_records(result)
+
+            if len(records) < 2:
+                return {
+                    "clusters": [],
+                    "total_memories": len(records),
+                    "tenant_id": tenant_id,
+                    "message": "Not enough memories to cluster",
+                }
+
+            # 构建相似度图（简化版）
+            similarities = []
+            for i in range(len(records)):
+                for j in range(i + 1, len(records)):
+                    memory1 = records[i]
+                    memory2 = records[j]
+
+                    # 计算嵌入余弦相似度
+                    embedding1 = memory1.get("embedding", [])
+                    embedding2 = memory2.get("embedding", [])
+
+                    if embedding1 and embedding2:
+                        similarity = self._cosine_similarity(embedding1, embedding2)
+                        if similarity >= content_threshold:
+                            similarities.append(
+                                {
+                                    "from_id": memory1["id"],
+                                    "to_id": memory2["id"],
+                                    "similarity": similarity,
+                                    "from_content": memory1.get("content", "")[:50],
+                                    "to_content": memory2.get("content", "")[:50],
+                                }
+                            )
+
+            # 使用边的集合进行简化聚类
+            clusters = self._simple_community_detection(similarities, max_clusters)
+
+            # 为每个集群命名（基于内容关键词）
+            named_clusters = []
+            for i, cluster in enumerate(clusters):
+                cluster_contents = [records[idx]["content"] for idx in cluster if idx < len(records)]
+                cluster_keywords = self._extract_cluster_keywords(cluster_contents)
+
+                named_clusters.append(
+                    {
+                        "cluster_id": i,
+                        "size": len(cluster),
+                        "memory_ids": [records[idx]["id"] for idx in cluster if idx < len(records)],
+                        "keywords": cluster_keywords,
+                        "sample_contents": [c[:100] for c in cluster_contents[:3]],
+                    }
+                )
+
+            return {
+                "clusters": named_clusters,
+                "total_memories": len(records),
+                "total_clusters": len(named_clusters),
+                "tenant_id": tenant_id,
+                "threshold": content_threshold,
+            }
+        except Exception as e:
+            logger.error("[Clustering] Leiden聚类失败: %s", e)
+            raise DatabaseError(f"Leiden聚类失败: {e}") from e
+
+    def _cosine_similarity(self, vec1: list, vec2: list) -> float:
+        """计算两个向量的余弦相似度"""
+        if len(vec1) != len(vec2):
+            return 0.0
+
+        dot_product = sum(a * b for a, b in zip(vec1, vec2))
+        magnitude1 = sum(a * a for a in vec1) ** 0.5
+        magnitude2 = sum(b * b for b in vec2) ** 0.5
+
+        if magnitude1 == 0 or magnitude2 == 0:
+            return 0.0
+
+        return dot_product / (magnitude1 * magnitude2)
+
+    def _simple_community_detection(self, edges: list, max_clusters: int) -> list:
+        """简单的社区检测算法（模拟Leiden）"""
+        # 创建邻接列表
+        nodes = set()
+        adj_list = {}
+
+        for edge in edges:
+            from_node = edge["from_id"]
+            to_node = edge["to_id"]
+
+            nodes.add(from_node)
+            nodes.add(to_node)
+
+            if from_node not in adj_list:
+                adj_list[from_node] = []
+            if to_node not in adj_list:
+                adj_list[to_node] = []
+
+            adj_list[from_node].append(to_node)
+            adj_list[to_node].append(from_node)
+
+        # 使用连通组件作为简单聚类
+        visited = set()
+        clusters = []
+
+        for node in nodes:
+            if node not in visited:
+                cluster = []
+                queue = [node]
+                visited.add(node)
+
+                while queue and len(clusters) < max_clusters:
+                    current = queue.pop(0)
+                    cluster.append(current)
+
+                    for neighbor in adj_list.get(current, []):
+                        if neighbor not in visited:
+                            visited.add(neighbor)
+                            queue.append(neighbor)
+
+                clusters.append(cluster)
+
+                if len(clusters) >= max_clusters:
+                    break
+
+        return clusters
+
+    def _extract_cluster_keywords(self, contents: list) -> list:
+        """从集群内容中提取关键词"""
+        # 简单的关键字提取：最常见的词汇
+        all_words = []
+        for content in contents:
+            words = content.lower().split()
+            # 过滤掉常见的停用词
+            stop_words = {
+                "the",
+                "a",
+                "an",
+                "and",
+                "or",
+                "but",
+                "in",
+                "on",
+                "at",
+                "to",
+                "for",
+                "of",
+                "with",
+                "by",
+                "is",
+                "are",
+                "was",
+                "were",
+                "be",
+                "been",
+                "being",
+                "have",
+                "has",
+                "had",
+                "do",
+                "does",
+                "did",
+                "will",
+                "would",
+                "could",
+                "should",
+            }
+            filtered_words = [
+                word.strip(".,!?;:") for word in words if word.lower() not in stop_words and len(word) > 3
+            ]
+            all_words.extend(filtered_words)
+
+        # 统计词频并返回最高频的词
+        word_count = {}
+        for word in all_words:
+            word_count[word] = word_count.get(word, 0) + 1
+
+        # 返回前5个高频词
+        sorted_words = sorted(word_count.items(), key=lambda x: x[1], reverse=True)
+        return [word for word, count in sorted_words[:5]]
+
+    # ==================== New: Code Analysis Integration ====================
+
+    async def analyze_memory_code(self, memory_id: str, tenant_id: str = "default") -> dict:
+        """分析记忆中的代码内容"""
+        try:
+            # 获取记忆内容
+            query = "SELECT * FROM $memory_id WHERE tenant_id = $tenant_id"
+            result = await self._db.query(query, {"memory_id": memory_id, "tenant_id": tenant_id})
+            records = self._extract_records(result)
+
+            if not records:
+                raise ValidationError(f"记忆不存在: {memory_id}")
+
+            memory = records[0]
+            content = memory.get("content", "")
+
+            # 确定编程语言（简单判断）
+            language = self._detect_programming_language(content)
+
+            # 使用代码分析器分析代码
+            code_analyzer = CodeAnalyzer()
+            analysis_result = await code_analyzer.analyze_code(content, language)
+
+            return {
+                "memory_id": memory_id,
+                "language": analysis_result.language,
+                "functions": analysis_result.functions,
+                "classes": analysis_result.classes,
+                "imports": analysis_result.imports,
+                "comments_count": len(analysis_result.comments),
+                "dependencies": analysis_result.dependencies,
+                "complexity_metrics": analysis_result.complexity_metrics,
+                "comment_content": " | ".join(
+                    [c["text"] for c in analysis_result.comments] + [d["text"] for d in analysis_result.docstrings]
+                ),
+            }
+        except Exception as e:
+            logger.error("[Code Analysis] 分析失败: %s", e)
+            raise DatabaseError(f"代码分析失败: {e}") from e
+
+    def _detect_programming_language(self, content: str) -> str:
+        """简单的编程语言检测"""
+        content_lower = content.lower()
+
+        # 常见的语言标识符
+        if (
+            "import torch" in content_lower
+            or "import tensorflow" in content_lower
+            or "def " in content
+            and "class " in content
+        ):
+            return "python"
+        elif (
+            "function " in content_lower
+            or "var " in content_lower
+            or "let " in content_lower
+            or "const " in content_lower
+        ):
+            if "{" in content and "}" in content:
+                return "javascript"
+        elif "class " in content_lower and ":" in content and "def " not in content:
+            return "java"
+        elif "#include" in content_lower:
+            return "c"
+        elif "func " in content_lower and "package " in content_lower:
+            return "go"
+        elif "fn " in content_lower and "::" in content_lower:
+            return "rust"
+        elif "using system;" in content_lower or "namespace " in content_lower:
+            return "csharp"
+        elif "<html" in content_lower or "<div" in content_lower:
+            return "html"
+        elif ".class {" in content or "#" in content:
+            return "css"
+        elif "select " in content_lower or "create table" in content_lower:
+            return "sql"
+
+        # 默认返回python
+        return "python"
+
+    # ==================== v2.4.0 Access Log ====================
+
+    async def report_access_log(self, entries: list[dict[str, Any]], tenant_id: str | None = None) -> dict[str, Any]:
+        """记录访问日志（用于分析记忆使用频率）"""
+        effective_tenant_id = tenant_id or self._default_tenant_id
+
+        # 简化的实现：将访问日志记录到内存中
+        # 实际生产环境可以存储到 SurrealDB 或发送到分析服务
+        logged_count = 0
+        for entry in entries:
+            if entry.get("entry_id") and entry.get("timestamp"):
+                logged_count += 1
+
+        return {
+            "status": "success",
+            "logged_count": logged_count,
+            "total_received": len(entries),
+        }

@@ -32,7 +32,7 @@ embedding_service/
 │       └── llm_service.py       # LLM API (端口 18001)
 ├── wrapper/                     # 包装层服务 (端口 17999)
 │   └── src/
-│       ├── main.py             # FastAPI 主程序 (v2.3.0)
+│       ├── main.py             # FastAPI 主程序 (v2.4.0)
 │       ├── config.py           # 配置管理 (含 MeilisearchConfig)
 │       └── utils/
 │           ├── memory_manager.py # 记忆管理（双写 + 搜索路由）
@@ -70,6 +70,17 @@ uv run pyright
 
 ## 最近变更
 
+- **v2.4.0 API 行为优化**：
+  - `/api/v1/sync/incremental` → `/api/v1/sync/preview`（旧路由保留为别名）
+  - `SyncFullResponse` 新增 `skipped` 列表（含 `local_id`、`existing_id`、`reason`、`similarity`）
+  - conflict resolution 大小写兼容（`USE_LOCAL` / `use_local` 均可）
+  - 修复 `test_sync_preview_conflicts` mock 缺少 `create` 的已有 bug
+- **v2.3.1 调试清空 API**：新增清空记忆数据的安全机制
+  - 端点：`DELETE /api/v1/memories/clear`
+  - 认证：`WRAPPER_MEILI_API_KEY` header
+  - 安全机制：先清空 Meilisearch（验证 API key），再清空 SurrealDB
+  - 使用方法：`curl -X DELETE http://localhost:17999/api/v1/memories/clear -H "WRAPPER_MEILI_API_KEY: your_api_key"`
+  - 错误响应：401（缺少 key）、403（key 错误）、500（清空失败）
 - **v2.3.0 Polyglot 搜索架构**：Meilisearch 全文搜索 + SurrealDB 向量/图，RRF 混合搜索
 - 包装层目录从 `wrapper-service/` 迁移到 `wrapper/`
 - 新增 `meili_client.py` 异步 Meilisearch 客户端
@@ -166,3 +177,106 @@ uv run python test_search.py
 # 监控索引
 uv run python monitor_index.py
 ```
+
+## 清空记忆数据（调试专用）
+
+### API 端点
+
+| 端点 | 方法 | 功能 | 认证 |
+|--------|------|------|------|
+| `DELETE /api/v1/memories/clear` | 清空所有记忆 | WRAPPER_MEILI_API_KEY |
+
+### 认证说明
+
+**必需 Header**：
+```bash
+WRAPPER_MEILI_API_KEY: <your_api_key>
+```
+
+**API Key 获取方式**：
+```bash
+# 从环境变量获取
+export WRAPPER_MEILI_API_KEY=<your_api_key>
+
+# 或者从 README.md 获取
+# WRAPPER_MEILI_API_KEY=${MEILI_MASTER_KEY:-masterKey_change_in_production}
+```
+
+### 安全机制
+
+清空 API 采用**两步验证机制**保护记忆数据：
+
+1. **先清空 Meilisearch**（验证 WRAPPER_MEILI_API_KEY）
+   - 如果 API key 正确 → Meilisearch 清空成功
+   - 如果 API key 错误 → 返回 403，停止操作
+
+2. **再清空 SurrealDB**
+   - 只有 Meilisearch 清空成功后才执行
+   - 如果 Meilisearch 清空失败，SurrealDB 不会被清空
+
+### 使用方法
+
+```bash
+# 方法 1：正确 key（会清空所有数据）
+curl -X DELETE http://localhost:17999/api/v1/memories/clear \
+  -H "WRAPPER_MEILI_API_KEY: <your_api_key>"
+
+# 方法 2：错误 key（只返回 403，保护数据）
+curl -X DELETE http://localhost:17999/api/v1/memories/clear \
+  -H "WRAPPER_MEILI_API_KEY: wrong_key"
+```
+
+### 响应示例
+
+**成功** (200)：
+```json
+{
+  "success": true,
+  "message": "所有记忆数据已清空"
+}
+```
+
+**失败 - 缺少 Key** (401)：
+```json
+{
+  "detail": "Missing WRAPPER_MEILI_API_KEY header"
+}
+```
+
+**失败 - Key 错误** (403)：
+```json
+{
+  "detail": "Invalid WRAPPER_MEILI_API_KEY"
+}
+```
+
+**失败 - 清空失败** (500)：
+```json
+{
+  "detail": "清空失败: ..."
+}
+```
+
+### 清空脚本
+
+**位置**：`scripts/clear_all_data.py`
+
+**用途**：清空后端所有数据（SurrealDB + Meilisearch）
+
+**使用方法**：
+```bash
+cd D:/embedding_service
+export WRAPPER_MEILI_API_KEY=<your_api_key>
+uv run python scripts/clear_all_data.py
+```
+
+**清空流程**：
+1. 先清空 Meilisearch（验证 API key）
+2. 如果 Meilisearch 清空成功，再清空 SurrealDB
+3. 如果 API key 错误，Meilisearch 清空失败，SurrealDB 不被清空
+
+### 注意事项
+
+⚠️ **调试专用**：此接口仅用于调试和测试，生产环境应谨慎使用
+⚠️ **数据保护**：API key 验证失败时，数据不会被清空
+⚠️ **不可逆操作**：清空后所有记忆数据将被永久删除

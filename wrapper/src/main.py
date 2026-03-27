@@ -46,15 +46,20 @@ class EmbeddingRequest(BaseModel):
 
 
 class MemoryItem(BaseModel):
-    content: str = Field(..., min_length=1, description="记忆内容")
+    content: str = Field(..., min_length=1, description="记忆内容 (L2)")
+    abstract: str | None = Field(default=None, description="摘要 (L0, ≤100字符)")
+    overview: str | None = Field(default=None, description="概览 (L1, ≤500字符)")
     type: str = Field(default="general", description="记忆类型")
     tags: list[str] = Field(default_factory=list, description="标签列表")
     metadata: dict[str, Any] = Field(default_factory=dict, description="元数据")
     project_id: str = Field(default="global", description="项目ID")
     source: str = Field(default="api", description="来源")
     source_id: str | None = Field(default=None, description="来源ID")
+    local_id: str | None = Field(default=None, description="插件端本地ID (ULID)")
     source_timestamp: str | None = Field(default=None, description="来源时间戳")
     classification_confidence: float | None = Field(default=None, description="分类置信度")
+
+
 class MemoryUploadRequest(BaseModel):
     memories: list[MemoryItem] = Field(..., description="记忆列表")
     tenant_id: str = Field(default="default", description="租户ID")
@@ -65,6 +70,7 @@ class MemorySearchRequest(BaseModel):
     mode: str = Field(default="hybrid", description="搜索模式")
     limit: int = Field(default=10, ge=1, le=100)
     threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+    level: int = Field(default=2, ge=0, le=2, description="返回层级: 0=abstract, 1=abstract+overview, 2=full")
     tenant_id: str = Field(default="default", description="租户ID")
 
 
@@ -96,20 +102,39 @@ class GraphTraversalRequest(BaseModel):
 
 class SyncFingerprint(BaseModel):
     """文件指纹模型，用于增量同步"""
+
     path: str = Field(..., description="文件路径")
     mtime: int = Field(..., description="修改时间戳（毫秒）")
     hash: str = Field(..., description="文件内容哈希（MD5）")
     source_id: str = Field(..., description="记忆唯一标识")
 
 
+class SyncPreviewRequest(BaseModel):
+    """同步预览请求"""
+
+    fingerprints: list[SyncFingerprint] = Field(..., description="本地文件指纹列表")
+    tenant_id: str = Field(default="default", description="租户ID")
+
+
+class SyncPreviewResponse(BaseModel):
+    """同步预览响应"""
+
+    synced: int = Field(default=0, description="成功同步数量")
+    to_upload: list[dict] = Field(default_factory=list, description="需要上传的条目")
+    to_delete: list[str] = Field(default_factory=list, description="需要删除的source_id列表")
+    conflicts: list[dict] = Field(default_factory=list, description="冲突列表")
+
+
 class SyncIncrementalRequest(BaseModel):
-    """增量同步请求"""
+    """增量同步请求（已弃用，请使用 SyncPreviewRequest）"""
+
     fingerprints: list[SyncFingerprint] = Field(..., description="本地文件指纹列表")
     tenant_id: str = Field(default="default", description="租户ID")
 
 
 class SyncIncrementalResponse(BaseModel):
-    """增量同步响应"""
+    """增量同步响应（已弃用，请使用 SyncPreviewResponse）"""
+
     synced: int = Field(default=0, description="成功同步数量")
     to_upload: list[dict] = Field(default_factory=list, description="需要上传的条目")
     to_delete: list[str] = Field(default_factory=list, description="需要删除的source_id列表")
@@ -118,20 +143,23 @@ class SyncIncrementalResponse(BaseModel):
 
 class SyncFullRequest(BaseModel):
     """全量同步请求"""
+
     memories: list[MemoryItem] = Field(..., description="记忆列表")
     tenant_id: str = Field(default="default", description="租户ID")
 
 
 class SyncFullResponse(BaseModel):
-    """全量同步响应"""
     total: int = Field(..., description="总数")
     success: int = Field(..., description="成功数")
     failed: int = Field(..., description="失败数")
+    updated: int = Field(default=0, description="更新数")
+    skipped: list[dict] = Field(default_factory=list, description="去重跳过的条目")
     errors: list[str] = Field(default_factory=list, description="错误列表")
 
 
 class ConflictResolutionRequest(BaseModel):
     """冲突解决请求"""
+
     resolution: str = Field(..., description="解决策略: use_local | use_remote | keep_both")
     tenant_id: str = Field(default="default", description="租户ID")
 
@@ -499,6 +527,7 @@ async def search_memories(request: MemorySearchRequest):
             mode=request.mode,
             limit=request.limit,
             threshold=request.threshold,
+            level=request.level,
             tenant_id=request.tenant_id,
         )
         return result
@@ -528,6 +557,47 @@ async def create_relation(request: RelationCreateRequest):
         raise HTTPException(status_code=400, detail=e.message) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"创建关系失败: {e!s}") from e
+
+
+@app.delete("/api/v1/memories/clear")
+async def clear_memories(request: Request):
+    if not memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    api_key = request.headers.get("WRAPPER_MEILI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=401, detail="Missing WRAPPER_MEILI_API_KEY header")
+
+    if api_key != config.meilisearch.api_key:
+        raise HTTPException(status_code=403, detail="Invalid WRAPPER_MEILI_API_KEY")
+
+    client = meili_client
+    if not client:
+        client = MeilisearchClient(
+            url=config.meilisearch.url,
+            api_key=config.meilisearch.api_key,
+            index_name=config.meilisearch.index_name,
+            timeout=config.meilisearch.timeout,
+        )
+        await client.connect()
+
+    try:
+        logger.warning("[Clear] 清空 Meilisearch...")
+
+        await client.delete_all_documents()
+        logger.info("[Clear] Meilisearch 已清空")
+
+        logger.warning("[Clear] 清空 SurrealDB...")
+        await memory_manager._db.query("DELETE memory;")
+        await memory_manager._db.query("DELETE memory_relation;")
+        await memory_manager._db.query("DELETE conflict;")
+
+        logger.info("[Clear] SurrealDB 已清空")
+
+        return {"success": True, "message": "所有记忆数据已清空"}
+    except Exception as e:
+        logger.error(f"[Clear] 清空失败: {e}")
+        raise HTTPException(status_code=500, detail=f"清空失败: {e!s}") from e
 
 
 @app.post("/api/v1/memories/{memory_id}/relations")
@@ -592,25 +662,29 @@ async def graph_traversal(memory_id: str, request: GraphTraversalRequest):
         raise HTTPException(status_code=500, detail=f"图遍历失败: {e!s}") from e
 
 
-
-
 # ==================== Sync Routes (Phase B) ====================
 
 
-@app.post("/api/v1/sync/incremental", response_model=SyncIncrementalResponse)
-async def sync_incremental(request: SyncIncrementalRequest):
-    """增量同步：比对指纹，返回变更指令"""
+@app.post("/api/v1/sync/preview", response_model=SyncPreviewResponse)
+async def sync_preview(request: SyncPreviewRequest):
+    """同步预览：比对指纹，返回变更指令（不执行上传）"""
     if not memory_manager:
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
-    
+
     try:
-        result = await memory_manager.sync_incremental(
+        result = await memory_manager.sync_preview(
             fingerprints=[f.model_dump() for f in request.fingerprints],
             tenant_id=request.tenant_id,
         )
-        return SyncIncrementalResponse(**result)
+        return SyncPreviewResponse(**result)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"增量同步失败: {e!s}") from e
+        raise HTTPException(status_code=500, detail=f"同步预览失败: {e!s}") from e
+
+
+@app.post("/api/v1/sync/incremental", response_model=SyncIncrementalResponse)
+async def sync_incremental_legacy(request: SyncIncrementalRequest):
+    """增量同步（已弃用，请使用 /api/v1/sync/preview）"""
+    return await sync_preview(SyncPreviewRequest(**request.model_dump()))
 
 
 @app.post("/api/v1/sync/full", response_model=SyncFullResponse)
@@ -618,7 +692,7 @@ async def sync_full(request: SyncFullRequest):
     """全量同步：上传所有记忆"""
     if not memory_manager:
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
-    
+
     try:
         result = await memory_manager.sync_full(
             memories=[m.model_dump() for m in request.memories],
@@ -634,7 +708,7 @@ async def get_server_fingerprints(tenant_id: str = "default"):
     """获取服务端所有记忆的指纹"""
     if not memory_manager:
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
-    
+
     try:
         fingerprints = await memory_manager.get_fingerprints(tenant_id=tenant_id)
         return {"fingerprints": fingerprints, "count": len(fingerprints)}
@@ -647,7 +721,7 @@ async def resolve_conflict_endpoint(conflict_id: str, request: ConflictResolutio
     """解决同步冲突"""
     if not memory_manager:
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
-    
+
     try:
         result = await memory_manager.resolve_conflict(
             conflict_id=conflict_id,
@@ -665,7 +739,7 @@ async def resolve_conflict_endpoint(conflict_id: str, request: ConflictResolutio
 @app.websocket("/ws/memories/live")
 async def websocket_live_memories(websocket: WebSocket, tenant_id: str = "default", token: str | None = None):
     """WebSocket 端点：实时推送记忆变更通知
-    
+
     连接后自动订阅指定租户的 memory 表变更，推送 CREATE/UPDATE/DELETE 通知。
     认证：通过 token 查询参数传递（可选，取决于 WRAPPER_WEBSOCKET_TOKEN 配置）。
     """
@@ -674,26 +748,26 @@ async def websocket_live_memories(websocket: WebSocket, tenant_id: str = "defaul
         await websocket.close(code=1008, reason="Unauthorized")
         logger.warning("[WebSocket] 认证失败，拒绝连接")
         return
-    
+
     await websocket.accept()
     query_uuid = None
-    
+
     try:
         db_manager = await SurrealDBManager.get_instance()
-        
+
         # 启动 LIVE SELECT 查询（过滤租户）
         query_result = await db_manager.db.query(
             "LIVE SELECT * FROM memory WHERE tenant_id = $tenant_id",
             {"tenant_id": tenant_id},
         )
         query_uuid = query_result[0]["result"]
-        
+
         logger.info("[WebSocket] 客户端已连接，订阅租户: %s, query_uuid: %s", tenant_id, query_uuid)
-        
+
         # 订阅并转发通知
         async for notification in db_manager.db.subscribe_live(query_uuid):
             await websocket.send_json(notification)
-            
+
     except WebSocketDisconnect:
         logger.info("[WebSocket] 客户端断开连接")
     except Exception as e:
@@ -714,12 +788,13 @@ async def websocket_live_memories(websocket: WebSocket, tenant_id: str = "defaul
 
 # ==================== HNSW Tuning API (Phase C-B1) ====================
 
+
 @app.get("/api/v1/hnsw/stats")
 async def get_hnsw_stats(tenant_id: str = "default"):
     """Get HNSW index statistics and recommendations"""
     if not memory_manager:
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
-    
+
     try:
         stats = await memory_manager.get_memory_stats(tenant_id)
         return {
@@ -735,7 +810,7 @@ async def optimize_hnsw(tenant_id: str = "default"):
     """Auto-optimize HNSW parameters without rebuilding"""
     if not memory_manager:
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
-    
+
     try:
         result = await memory_manager.optimize_hnsw(tenant_id)
         return {
@@ -751,7 +826,7 @@ async def rebuild_hnsw(tenant_id: str = "default", force: bool = False):
     """Rebuild HNSW index with optimal parameters"""
     if not memory_manager:
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
-    
+
     try:
         result = await memory_manager.rebuild_hnsw_index(tenant_id, force)
         return {
@@ -764,12 +839,13 @@ async def rebuild_hnsw(tenant_id: str = "default", force: bool = False):
 
 # ==================== Embedding Cache API (Phase C-B2) ====================
 
+
 @app.get("/api/v1/cache/stats")
 async def get_cache_stats():
     """Get embedding cache statistics"""
     if not memory_manager:
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
-    
+
     try:
         stats = await memory_manager.get_cache_stats()
         return {"status": "success", "stats": stats}
@@ -782,7 +858,7 @@ async def clear_cache():
     """Clear embedding cache"""
     if not memory_manager:
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
-    
+
     try:
         result = await memory_manager.clear_embedding_cache()
         return {"status": "success", "result": result}
@@ -795,7 +871,7 @@ async def warmup_cache(tenant_id: str = "default", limit: int = 100):
     """Preload embeddings for recent memories into cache"""
     if not memory_manager:
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
-    
+
     try:
         result = await memory_manager.warmup_embedding_cache(tenant_id, limit)
         return {"status": "success", "result": result}
@@ -805,12 +881,13 @@ async def warmup_cache(tenant_id: str = "default", limit: int = 100):
 
 # ==================== Prefetch API (Phase C-B3) ====================
 
+
 @app.post("/api/v1/prefetch/related")
 async def prefetch_related(memory_id: str, tenant_id: str = "default", depth: int = 1, limit: int = 10):
     """Prefetch embeddings for memories related to the given memory"""
     if not memory_manager:
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
-    
+
     try:
         result = await memory_manager.prefetch_related_memories(memory_id, tenant_id, depth, limit)
         return {"status": "success", "result": result}
@@ -823,12 +900,104 @@ async def prefetch_popular(tenant_id: str = "default", top_n: int = 20):
     """Prefetch embeddings for popular memories"""
     if not memory_manager:
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
-    
+
     try:
         result = await memory_manager.prefetch_popular_queries(tenant_id, top_n)
         return {"status": "success", "result": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"预取失败: {e}") from e
+
+
+# ==================== Advanced Analysis API ====================
+
+
+@app.post("/api/v1/memories/{memory_id}/analyze/code")
+async def analyze_memory_code(memory_id: str, tenant_id: str = "default"):
+    """Analyze code content in a memory"""
+    if not memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        result = await memory_manager.analyze_memory_code(memory_id, tenant_id)
+        return {"status": "success", "result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"代码分析失败: {e}") from e
+
+
+@app.post("/api/v1/memories/cluster/leiden")
+async def cluster_memories_leiden(tenant_id: str = "default", content_threshold: float = 0.75, max_clusters: int = 20):
+    """Cluster memories using Leiden algorithm"""
+    if not memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        result = await memory_manager.cluster_memories_leiden(
+            tenant_id=tenant_id, content_threshold=content_threshold, max_clusters=max_clusters
+        )
+        return {"status": "success", "result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"聚类分析失败: {e}") from e
+
+
+# ==================== Advanced Analysis API ====================
+
+
+@app.post("/api/v1/memories/{memory_id}/analyze/code")
+async def analyze_memory_code(memory_id: str, tenant_id: str = "default"):
+    """Analyze code content in a memory"""
+    if not memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        result = await memory_manager.analyze_memory_code(memory_id, tenant_id)
+        return {"status": "success", "result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"代码分析失败: {e}") from e
+
+
+@app.post("/api/v1/memories/cluster/leiden")
+async def cluster_memories_leiden(tenant_id: str = "default", content_threshold: float = 0.75, max_clusters: int = 20):
+    """Cluster memories using Leiden algorithm"""
+    if not memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        result = await memory_manager.cluster_memories_leiden(
+            tenant_id=tenant_id, content_threshold=content_threshold, max_clusters=max_clusters
+        )
+        return {"status": "success", "result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"聚类分析失败: {e}") from e
+
+
+# ==================== v2.4.0 L0/L1/L2 Access Log API ====================
+
+
+class AccessLogEntry(BaseModel):
+    entry_id: str = Field(..., description="记忆ID")
+    timestamp: str = Field(..., description="访问时间戳")
+    type: str = Field(default="read", description="访问类型")
+
+
+class AccessLogRequest(BaseModel):
+    entries: list[AccessLogEntry] = Field(..., description="访问日志条目列表")
+    tenant_id: str = Field(default="default", description="租户ID")
+
+
+@app.post("/api/v1/access-log")
+async def report_access_log(request: AccessLogRequest):
+    """接收访问日志（用于分析记忆使用频率）"""
+    if not memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        result = await memory_manager.report_access_log(
+            [entry.model_dump() for entry in request.entries],
+            tenant_id=request.tenant_id,
+        )
+        return {"status": "success", "result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"记录访问日志失败: {e}") from e
 
 
 if __name__ == "__main__":
