@@ -12,8 +12,8 @@ from dataclasses import dataclass
 logger = logging.getLogger(__name__)
 
 try:
-    import tree_sitter
-    import tree_sitter_languages
+    import tree_sitter  # type: ignore
+    import tree_sitter_languages  # type: ignore
 
     HAS_TREE_SITTER = True
 except ImportError:

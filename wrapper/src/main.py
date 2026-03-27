@@ -210,7 +210,7 @@ class SurrealDBManager:
         return await self.db.query(sql)
 
     # 目标 Schema 版本（与 init_surrealdb.surql 中的 UPSERT 保持一致）
-    SCHEMA_TARGET_VERSION = "2.3.0"
+    SCHEMA_TARGET_VERSION = "2.4.1"
 
     async def ensure_schema(self):
         """确保数据库 Schema 已初始化或已升级（幂等操作 + migration lock + fail-fast）
@@ -408,7 +408,10 @@ async def lifespan(app: FastAPI):
     await close_http_pool()
     await db_manager.disconnect()
 
-    app = FastAPI(title="Minimal Wrapper Service", version="2.4.1", lifespan=lifespan)
+
+# ==================== FastAPI App ====================
+
+app = FastAPI(title="Minimal Wrapper Service", version="2.4.1", lifespan=lifespan)
 
 
 # ==================== 异常处理 ====================
@@ -905,37 +908,6 @@ async def prefetch_popular(tenant_id: str = "default", top_n: int = 20):
         return {"status": "success", "result": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"预取失败: {e}") from e
-
-
-# ==================== Advanced Analysis API ====================
-
-
-@app.post("/api/v1/memories/{memory_id}/analyze/code")
-async def analyze_memory_code(memory_id: str, tenant_id: str = "default"):
-    """Analyze code content in a memory"""
-    if not memory_manager:
-        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
-
-    try:
-        result = await memory_manager.analyze_memory_code(memory_id, tenant_id)
-        return {"status": "success", "result": result}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"代码分析失败: {e}") from e
-
-
-@app.post("/api/v1/memories/cluster/leiden")
-async def cluster_memories_leiden(tenant_id: str = "default", content_threshold: float = 0.75, max_clusters: int = 20):
-    """Cluster memories using Leiden algorithm"""
-    if not memory_manager:
-        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
-
-    try:
-        result = await memory_manager.cluster_memories_leiden(
-            tenant_id=tenant_id, content_threshold=content_threshold, max_clusters=max_clusters
-        )
-        return {"status": "success", "result": result}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"聚类分析失败: {e}") from e
 
 
 # ==================== Advanced Analysis API ====================
