@@ -408,8 +408,7 @@ async def lifespan(app: FastAPI):
     await close_http_pool()
     await db_manager.disconnect()
 
-
-app = FastAPI(title="Minimal Wrapper Service", version="2.3.0", lifespan=lifespan)
+    app = FastAPI(title="Minimal Wrapper Service", version="2.4.1", lifespan=lifespan)
 
 
 # ==================== 异常处理 ====================
@@ -457,7 +456,7 @@ async def health_check():
     result = {
         "status": "healthy",
         "service": "minimal-wrapper",
-        "version": "2.3.0",
+        "version": "2.4.1",
         "port": config.port,
         "embedding_service": embedding_health or {"status": "unhealthy"},
         "surrealdb": surrealdb_health,

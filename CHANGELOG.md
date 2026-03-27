@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1] - 2026-03-28
+
+### Fixed
+
+- **B-005: sync_preview conflict 检测修复**
+
+  修复 `get_fingerprints` 返回空导致 `sync_preview` 无法检测冲突的问题。
+
+  - **B-005-B: SurrealDB 3.0 SDK 结果解析逻辑错误**
+    - 问题：`get_fingerprints` 期望 `result[0]` 是 `{"result": [...]}` 格式，但 SurrealDB 3.0 SDK 直接返回 `[record1, record2, ...]`
+    - 修复：复用已有的 `_extract_records()` 方法
+    - 文件：`wrapper/src/utils/memory_manager.py` 第 1140-1150 行
+
+  - **B-005-C: `get_conflict_detail` 参数化表名语法错误**
+    - 问题：SurrealQL 不支持 `FROM $param` 参数化表名
+    - 问题：SurrealDB RecordID 类型不能直接与字符串比较
+    - 修复：用 `WHERE type::string(id) = $conflict_id` 替代 `FROM $conflict_id`
+    - 文件：`wrapper/src/utils/memory_manager.py` 第 1367-1372 行
+
+### Verification
+
+- E2E 测试通过：上传 memory → 获取 fingerprints → 检测 conflict → 解决 conflict
+
+---
+
 ## [2.4.0] - 2026-03-28
 
 ### Changed

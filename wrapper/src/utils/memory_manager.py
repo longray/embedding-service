@@ -1138,18 +1138,15 @@ class MemoryManager:
             result = await self._db.query(query, {"tenant_id": tenant_id})
 
             fingerprints = []
-            # Handle different SurrealDB result formats
-            if result and isinstance(result, list) and len(result) > 0:
-                records = result[0].get("result", []) if isinstance(result[0], dict) else result
-                for record in records:
-                    if isinstance(record, dict):
-                        fingerprints.append(
-                            {
-                                "source_id": record.get("source_id"),
-                                "hash": record.get("content_hash", ""),
-                                "mtime": record.get("updated_at", 0),
-                            }
-                        )
+            records = self._extract_records(result)
+            for record in records:
+                fingerprints.append(
+                    {
+                        "source_id": record.get("source_id"),
+                        "hash": record.get("content_hash", ""),
+                        "mtime": record.get("updated_at", 0),
+                    }
+                )
             return fingerprints
         except Exception as e:
             logger.error("[Sync] 获取指纹失败: %s", e)
@@ -1367,9 +1364,11 @@ class MemoryManager:
             if not conflict_id.startswith("conflict:"):
                 conflict_id = f"conflict:{conflict_id}"
 
+            # SurrealQL 不支持 FROM $param 参数化表名，必须用 WHERE id = $param
+            # SurrealDB RecordID 类型不能直接与字符串比较，必须用 type::string() 转换
             query = """
-                SELECT * FROM $conflict_id 
-                WHERE tenant_id = $tenant_id
+                SELECT * FROM conflict 
+                WHERE type::string(id) = $conflict_id AND tenant_id = $tenant_id
             """
 
             result = await self._db.query(query, {"conflict_id": conflict_id, "tenant_id": tenant_id})

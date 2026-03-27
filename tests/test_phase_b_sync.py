@@ -20,12 +20,8 @@ class TestSyncFingerprints:
         mock_db = AsyncMock()
         mock_db.query = AsyncMock(
             return_value=[
-                {
-                    "result": [
-                        {"source_id": "entry-001", "content_hash": "abc123", "updated_at": 1234567890},
-                        {"source_id": "entry-002", "content_hash": "def456", "updated_at": 1234567891},
-                    ]
-                }
+                {"source_id": "entry-001", "content_hash": "abc123", "updated_at": 1234567890},
+                {"source_id": "entry-002", "content_hash": "def456", "updated_at": 1234567891},
             ]
         )
 
@@ -47,7 +43,7 @@ class TestSyncFingerprints:
         from wrapper.src.utils.memory_manager import MemoryManager
 
         mock_db = AsyncMock()
-        mock_db.query = AsyncMock(return_value=[{"result": []}])
+        mock_db.query = AsyncMock(return_value=[])
 
         manager = MemoryManager(
             db=mock_db,
@@ -64,7 +60,7 @@ class TestSyncFingerprints:
         from wrapper.src.utils.memory_manager import MemoryManager
 
         mock_db = AsyncMock()
-        mock_db.query = AsyncMock(return_value=[{"result": []}])
+        mock_db.query = AsyncMock(return_value=[])
 
         manager = MemoryManager(
             db=mock_db,
@@ -73,9 +69,9 @@ class TestSyncFingerprints:
 
         await manager.get_fingerprints(tenant_id="tenant-a")
 
-        # Verify tenant_id was passed to query
+        # Verify tenant_id was passed to query (positional args: call_args[0][1] is params dict)
         call_args = mock_db.query.call_args
-        assert call_args[1]["tenant_id"] == "tenant-a"
+        assert call_args[0][1]["tenant_id"] == "tenant-a"
 
 
 class TestSyncPreview:
@@ -87,7 +83,7 @@ class TestSyncPreview:
         from wrapper.src.utils.memory_manager import MemoryManager
 
         mock_db = AsyncMock()
-        mock_db.query = AsyncMock(return_value=[{"result": []}])
+        mock_db.query = AsyncMock(return_value=[])
 
         manager = MemoryManager(
             db=mock_db,
@@ -114,11 +110,7 @@ class TestSyncPreview:
         mock_db = AsyncMock()
         mock_db.query = AsyncMock(
             return_value=[
-                {
-                    "result": [
-                        {"source_id": "entry-old", "content_hash": "xyz789", "updated_at": 1234567890},
-                    ]
-                }
+                {"source_id": "entry-old", "content_hash": "xyz789", "updated_at": 1234567890},
             ]
         )
 
@@ -143,11 +135,7 @@ class TestSyncPreview:
         mock_db = AsyncMock()
         mock_db.query = AsyncMock(
             return_value=[
-                {
-                    "result": [
-                        {"source_id": "entry-001", "content_hash": "server-hash", "updated_at": 1234567890},
-                    ]
-                }
+                {"source_id": "entry-001", "content_hash": "server-hash", "updated_at": 1234567890},
             ]
         )
         mock_db.create = AsyncMock(return_value=[{"id": "conflict:abc123"}])
@@ -176,11 +164,7 @@ class TestSyncPreview:
         mock_db = AsyncMock()
         mock_db.query = AsyncMock(
             return_value=[
-                {
-                    "result": [
-                        {"source_id": "entry-001", "content_hash": "same-hash", "updated_at": 1234567890},
-                    ]
-                }
+                {"source_id": "entry-001", "content_hash": "same-hash", "updated_at": 1234567890},
             ]
         )
 
@@ -335,6 +319,20 @@ class TestResolveConflict:
         from wrapper.src.utils.memory_manager import MemoryManager
 
         mock_db = AsyncMock()
+        mock_db.query = AsyncMock(
+            return_value=[
+                {
+                    "id": "conflict:conflict-001",
+                    "source_id": "entry-001",
+                    "local_hash": "local-hash",
+                    "server_hash": "server-hash",
+                    "tenant_id": "test-tenant",
+                    "status": "pending",
+                    "local_content": "local content",
+                    "server_content": "server content",
+                }
+            ]
+        )
 
         manager = MemoryManager(
             db=mock_db,
@@ -355,6 +353,20 @@ class TestResolveConflict:
         from wrapper.src.utils.memory_manager import MemoryManager
 
         mock_db = AsyncMock()
+        mock_db.query = AsyncMock(
+            return_value=[
+                {
+                    "id": "conflict:conflict-002",
+                    "source_id": "entry-002",
+                    "local_hash": "local-hash2",
+                    "server_hash": "server-hash2",
+                    "tenant_id": "test-tenant",
+                    "status": "pending",
+                    "local_content": "local content",
+                    "server_content": "server content",
+                }
+            ]
+        )
 
         manager = MemoryManager(
             db=mock_db,
@@ -373,15 +385,31 @@ class TestResolveConflict:
         from wrapper.src.utils.memory_manager import MemoryManager
 
         mock_db = AsyncMock()
+        mock_db.query = AsyncMock(
+            return_value=[
+                {
+                    "id": "conflict:conflict-003",
+                    "source_id": "entry-003",
+                    "local_hash": "local-hash3",
+                    "server_hash": "server-hash3",
+                    "tenant_id": "test-tenant",
+                    "status": "pending",
+                    "local_content": "local content",
+                    "server_content": "server content",
+                }
+            ]
+        )
+        mock_db.create = AsyncMock(return_value=[{"id": "memory:new999"}])
 
         manager = MemoryManager(
             db=mock_db,
             embedding_service_url="http://localhost:18000",
         )
 
-        result = await manager.resolve_conflict(
-            conflict_id="conflict-003", resolution="keep_both", tenant_id="test-tenant"
-        )
+        with patch.object(manager, "_get_embeddings", return_value=[[0.1, 0.2, 0.3]]):
+            result = await manager.resolve_conflict(
+                conflict_id="conflict-003", resolution="keep_both", tenant_id="test-tenant"
+            )
 
         assert result["resolution"] == "keep_both"
 
@@ -511,7 +539,7 @@ class TestSyncIntegration:
         from wrapper.src.utils.memory_manager import MemoryManager
 
         mock_db = AsyncMock()
-        mock_db.query = AsyncMock(return_value=[{"result": []}])
+        mock_db.query = AsyncMock(return_value=[])
 
         manager = MemoryManager(
             db=mock_db,
@@ -586,24 +614,20 @@ class TestConflictPersistence:
         mock_db.query = AsyncMock(
             return_value=[
                 {
-                    "result": [
-                        {
-                            "id": "conflict:abc123",
-                            "source_id": "entry-001",
-                            "local_hash": "local-hash",
-                            "server_hash": "server-hash",
-                            "local_content": "local content",
-                            "server_content": "server content",
-                            "local_mtime": 1234567890,
-                            "server_mtime": 1234567891,
-                            "tenant_id": "test-tenant",
-                            "status": "pending",
-                            "resolution": None,
-                            "resolved_at": None,
-                            "created_at": "2023-01-01T00:00:00Z",
-                            "updated_at": "2023-01-01T00:00:00Z",
-                        }
-                    ]
+                    "id": "conflict:abc123",
+                    "source_id": "entry-001",
+                    "local_hash": "local-hash",
+                    "server_hash": "server-hash",
+                    "local_content": "local content",
+                    "server_content": "server content",
+                    "local_mtime": 1234567890,
+                    "server_mtime": 1234567891,
+                    "tenant_id": "test-tenant",
+                    "status": "pending",
+                    "resolution": None,
+                    "resolved_at": None,
+                    "created_at": "2023-01-01T00:00:00Z",
+                    "updated_at": "2023-01-01T00:00:00Z",
                 }
             ]
         )
@@ -636,24 +660,20 @@ class TestConflictPersistence:
         mock_db.query = AsyncMock(
             return_value=[
                 {
-                    "result": [
-                        {
-                            "id": "conflict:def456",
-                            "source_id": "entry-002",
-                            "local_hash": "local-hash2",
-                            "server_hash": "server-hash2",
-                            "local_content": "local content2",
-                            "server_content": "server content2",
-                            "local_mtime": 1234567892,
-                            "server_mtime": 1234567893,
-                            "tenant_id": "test-tenant",
-                            "status": "pending",
-                            "resolution": None,
-                            "resolved_at": None,
-                            "created_at": "2023-01-01T00:00:00Z",
-                            "updated_at": "2023-01-01T00:00:00Z",
-                        }
-                    ]
+                    "id": "conflict:def456",
+                    "source_id": "entry-002",
+                    "local_hash": "local-hash2",
+                    "server_hash": "server-hash2",
+                    "local_content": "local content2",
+                    "server_content": "server content2",
+                    "local_mtime": 1234567892,
+                    "server_mtime": 1234567893,
+                    "tenant_id": "test-tenant",
+                    "status": "pending",
+                    "resolution": None,
+                    "resolved_at": None,
+                    "created_at": "2023-01-01T00:00:00Z",
+                    "updated_at": "2023-01-01T00:00:00Z",
                 }
             ]
         )
@@ -691,32 +711,28 @@ class TestResolveConflictRealStrategies:
                 # First call: get conflict detail (get_conflict_detail)
                 [
                     {
-                        "result": [
-                            {
-                                "id": "conflict:abc123",
-                                "source_id": "entry-001",
-                                "local_hash": "local-hash",
-                                "server_hash": "server-hash",
-                                "local_content": "Updated local content",
-                                "server_content": "Original server content",
-                                "local_mtime": 1234567890,
-                                "server_mtime": 1234567891,
-                                "tenant_id": "test-tenant",
-                                "status": "pending",
-                                "resolution": None,
-                                "resolved_at": None,
-                                "created_at": "2023-01-01T00:00:00Z",
-                                "updated_at": "2023-01-01T00:00:00Z",
-                            }
-                        ]
+                        "id": "conflict:abc123",
+                        "source_id": "entry-001",
+                        "local_hash": "local-hash",
+                        "server_hash": "server-hash",
+                        "local_content": "Updated local content",
+                        "server_content": "Original server content",
+                        "local_mtime": 1234567890,
+                        "server_mtime": 1234567891,
+                        "tenant_id": "test-tenant",
+                        "status": "pending",
+                        "resolution": None,
+                        "resolved_at": None,
+                        "created_at": "2023-01-01T00:00:00Z",
+                        "updated_at": "2023-01-01T00:00:00Z",
                     }
                 ],
                 # Second call: update memory in surrealdb (UPDATE query)
-                [{"result": [{"id": "memory:xyz789"}]}],
+                [{"id": "memory:xyz789"}],
                 # Third call: select updated memory id (SELECT query)
-                [{"result": [{"id": "memory:xyz789"}]}],
+                [{"id": "memory:xyz789"}],
                 # Fourth call: update conflict status (UPDATE query)
-                [{"result": [{"id": "conflict:abc123", "status": "resolved", "resolution": "use_local"}]}],
+                [{"id": "conflict:abc123", "status": "resolved", "resolution": "use_local"}],
             ]
         )
 
@@ -761,28 +777,24 @@ class TestResolveConflictRealStrategies:
                 # First call: get conflict detail
                 [
                     {
-                        "result": [
-                            {
-                                "id": "conflict:def456",
-                                "source_id": "entry-002",
-                                "local_hash": "local-hash2",
-                                "server_hash": "server-hash2",
-                                "local_content": "Local content that will be discarded",
-                                "server_content": "Keep this server content",
-                                "local_mtime": 1234567892,
-                                "server_mtime": 1234567893,
-                                "tenant_id": "test-tenant",
-                                "status": "pending",
-                                "resolution": None,
-                                "resolved_at": None,
-                                "created_at": "2023-01-01T00:00:00Z",
-                                "updated_at": "2023-01-01T00:00:00Z",
-                            }
-                        ]
+                        "id": "conflict:def456",
+                        "source_id": "entry-002",
+                        "local_hash": "local-hash2",
+                        "server_hash": "server-hash2",
+                        "local_content": "Local content that will be discarded",
+                        "server_content": "Keep this server content",
+                        "local_mtime": 1234567892,
+                        "server_mtime": 1234567893,
+                        "tenant_id": "test-tenant",
+                        "status": "pending",
+                        "resolution": None,
+                        "resolved_at": None,
+                        "created_at": "2023-01-01T00:00:00Z",
+                        "updated_at": "2023-01-01T00:00:00Z",
                     }
                 ],
                 # Second call: update conflict status
-                [{"result": [{"id": "conflict:def456", "status": "resolved", "resolution": "use_remote"}]}],
+                [{"id": "conflict:def456", "status": "resolved", "resolution": "use_remote"}],
             ]
         )
 
@@ -813,28 +825,24 @@ class TestResolveConflictRealStrategies:
                 # First call: get conflict detail
                 [
                     {
-                        "result": [
-                            {
-                                "id": "conflict:ghi789",
-                                "source_id": "entry-003",
-                                "local_hash": "local-hash3",
-                                "server_hash": "server-hash3",
-                                "local_content": "Local content that will be kept as separate record",
-                                "server_content": "Server content that stays",
-                                "local_mtime": 1234567894,
-                                "server_mtime": 1234567895,
-                                "tenant_id": "test-tenant",
-                                "status": "pending",
-                                "resolution": None,
-                                "resolved_at": None,
-                                "created_at": "2023-01-01T00:00:00Z",
-                                "updated_at": "2023-01-01T00:00:00Z",
-                            }
-                        ]
+                        "id": "conflict:ghi789",
+                        "source_id": "entry-003",
+                        "local_hash": "local-hash3",
+                        "server_hash": "server-hash3",
+                        "local_content": "Local content that will be kept as separate record",
+                        "server_content": "Server content that stays",
+                        "local_mtime": 1234567894,
+                        "server_mtime": 1234567895,
+                        "tenant_id": "test-tenant",
+                        "status": "pending",
+                        "resolution": None,
+                        "resolved_at": None,
+                        "created_at": "2023-01-01T00:00:00Z",
+                        "updated_at": "2023-01-01T00:00:00Z",
                     }
                 ],
                 # Subsequent call: update conflict status
-                [{"result": [{"id": "conflict:ghi789", "status": "resolved", "resolution": "keep_both"}]}],
+                [{"id": "conflict:ghi789", "status": "resolved", "resolution": "keep_both"}],
             ]
         )
 
@@ -883,19 +891,8 @@ class TestConflictIsolation:
             embedding_service_url="http://localhost:18000",
         )
 
-        # Track calls to verify tenant isolation
-        async def mock_query(query, params):
-            # Verify that tenant_id is always passed in params
-            assert "tenant_id" in params
-            if "SELECT *" in query and "conflict" in query:
-                # Return empty results for isolation test
-                return [{"result": []}]
-            elif "SELECT *" in query and "memory:" in query:
-                return [{"result": []}]
-            else:
-                return [{"result": []}]
-
-        mock_db.query = mock_query
+        # Mock query to track calls
+        mock_db.query = AsyncMock(return_value=[])
         mock_db.create = AsyncMock(return_value=[{"id": "conflict:isolated123"}])
 
         # Record a conflict for tenant A

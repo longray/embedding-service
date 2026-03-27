@@ -32,7 +32,7 @@ embedding_service/
 │       └── llm_service.py       # LLM API (端口 18001)
 ├── wrapper/                     # 包装层服务 (端口 17999)
 │   └── src/
-│       ├── main.py             # FastAPI 主程序 (v2.4.0)
+│       ├── main.py             # FastAPI 主程序 (v2.4.1)
 │       ├── config.py           # 配置管理 (含 MeilisearchConfig)
 │       └── utils/
 │           ├── memory_manager.py # 记忆管理（双写 + 搜索路由）
@@ -70,6 +70,11 @@ uv run pyright
 
 ## 最近变更
 
+- **v2.4.1 sync_preview conflict 检测修复**：
+  - 修复 `get_fingerprints` 返回空导致无法检测冲突
+  - B-005-B: SurrealDB 3.0 SDK 结果解析逻辑错误（改用 `_extract_records()`）
+  - B-005-C: `get_conflict_detail` 参数化表名语法错误（改用 `type::string(id)`）
+  - E2E 测试通过：上传 → 查指纹 → 检测冲突 → 解决冲突
 - **v2.4.0 API 行为优化**：
   - `/api/v1/sync/incremental` → `/api/v1/sync/preview`（旧路由保留为别名）
   - `SyncFullResponse` 新增 `skipped` 列表（含 `local_id`、`existing_id`、`reason`、`similarity`）

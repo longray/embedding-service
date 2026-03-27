@@ -3,7 +3,7 @@
 -- v2.4.0 L0/L1/L2 Layered Storage Schema Update
 -- 版本: 2.4.0
 -- 兼容: SurrealDB >= 2.0
--- 变更: 添加 content_abstract, content_overview, local_id 字段
+-- 变更: 添加 content_abstract, content_overview, local_id, source_id, content_hash 字段
 -- ============================================================
 
 -- ==================== v2.4.0: L0/L1/L2 分层字段 ====================
@@ -20,11 +20,17 @@ DEFINE FIELD IF NOT EXISTS content_overview ON memory TYPE option<string>
 DEFINE FIELD IF NOT EXISTS local_id ON memory TYPE option<string>
     ASSERT $value == NONE OR string::len($value) == 18;
 
--- 4. 为 local_id 创建唯一索引（可选，防止重复上传）
+-- 4. 添加 source_id 字段（用于 sync_preview 指纹关联）
+DEFINE FIELD IF NOT EXISTS source_id ON memory TYPE option<string>;
+
+-- 5. 添加 content_hash 字段（用于 hash 去重和指纹比对）
+DEFINE FIELD IF NOT EXISTS content_hash ON memory TYPE option<string>;
+
+-- 6. 为 local_id 创建唯一索引（可选，防止重复上传）
 DEFINE INDEX IF NOT EXISTS memory_local_id ON memory
     FIELDS local_id;
 
--- 5. 为 content_abstract 创建全文索引（L0 快速查询）
+-- 7. 为 content_abstract 创建全文索引（L0 快速查询）
 -- 注意：需要先用 memory_analyzer 确保已存在
 DEFINE INDEX IF NOT EXISTS memory_abstract_ft ON memory
     FIELDS content_abstract FULLTEXT ANALYZER memory_analyzer BM25;

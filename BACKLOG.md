@@ -6,6 +6,36 @@
 
 ---
 
+## v2.4.1 - sync_preview conflict 检测修复
+
+### B-005: upload_memories 上传后 get_fingerprints 返回空 ✅ 已完成
+
+**真实场景**: 用户备份恢复后，本地有多条记忆需要同步。调用 `full_sync` 上传完毕，再用 `sync_preview`，期望检测到本地有修改的条目（hash 变了）产生 conflict。但实际 sync_preview 总是返回所有条目为 `new`，永远检测不到 conflict。
+
+**根因**: 分三步
+
+#### B-005-A: SCHEMAFULL 字段未定义 ✅
+
+- schema 文件未定义 `content_hash` 字段，`TYPE NORMAL SCHEMAFULL` 模式下 INSERT 时字段被静默忽略
+- 已通过直接 SQL 修复
+
+#### B-005-B: SurrealDB 3.0 SDK 结果解析逻辑错误 ✅
+
+- **涉及范围**: `wrapper/src/utils/memory_manager.py` 第 1130-1150 行
+- **修复**: 复用已有的 `_extract_records()` 方法
+
+#### B-005-C: `get_conflict_detail` 参数化表名语法错误 ✅
+
+- **涉及范围**: `wrapper/src/utils/memory_manager.py` 第 1363-1372 行
+- **修复**: 用 `WHERE type::string(id) = $conflict_id` 替代 `FROM $conflict_id`
+
+**E2E 验证**:
+1. 上传 memory → 获取 fingerprints ✅
+2. 修改本地 hash → sync_preview 检测到 conflict ✅
+3. 调用 resolve → conflict 解决成功 ✅
+
+---
+
 ## 待定
 
 （暂无）
