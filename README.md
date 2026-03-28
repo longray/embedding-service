@@ -1,14 +1,14 @@
 # Embedding Service (OpenCode Memory Stack)
 
 版本与路线图
-- 当前版本: v2.4.1
-- 实施阶段: P0 + P1 + P2 + Phase 3 + Polyglot 搜索架构 + 同步冲突解决 已完成
+- 当前版本: v2.4.2
+- 实施阶段: P0 + P1 + P2 + Phase 3 + Polyglot 搜索架构 + 同步冲突解决 + SQL 注入修复 已完成
 - 详细路线见 ROADMAP.md
 
 ## 开发状态
 
-**当前版本**: v2.4.1
-**实施阶段**: P0 + P1 + P2 + Phase 3 + Polyglot 搜索架构 + 同步冲突解决 已完成
+**当前版本**: v2.4.2
+**实施阶段**: P0 + P1 + P2 + Phase 3 + Polyglot 搜索架构 + 同步冲突解决 + SQL 注入修复 已完成
 
 ### 已完成 ✅
 - ✅ P0 核心功能（Embedding + LLM + 包装层）
@@ -21,6 +21,10 @@
 - ✅ Phase 3C 安全加固（DB 权限分离 + 运行时凭据）
 - ✅ Phase 3D WebSocket 实时推送（LIVE SELECT）
 - ✅ Phase 3E Polyglot 搜索架构（Meilisearch 全文搜索 + SurrealDB 向量/图）
+- ✅ **v2.4.2** API 稳定性修复（B-010, B-012, B-018, B-019）
+- ✅ **v2.4.2** 性能基线建立（scripts/benchmark.py）
+- ✅ **v2.4.2** SQL 注入修复（B-024 LIMIT/relationship_type 参数化, B-025 record_id type::record()）
+- ✅ **v2.4.2** Bandit 安全扫描标记完成
 
 ### P3 优化路线图 🚀
 
@@ -276,7 +280,24 @@ uv run pytest tests/test_phase_b_sync.py -v
 
 # 运行所有测试
 uv run pytest tests/ -v
+
+# 运行性能基准测试（v2.4.2+）
+uv run python scripts/benchmark.py --iterations 5
 ```
+
+### 性能基线（v2.4.2）
+
+运行 `scripts/benchmark.py` 获取当前环境性能数据：
+
+| 操作 | 平均延迟 | P50 | P95 |
+|------|----------|-----|-----|
+| 单文本 Embedding | 156ms | 160ms | 201ms |
+| 向量搜索 | 157ms | 156ms | 180ms |
+| 混合搜索 | 21ms | 22ms | 24ms |
+| 单条上传 | 542ms | 699ms | 724ms |
+| E2E 完整流程 | 883ms | 884ms | 919ms |
+
+**环境**: NVIDIA GTX 1060 6GB, Qwen3-Embedding-0.6B, SurrealDB 3.0 + Meilisearch 1.4
 
 ### 同步冲突解决
 
