@@ -1347,9 +1347,9 @@ class MemoryManager:
             if status:
                 where_conditions.append("status = $status")
 
-            where_clause = " AND ".join(where_conditions)
+            where_clause = " AND ".join(where_conditions)  # nosec B608: 白名单构建，仅 tenant_id/status
 
-            query = """  # nosec B608
+            query = """
                 SELECT * FROM conflict 
                 WHERE {where_clause}
                 ORDER BY created_at DESC
