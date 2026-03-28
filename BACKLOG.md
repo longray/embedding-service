@@ -289,20 +289,43 @@
 
 ---
 
-### B-019: warmup_embedding_cache SELECT 缺少 ORDER BY 字段 ✅ 已完成
+### B-025: B608 record_id SQL 注入修复 ✅ 已完成
 
-**真实场景**: 用户调用 `/api/v1/cache/warmup`，服务端执行 `SELECT id, content FROM memory ORDER BY created_at DESC`，SurrealDB 3.0 要求 ORDER BY 的字段必须在 SELECT 中，否则报 "Missing order idiom" 错误，API 返回 500。
+**真实场景**: Bandit 安全扫描报告 B608（硬编码 SQL 表达式）警告，发现多处 `WHERE in = {mem_ref}`、`FROM {mem_ref}`、`UPDATE {record_id}` 使用 f-string 拼接 record ID，存在 SQL 注入风险。
 
-**目标**: Cache Warmup API 正常返回 200。
+**目标**: 使用 SurrealDB 3.0+ 的 `type::record($table, $id)` 函数安全构建 record ID，消除 f-string 拼接。
 
 **涉及范围**:
-- `wrapper/src/utils/memory_manager.py` — `warmup_embedding_cache()` 第 1781-1786 行
+- `wrapper/src/utils/memory_manager.py`:
+  - L842, L856: `get_relations()` - `WHERE in/out = {mem_ref}`
+  - L887, L893: `delete_relation()` - `SELECT FROM {rel_ref}`, `DELETE {rel_ref}`
+  - L921-922: `get_related_memories()` - `FROM {mem_ref}`
+  - L1106: `_update_memory()` - `UPDATE {record_id}`
 
-**根因**: `SELECT id, content` 缺少 `created_at` 字段
+**修复策略**:
+1. 拆分 record ID（`"memory:abc123"` → `table="memory"`, `id="abc123"`）
+2. 使用 `type::record($table, $id)` 安全构建 record ID
+3. 通过参数绑定传递 table 和 id
 
-**修复**: `SELECT id, content` → `SELECT id, content, created_at`
+**修复示例**:
+```python
+# Before
+await self._db.query(f"UPDATE {record_id} SET {set_str}", params)
 
-**验证**: 需要**重启 wrapper 服务**后 E2E 验证
+# After  
+rid_parts = record_id.split(":")
+rid_table, rid_id = rid_parts[0], rid_parts[1]
+params["rid_table"] = rid_table
+params["rid_id"] = rid_id
+await self._db.query("UPDATE type::record($rid_table, $rid_id) SET {set_str}", params)
+```
+
+**验证**:
+- `uv run pytest tests/test_phase_b_sync.py -v` → 32/32 passed ✅
+- `uv run pyright wrapper/src/utils/memory_manager.py` → 0 errors ✅
+- Bandit B608 剩余警告：仅 `where_clause`（白名单构建，实际安全）
+
+**SurrealDB 参考**: `type::record()` 函数官方文档 —— 从参数安全构建 record ID（替代 v1.x 的 `type::thing()`）
 
 ---
 

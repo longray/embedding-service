@@ -485,10 +485,10 @@ class MemoryManager:
                 "WHERE tenant_id = $tenant_id "
                 "AND vector::similarity::cosine(embedding, $query_embedding) >= $threshold "
                 "ORDER BY score DESC "
-                f"LIMIT {int(limit)}"
+                "LIMIT $limit"
             )
             result = await self._db.query(
-                q, {"tenant_id": tenant_id, "query_embedding": embedding, "threshold": threshold}
+                q, {"tenant_id": tenant_id, "query_embedding": embedding, "threshold": threshold, "limit": limit}
             )
 
             results = self._format_similarity_results(result)
@@ -554,9 +554,9 @@ class MemoryManager:
                 "WHERE tenant_id = $tenant_id "
                 f"AND content @1@ '{safe_query}' "  # nosec B608
                 "ORDER BY score DESC "
-                f"LIMIT {int(limit)}"  # nosec B608
+                "LIMIT $limit"
             )
-            result = await self._db.query(q, {"tenant_id": tenant_id})
+            result = await self._db.query(q, {"tenant_id": tenant_id, "limit": limit})
             results = self._format_keyword_results(result)
             span.set_attribute("search.keyword.result_count", len(results))
             return results
@@ -834,32 +834,52 @@ class MemoryManager:
             try:
                 results: list[dict[str, Any]] = []
 
+                # 拆分 mem_ref 为 table 和 id
+                mem_parts = mem_ref.split(":")
+                mem_table, mem_id = mem_parts[0], mem_parts[1] if len(mem_parts) > 1 else mem_parts[0]
+
                 if direction in ("outgoing", "both"):
                     q = (
-                        f"SELECT *, meta::id(id) AS relation_id, "  # nosec B608
-                        f"meta::id(in) AS from_id, meta::id(out) AS to_id "
-                        f"FROM memory_relation "
-                        f"WHERE in = {mem_ref} AND tenant_id = $tenant_id "
+                        "SELECT *, meta::id(id) AS relation_id, "
+                        "meta::id(in) AS from_id, meta::id(out) AS to_id "
+                        "FROM memory_relation "
+                        "WHERE in = type::record($mem_table, $mem_id) AND tenant_id = $tenant_id "
                     )
                     if relationship_type:
-                        safe_type = self._sanitize_query(relationship_type)
-                        q += f"AND relationship_type = '{safe_type}' "  # nosec B608
-                    q += f"LIMIT {int(limit)}"
-                    r = await self._db.query(q, {"tenant_id": effective_tenant_id})
+                        q += "AND relationship_type = $relationship_type "
+                    q += "LIMIT $limit"
+                    r = await self._db.query(
+                        q,
+                        {
+                            "tenant_id": effective_tenant_id,
+                            "mem_table": mem_table,
+                            "mem_id": mem_id,
+                            "relationship_type": relationship_type,
+                            "limit": limit,
+                        },
+                    )
                     results.extend(self._format_relation_results(r, "outgoing"))
 
                 if direction in ("incoming", "both"):
                     q = (
-                        f"SELECT *, meta::id(id) AS relation_id, "  # nosec B608
-                        f"meta::id(in) AS from_id, meta::id(out) AS to_id "
-                        f"FROM memory_relation "
-                        f"WHERE out = {mem_ref} AND tenant_id = $tenant_id "
+                        "SELECT *, meta::id(id) AS relation_id, "
+                        "meta::id(in) AS from_id, meta::id(out) AS to_id "
+                        "FROM memory_relation "
+                        "WHERE out = type::record($mem_table, $mem_id) AND tenant_id = $tenant_id "
                     )
                     if relationship_type:
-                        safe_type = self._sanitize_query(relationship_type)
-                        q += f"AND relationship_type = '{safe_type}' "  # nosec B608
-                    q += f"LIMIT {int(limit)}"
-                    r = await self._db.query(q, {"tenant_id": effective_tenant_id})
+                        q += "AND relationship_type = $relationship_type "
+                    q += "LIMIT $limit"
+                    r = await self._db.query(
+                        q,
+                        {
+                            "tenant_id": effective_tenant_id,
+                            "mem_table": mem_table,
+                            "mem_id": mem_id,
+                            "relationship_type": relationship_type,
+                            "limit": limit,
+                        },
+                    )
                     results.extend(self._format_relation_results(r, "incoming"))
 
                 span.set_attribute("graph.relation_count", len(results))
@@ -883,14 +903,20 @@ class MemoryManager:
         rel_ref = self._normalize_relation_id(relation_id)
 
         try:
+            # 拆分 rel_ref 为 table 和 id
+            rel_parts = rel_ref.split(":")
+            rel_table, rel_id = rel_parts[0], rel_parts[1] if len(rel_parts) > 1 else rel_parts[0]
+
             # 先验证关系存在且属于该租户
-            q = f"SELECT id FROM {rel_ref} WHERE tenant_id = $tenant_id"  # nosec B608
-            check = await self._db.query(q, {"tenant_id": effective_tenant_id})
+            q = "SELECT id FROM type::record($rel_table, $rel_id) WHERE tenant_id = $tenant_id"
+            check = await self._db.query(
+                q, {"tenant_id": effective_tenant_id, "rel_table": rel_table, "rel_id": rel_id}
+            )
             records = self._extract_records(check)
             if not records:
                 return False
 
-            await self._db.query(f"DELETE {rel_ref}")  # nosec B608
+            await self._db.query("DELETE type::record($rel_table, $rel_id)", {"rel_table": rel_table, "rel_id": rel_id})
             return True
         except Exception as e:
             raise DatabaseError(f"Failed to delete relation: {e!s}") from e
@@ -917,11 +943,15 @@ class MemoryManager:
             try:
                 path = "->memory_relation->memory" * depth
 
+                # 拆分 mem_ref 为 table 和 id
+                mem_parts = mem_ref.split(":")
+                mem_table, mem_id = mem_parts[0], mem_parts[1] if len(mem_parts) > 1 else mem_parts[0]
+
                 q = (
-                    f"SELECT {path}.* AS related "  # nosec B608
-                    f"FROM {mem_ref}"  # nosec B608
+                    f"SELECT {path}.* AS related "  # path 是内部常量，安全
+                    "FROM type::record($mem_table, $mem_id)"
                 )
-                result = await self._db.query(q)
+                result = await self._db.query(q, {"mem_table": mem_table, "mem_id": mem_id})
 
                 seen: set[str] = set()
                 memories: list[dict[str, Any]] = []
@@ -1071,9 +1101,15 @@ class MemoryManager:
         set_clauses.append("updated_at = time::now()")
         set_str = ", ".join(set_clauses)
 
-        params = {k: v for k, v in update_fields.items() if k != "updated_at"}
+        # 拆分 record_id 为 table 和 id
+        rid_parts = record_id.split(":")
+        rid_table, rid_id = rid_parts[0], rid_parts[1] if len(rid_parts) > 1 else rid_parts[0]
 
-        await self._db.query(f"UPDATE {record_id} SET {set_str}", params)
+        params = {k: v for k, v in update_fields.items() if k != "updated_at"}
+        params["rid_table"] = rid_table
+        params["rid_id"] = rid_id
+
+        await self._db.query(f"UPDATE type::record($rid_table, $rid_id) SET {set_str}", params)
 
     def _build_meili_doc(self, record_id: str, memory: dict[str, Any], tenant_id: str) -> dict[str, Any]:
         """构建 Meilisearch 文档"""
