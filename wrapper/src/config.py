@@ -49,7 +49,7 @@ class SurrealDBConfig:
 @dataclass
 class ServiceConfig:
     embedding_service_url: str = "http://localhost:18000"
-    llm_service_url: str = "http://localhost:18001"
+    # 注：LLM 服务独立运行（端口 18001），wrapper 不调用它
 
 
 @dataclass

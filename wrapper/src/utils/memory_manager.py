@@ -1140,9 +1140,12 @@ class MemoryManager:
             fingerprints = []
             records = self._extract_records(result)
             for record in records:
+                source_id = record.get("source_id")
+                if not source_id:
+                    continue  # 跳过 source_id 为 None 的脏数据
                 fingerprints.append(
                     {
-                        "source_id": record.get("source_id"),
+                        "source_id": source_id,
                         "hash": record.get("content_hash", ""),
                         "mtime": record.get("updated_at", 0),
                     }
@@ -1205,7 +1208,7 @@ class MemoryManager:
             # 3. 检查服务端 → 本地（需要删除）
             for server_fp in server_fingerprints:
                 source_id = server_fp["source_id"]
-                if source_id not in local_map:
+                if source_id and source_id not in local_map:
                     to_delete.append(source_id)
 
             logger.info(
@@ -1624,18 +1627,18 @@ class MemoryManager:
         """获取记忆统计数据"""
         try:
             # 计算各种统计数据
-            query = "SELECT count(*) as total FROM memory WHERE tenant_id = $tenant_id"
+            query = "SELECT count() as total FROM memory WHERE tenant_id = $tenant_id"
             result = await self._db.query(query, {"tenant_id": tenant_id})
             raw_items = self._extract_records(result)
             total_memories = raw_items[0].get("total", 0) if raw_items else 0
 
             # 按类型分类
-            type_query = "SELECT type, count(*) as count FROM memory WHERE tenant_id = $tenant_id GROUP BY type"
+            type_query = "SELECT type, count() as count FROM memory WHERE tenant_id = $tenant_id GROUP BY type"
             type_result = await self._db.query(type_query, {"tenant_id": tenant_id})
             type_stats = self._extract_records(type_result)
 
-            # 按日期统计
-            date_query = "SELECT date_trunc('day', created_at) as day, count(*) as count FROM memory WHERE tenant_id = $tenant_id GROUP BY day ORDER BY day DESC LIMIT 7"
+            # 按日期统计（SurrealDB 用 time::group 替代 date_trunc）
+            date_query = "SELECT count() as count, time::group(created_at, 'day') as day FROM memory WHERE tenant_id = $tenant_id GROUP BY day ORDER BY day DESC LIMIT 7"
             date_result = await self._db.query(date_query, {"tenant_id": tenant_id})
             date_stats = self._extract_records(date_result)
 
@@ -1765,34 +1768,40 @@ class MemoryManager:
         return {"cleared": False, "message": "No cache available"}
 
     async def warmup_embedding_cache(self, tenant_id: str = "default", limit: int = 100) -> dict:
-        """预加载最近记忆的嵌入到缓存"""
         try:
-            # 获取最近的几条记忆
-            query = f"""
-                SELECT id, content FROM memory 
+            if not self._vector_cache:
+                return {
+                    "loaded": 0,
+                    "attempted": 0,
+                    "limit": limit,
+                    "tenant_id": tenant_id,
+                    "skipped_reason": "cache_disabled",
+                }
+
+            query = """
+                SELECT id, content, created_at FROM memory 
                 WHERE tenant_id = $tenant_id 
                 ORDER BY created_at DESC 
-                LIMIT {limit}
+                LIMIT $limit
             """
-            result = await self._db.query(query, {"tenant_id": tenant_id})
+            result = await self._db.query(query, {"tenant_id": tenant_id, "limit": limit})
             records = self._extract_records(result)
 
             loaded_count = 0
             for record in records:
                 content = record.get("content", "")
-                if content and self._vector_cache:
-                    try:
-                        # 预计算并缓存嵌入
-                        embeddings = await self._get_embeddings([content])
-                        embedding = embeddings[0] if embeddings else []
+                if not content:
+                    continue
+                try:
+                    embeddings = await self._get_embeddings([content])
+                    embedding = embeddings[0] if embeddings else []
 
-                        if embedding:
-                            # 将嵌入缓存起来以便后续检索使用
-                            cache_key = hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()
-                            await self._vector_cache.set(cache_key, embedding, ttl=self._cache_ttl)
-                            loaded_count += 1
-                    except Exception:
-                        continue  # 继续处理其他记忆
+                    if embedding:
+                        cache_key = hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()
+                        await self._vector_cache.set(cache_key, embedding, ttl=self._cache_ttl)
+                        loaded_count += 1
+                except Exception:
+                    continue
 
             return {"loaded": loaded_count, "attempted": len(records), "limit": limit, "tenant_id": tenant_id}
         except Exception as e:

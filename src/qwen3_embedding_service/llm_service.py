@@ -1,6 +1,9 @@
+import asyncio
+import functools
 import hashlib
 import logging
 import os
+import threading
 import time
 
 # 在 llm_service.py 顶部添加（消除视觉干扰）
@@ -11,7 +14,7 @@ from typing import Literal
 import torch
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 warnings.filterwarnings(
@@ -116,6 +119,9 @@ except Exception as e:
 
 
 # ==================== 对话生成函数 ====================
+_inference_lock = threading.Lock()
+
+
 def generate_response(
     messages: list[dict[str, str]],
     temperature: float = 0.7,
@@ -155,8 +161,9 @@ def generate_response(
     # 移除 None 值
     gen_kwargs = {k: v for k, v in gen_kwargs.items() if v is not None}
 
-    with torch.no_grad():
-        model_outputs = model.generate(**model_inputs, **gen_kwargs)
+    with _inference_lock:
+        with torch.no_grad():
+            model_outputs = model.generate(**model_inputs, **gen_kwargs)
 
     # 解码输出，去除输入部分
     output_token_ids = [model_outputs[i][len(model_inputs[i]) :] for i in range(len(model_inputs["input_ids"]))]
@@ -197,7 +204,8 @@ class ChatCompletionRequest(BaseModel):
     stream: bool | None = Field(False)
     do_sample: bool | None = Field(True)
 
-    @validator("messages")
+    @field_validator("messages")
+    @classmethod
     def validate_messages(cls, v):
         if not v:
             raise ValueError("消息列表不能为空")
@@ -234,7 +242,8 @@ class SimpleGenerateRequest(BaseModel):
     max_new_tokens: int = Field(512, ge=1, le=MAX_NEW_TOKENS)
     use_cache: bool = Field(True)
 
-    @validator("prompt")
+    @field_validator("prompt")
+    @classmethod
     def validate_prompt(cls, v):
         max_len = 32768
         if len(v) > max_len:
@@ -270,7 +279,7 @@ app = FastAPI(
     1. /v1/chat/completions - 兼容 OpenAI 格式的对话接口
     2. /generate - 简单生成接口（支持缓存）
     """,
-    version="2.3.0",
+    version="2.4.1",
 )
 
 app.add_middleware(
@@ -298,13 +307,18 @@ async def create_chat_completion(request: ChatCompletionRequest):
         prompt_text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         prompt_tokens = len(tokenizer.encode(prompt_text))
 
-        # 生成回复
-        response_text = generate_response(
-            messages=messages,
-            temperature=request.temperature or 0.7,
-            top_p=request.top_p or 0.7,
-            max_new_tokens=request.max_tokens,
-            do_sample=request.do_sample if request.do_sample is not None else True,
+        # 生成回复（在线程池中运行，避免阻塞事件循环）
+        loop = asyncio.get_event_loop()
+        response_text = await loop.run_in_executor(
+            None,
+            functools.partial(
+                generate_response,
+                messages=messages,
+                temperature=request.temperature or 0.7,
+                top_p=request.top_p or 0.7,
+                max_new_tokens=request.max_tokens,
+                do_sample=request.do_sample if request.do_sample is not None else True,
+            ),
         )
 
         completion_tokens = len(tokenizer.encode(response_text))
@@ -361,11 +375,16 @@ async def simple_generate(request: SimpleGenerateRequest):
             from_cache = True
         else:
             messages = [{"role": "user", "content": request.prompt}]
-            response_text = generate_response(
-                messages=messages,
-                temperature=request.temperature,
-                top_p=request.top_p,
-                max_new_tokens=request.max_new_tokens,
+            loop = asyncio.get_event_loop()
+            response_text = await loop.run_in_executor(
+                None,
+                functools.partial(
+                    generate_response,
+                    messages=messages,
+                    temperature=request.temperature,
+                    top_p=request.top_p,
+                    max_new_tokens=request.max_new_tokens,
+                ),
             )
             from_cache = False
 
