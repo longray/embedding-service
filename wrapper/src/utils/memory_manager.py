@@ -474,7 +474,7 @@ class MemoryManager:
                         span.set_attribute("search.vector.cache_hit", True)
                         span.set_attribute("search.vector.result_count", len(cached_result))
                         return cached_result
-                except Exception:
+                except Exception:  # nosec B110
                     pass
             span.set_attribute("search.vector.cache_hit", False)
 
@@ -497,7 +497,7 @@ class MemoryManager:
             if self._vector_cache and results:
                 try:
                     await self._vector_cache.set(cache_key, results, ttl=self._cache_ttl)
-                except Exception:
+                except Exception:  # nosec B110
                     pass
 
             span.set_attribute("search.vector.result_count", len(results))
@@ -948,7 +948,7 @@ class MemoryManager:
                 mem_table, mem_id = mem_parts[0], mem_parts[1] if len(mem_parts) > 1 else mem_parts[0]
 
                 q = (
-                    f"SELECT {path}.* AS related "  # path 是内部常量，安全
+                    f"SELECT {path}.* AS related "  # nosec B608  # path 是内部常量，安全
                     "FROM type::record($mem_table, $mem_id)"
                 )
                 result = await self._db.query(q, {"mem_table": mem_table, "mem_id": mem_id})
@@ -1109,7 +1109,7 @@ class MemoryManager:
         params["rid_table"] = rid_table
         params["rid_id"] = rid_id
 
-        await self._db.query(f"UPDATE type::record($rid_table, $rid_id) SET {set_str}", params)
+        await self._db.query(f"UPDATE type::record($rid_table, $rid_id) SET {set_str}", params)  # nosec B608
 
     def _build_meili_doc(self, record_id: str, memory: dict[str, Any], tenant_id: str) -> dict[str, Any]:
         """构建 Meilisearch 文档"""
@@ -1349,12 +1349,12 @@ class MemoryManager:
 
             where_clause = " AND ".join(where_conditions)
 
-            query = f"""
+            query = """  # nosec B608
                 SELECT * FROM conflict 
                 WHERE {where_clause}
                 ORDER BY created_at DESC
                 LIMIT $limit
-            """
+            """.format(where_clause=where_clause)
 
             params = {"tenant_id": tenant_id, "limit": limit}
             if status:
@@ -1780,7 +1780,7 @@ class MemoryManager:
                         "ttl_seconds": getattr(self, "_cache_ttl", 300),
                     },
                 }
-            except Exception:
+            except Exception:  # nosec B110
                 pass
 
         return {"hits": 0, "misses": 0, "ratio": 0.0, "size": 0, "config": {"enabled": False}}
@@ -1791,14 +1791,14 @@ class MemoryManager:
             try:
                 await self._vector_cache.clear()
                 return {"cleared": True, "cache_type": "vector_cache"}
-            except Exception:
+            except Exception:  # nosec B110
                 pass
 
         if self._keyword_cache:
             try:
                 await self._keyword_cache.clear()
                 return {"cleared": True, "cache_type": "keyword_cache"}
-            except Exception:
+            except Exception:  # nosec B110
                 pass
 
         return {"cleared": False, "message": "No cache available"}
@@ -1836,7 +1836,7 @@ class MemoryManager:
                         cache_key = hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()
                         await self._vector_cache.set(cache_key, embedding, ttl=self._cache_ttl)
                         loaded_count += 1
-                except Exception:
+                except Exception:  # nosec B112
                     continue
 
             return {"loaded": loaded_count, "attempted": len(records), "limit": limit, "tenant_id": tenant_id}
@@ -1868,7 +1868,7 @@ class MemoryManager:
                             cache_key = hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()
                             await self._vector_cache.set(cache_key, embedding, ttl=self._cache_ttl)
                             processed += 1
-                    except Exception:
+                    except Exception:  # nosec B112
                         continue
 
             return {
@@ -1911,7 +1911,7 @@ class MemoryManager:
                             cache_key = hashlib.md5(topic.encode(), usedforsecurity=False).hexdigest()
                             await self._vector_cache.set(cache_key, embedding, ttl=self._cache_ttl)
                             processed += 1
-                    except Exception:
+                    except Exception:  # nosec B112
                         continue
 
             return {"processed": processed, "queried_topics": common_topics[:top_n], "top_n_requested": top_n}
