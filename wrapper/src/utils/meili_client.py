@@ -54,8 +54,10 @@ class MeilisearchClient:
             "version",
             "created_at",
             "source_id",
+            "code_language",
+            "code_complexity",
         ],
-        "sortableAttributes": ["date", "created_at"],
+        "sortableAttributes": ["date", "created_at", "code_complexity"],
         # 让日期格式 2026-03-11 在全文搜索时保持整体，不被 - 分割
         "nonSeparatorTokens": [".", "-", "@", ":", "/", "_"],
         "localizedAttributes": [{"locales": ["zho"], "attributePatterns": ["*_zh"]}],

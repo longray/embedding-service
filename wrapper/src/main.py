@@ -63,6 +63,7 @@ class MemoryItem(BaseModel):
 class MemoryUploadRequest(BaseModel):
     memories: list[MemoryItem] = Field(..., description="记忆列表")
     tenant_id: str = Field(default="default", description="租户ID")
+    auto_analyze_code: bool = Field(default=False, description="是否自动分析代码内容并持久化结果")
 
 
 class MemorySearchRequest(BaseModel):
@@ -72,6 +73,9 @@ class MemorySearchRequest(BaseModel):
     threshold: float = Field(default=0.7, ge=0.0, le=1.0)
     level: int = Field(default=2, ge=0, le=2, description="返回层级: 0=abstract, 1=abstract+overview, 2=full")
     tenant_id: str = Field(default="default", description="租户ID")
+    code_filter: dict[str, Any] | None = Field(
+        default=None, description="代码过滤条件: {language: str, min_complexity: int}"
+    )
 
 
 class RelationCreateRequest(BaseModel):
@@ -507,10 +511,29 @@ async def upload_memories(request: MemoryUploadRequest):
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
 
     try:
+        memories = [m.model_dump() for m in request.memories]
         result = await memory_manager.upload_memories(
-            [m.model_dump() for m in request.memories],
+            memories,
             tenant_id=request.tenant_id,
         )
+
+        if request.auto_analyze_code and config.code_analysis.enabled:
+            for memory in memories:
+                content = memory.get("content", "")
+                content_length = len(content)
+                if (
+                    content_length >= config.code_analysis.min_content_length
+                    and content_length <= config.code_analysis.max_content_length
+                ):
+                    try:
+                        await memory_manager.analyze_memory_code(
+                            memory.get("id", memory.get("source_id", "")),
+                            tenant_id=request.tenant_id,
+                            persist=True,
+                        )
+                    except Exception as analyze_error:
+                        logger.warning("[Auto Analyze] 分析失败: %s", analyze_error)
+
         return result
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=e.message) from e
@@ -524,6 +547,16 @@ async def search_memories(request: MemorySearchRequest):
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
 
     try:
+        filter_expr = None
+        if request.code_filter:
+            filter_parts = []
+            if "language" in request.code_filter:
+                filter_parts.append(f'code_language = "{request.code_filter["language"]}"')
+            if "min_complexity" in request.code_filter:
+                filter_parts.append(f"code_complexity >= {request.code_filter['min_complexity']}")
+            if filter_parts:
+                filter_expr = " AND ".join(filter_parts)
+
         result = await memory_manager.search_memories(
             query=request.query,
             mode=request.mode,
@@ -531,6 +564,7 @@ async def search_memories(request: MemorySearchRequest):
             threshold=request.threshold,
             level=request.level,
             tenant_id=request.tenant_id,
+            filters=filter_expr,
         )
         return result
     except ValidationError as e:

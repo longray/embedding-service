@@ -6,7 +6,8 @@
 
 import asyncio
 import logging
-from typing import Dict, List, Optional, Tuple, Any
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,26 @@ class CodeAnalysisResult:
     docstrings: List[Dict[str, str]]  # 包含文档字符串
     dependencies: List[str]
     complexity_metrics: Dict[str, int]
+
+    # B-028: 持久化新增字段
+    analyzed_at: str = ""  # ISO 8601 时间戳
+    analyzer_version: str = "1.0.0"
+
+    def to_metadata_dict(self) -> dict[str, Any]:
+        """将分析结果转换为 metadata.code_analysis 字典（不含原始 content）"""
+        return {
+            "language": self.language,
+            "functions": self.functions,
+            "classes": self.classes,
+            "imports": self.imports,
+            "exports": self.exports,
+            "comments_count": len(self.comments),
+            "docstrings_count": len(self.docstrings),
+            "dependencies": self.dependencies,
+            "complexity": self.complexity_metrics,
+            "analyzed_at": self.analyzed_at,
+            "analyzer_version": self.analyzer_version,
+        }
 
 
 class CodeAnalyzer:
@@ -71,6 +92,8 @@ class CodeAnalyzer:
             dependencies = await self._extract_dependencies(content)
             complexity_metrics = self._calculate_complexity(tree.root_node)
 
+            from datetime import datetime, timezone
+
             return CodeAnalysisResult(
                 content=content,
                 language=language,
@@ -82,6 +105,7 @@ class CodeAnalyzer:
                 docstrings=docstrings,
                 dependencies=dependencies,
                 complexity_metrics=complexity_metrics,
+                analyzed_at=datetime.now(timezone.utc).isoformat(),
             )
         except Exception as e:
             logger.warning(f"Tree-sitter analysis failed: {e}, falling back to regex")
@@ -408,6 +432,8 @@ class CodeAnalyzer:
             docstrings=docstrings,
             dependencies=await self._extract_dependencies(content),
             complexity_metrics=complexity,
+            analyzed_at=datetime.now(timezone.utc).isoformat(),
+            analyzer_version="1.0.0",
         )
 
     def extract_comment_and_docstring_content(self, analysis_result: CodeAnalysisResult) -> str:

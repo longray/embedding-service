@@ -1141,6 +1141,18 @@ class MemoryManager:
         if "source_timestamp" in memory:
             meili_doc["date"] = memory["source_timestamp"]
 
+        code_analysis = metadata.get("code_analysis")
+        if code_analysis:
+            meili_doc["code_language"] = code_analysis.get("language")
+            meili_doc["code_functions"] = " ".join(
+                f.get("name", "") for f in code_analysis.get("functions", []) if f.get("name")
+            )
+            meili_doc["code_classes"] = " ".join(
+                c.get("name", "") for c in code_analysis.get("classes", []) if c.get("name")
+            )
+            complexity = code_analysis.get("complexity", {})
+            meili_doc["code_complexity"] = complexity.get("cyclomatic_complexity", 0)
+
         return meili_doc
 
     def _extract_record_id(self, result: Any) -> str | None:
@@ -1349,12 +1361,12 @@ class MemoryManager:
 
             where_clause = " AND ".join(where_conditions)  # nosec B608: 白名单构建，仅 tenant_id/status
 
-            query = """
+            query = f"""
                 SELECT * FROM conflict 
                 WHERE {where_clause}
                 ORDER BY created_at DESC
                 LIMIT $limit
-            """.format(where_clause=where_clause)
+            """  # nosec B608: 白名单构建，仅tenant_id/status常量
 
             params = {"tenant_id": tenant_id, "limit": limit}
             if status:
@@ -2117,8 +2129,17 @@ class MemoryManager:
 
     # ==================== New: Code Analysis Integration ====================
 
-    async def analyze_memory_code(self, memory_id: str, tenant_id: str = "default") -> dict:
-        """分析记忆中的代码内容"""
+    async def analyze_memory_code(self, memory_id: str, tenant_id: str = "default", persist: bool = True) -> dict:
+        """分析记忆中的代码内容
+
+        Args:
+            memory_id: 记忆 ID
+            tenant_id: 租户 ID
+            persist: 是否将分析结果持久化到 metadata（默认 True）
+
+        Returns:
+            分析结果字典
+        """
         try:
             # 获取记忆内容
             query = "SELECT * FROM $memory_id WHERE tenant_id = $tenant_id"
@@ -2130,6 +2151,7 @@ class MemoryManager:
 
             memory = records[0]
             content = memory.get("content", "")
+            record_id = memory.get("id", memory_id)
 
             # 确定编程语言（简单判断）
             language = self._detect_programming_language(content)
@@ -2138,7 +2160,7 @@ class MemoryManager:
             code_analyzer = CodeAnalyzer()
             analysis_result = await code_analyzer.analyze_code(content, language)
 
-            return {
+            analysis_dict = {
                 "memory_id": memory_id,
                 "language": analysis_result.language,
                 "functions": analysis_result.functions,
@@ -2151,6 +2173,27 @@ class MemoryManager:
                     [c["text"] for c in analysis_result.comments] + [d["text"] for d in analysis_result.docstrings]
                 ),
             }
+
+            if persist:
+                try:
+                    metadata = memory.get("metadata", {}) or {}
+                    metadata["code_analysis"] = analysis_result.to_metadata_dict()
+
+                    update_query = """
+                        UPDATE type::record($record_id)
+                        SET metadata = $metadata
+                    """
+                    await self._db.query(update_query, {"record_id": record_id, "metadata": metadata})
+
+                    if self._meili:
+                        meili_doc = self._build_meili_doc(record_id, {**memory, "metadata": metadata}, tenant_id)
+                        await self._meili.add_documents([meili_doc])
+
+                    logger.info("[Code Analysis] 分析结果已持久化: %s", memory_id)
+                except Exception as persist_error:
+                    logger.warning("[Code Analysis] 持久化失败，但分析已完成: %s", persist_error)
+
+            return analysis_dict
         except Exception as e:
             logger.error("[Code Analysis] 分析失败: %s", e)
             raise DatabaseError(f"代码分析失败: {e}") from e

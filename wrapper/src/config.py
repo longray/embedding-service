@@ -109,18 +109,27 @@ class MeilisearchConfig:
 
 
 @dataclass
+class CodeAnalysisConfig:
+    enabled: bool = True
+    auto_analyze: bool = False
+    min_content_length: int = 50
+    max_content_length: int = 50000
+
+
+@dataclass
 class AppConfig:
     host: str = "0.0.0.0"  # nosec B104 - 容器环境需要绑定所有接口
     port: int = 17999
     debug: bool = False
     cache: CacheConfig = field(default_factory=CacheConfig)
     http: HTTPConfig = field(default_factory=HTTPConfig)
-    tls: TLSConfig = field(default_factory=TLSConfig)  # TLS/HTTPS 配置
+    tls: TLSConfig = field(default_factory=TLSConfig)
     surrealdb: SurrealDBConfig = field(default_factory=SurrealDBConfig)
     service: ServiceConfig = field(default_factory=ServiceConfig)
     search: SearchConfig = field(default_factory=SearchConfig)
     telemetry: TelemetryConfig = field(default_factory=TelemetryConfig)
     meilisearch: MeilisearchConfig = field(default_factory=MeilisearchConfig)
+    code_analysis: CodeAnalysisConfig = field(default_factory=CodeAnalysisConfig)
 
 
 def load_config():
@@ -175,6 +184,15 @@ def load_config():
     cfg.tls.key_path = os.getenv("WRAPPER_TLS_KEY_PATH", cfg.tls.key_path)
     cfg.tls.min_version = os.getenv("WRAPPER_TLS_MIN_VERSION", cfg.tls.min_version)
     cfg.tls.redirect_http = os.getenv("WRAPPER_TLS_REDIRECT_HTTP", "true").lower() == "true"
+
+    cfg.code_analysis.enabled = os.getenv("WRAPPER_CODE_ANALYSIS_ENABLED", "true").lower() == "true"
+    cfg.code_analysis.auto_analyze = os.getenv("WRAPPER_AUTO_ANALYZE_CODE", "false").lower() == "true"
+    cfg.code_analysis.min_content_length = int(
+        os.getenv("WRAPPER_CODE_ANALYSIS_MIN_LENGTH", str(cfg.code_analysis.min_content_length))
+    )
+    cfg.code_analysis.max_content_length = int(
+        os.getenv("WRAPPER_CODE_ANALYSIS_MAX_LENGTH", str(cfg.code_analysis.max_content_length))
+    )
 
     return cfg
 
