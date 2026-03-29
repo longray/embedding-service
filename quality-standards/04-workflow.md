@@ -123,31 +123,37 @@ pre-commit autoupdate
 **各阶段要点**:
 
 **1. 需求分析**:
+
 - 需求文档
 - 技术评估
 - 工时评估
 
 **2. 技术设计**:
+
 - 架构设计
 - API 设计
 - 测试策略
 
 **3. 开发实现**:
+
 - 代码编写
 - 本地测试
 - Pre-commit 检查通过
 
 **4. 代码审查**:
+
 - 功能完整性
 - 代码质量
 - 安全性审查
 
 **5. 测试验证**:
+
 - 单元测试 ≥70%
 - 集成测试
 - E2E 测试（如需要）
 
 **6. 合并主分支**:
+
 - 所有检查通过
 - 代码审查通过
 - 测试覆盖率达标
@@ -159,6 +165,7 @@ pre-commit autoupdate
 ```
 
 **关键要求**:
+
 - 添加回归测试
 - 更新相关文档
 - 验证修复不影响其他功能
@@ -174,11 +181,13 @@ pre-commit autoupdate
 **本项目定位**: 2-3人团队
 
 **审查要求**:
+
 - 至少 1 人 Approve（可自我审查后他人确认）
 - PR 创建后 24 小时内完成初步审查
 - 提供建设性反馈
 
 **例外情况**:
+
 - 紧急修复：安全热修复可简化流程，需事后补充审查
 - 文档/配置修改：仅修改文档或配置可简化审查
 
@@ -272,6 +281,7 @@ pre-commit autoupdate
 ## 6. 实施检查清单
 
 ### 6.1 新功能开发
+
 - [ ] 创建功能分支 `feature/xxx`
 - [ ] 实现功能代码（通过所有检查）
 - [ ] 编写单元测试（覆盖率 ≥70%）
@@ -281,6 +291,7 @@ pre-commit autoupdate
 - [ ] 确保所有 CI 检查通过
 
 ### 6.2 Bug 修复
+
 - [ ] 创建修复分支 `fix/xxx`
 - [ ] 定位根因并修复代码
 - [ ] 添加回归测试
@@ -290,13 +301,16 @@ pre-commit autoupdate
 - [ ] 确保所有 CI 检查通过
 
 ### 6.3 日常提交
+
 - [ ] 提交前运行 `pre-commit run`
 - [ ] 查看所有 hooks 是否通过
 - [ ] 遵循 commit message 规范（Conventional Commits）
   - 格式: `<type>(<scope>): <description>`
   - 类型: `feat/fix/docs/style/refactor/test/chore`
   - 示例: `feat(embedding): add batch size optimization`
+
   - # Src: docs/10-DEVELOPMENT-WORKFLOW.md#commit-message-format
+
 - [ ] 及时处理 CI/CD 失败
 - [ ] 保持代码覆盖率不下降
 

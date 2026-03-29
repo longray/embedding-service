@@ -46,6 +46,7 @@
 ### 实施策略说明
 
 当前实现采用**核心优先策略**，专注于包装服务的核心功能：
+
 - ✅ 服务可靠性（熔断器、异常处理）
 - ✅ 性能优化（缓存、连接池）
 - ✅ 可观测性（日志、监控）
@@ -58,6 +59,7 @@
 ## 📋 一、执行摘要
 
 ### 集成目标
+
 - ✅ MemoryManager 已完成（727 行代码）
 - ⏳ NetworkChecker 待实现（预估 2h）
 - ⏳ WrapperClient 待实现（预估 3h）
@@ -82,6 +84,7 @@
 | `/stats` | GET | 统计信息 | ✅ 保留 |
 
 #### `/v1/embeddings` 请求格式
+
 ```json
 {
   "input": "单条文本" | ["文本1", "文本2", "..."],
@@ -93,6 +96,7 @@
 ```
 
 #### `/v1/embeddings` 响应格式
+
 ```json
 {
   "object": "list",
@@ -113,6 +117,7 @@
 ```
 
 #### `/health` 响应格式
+
 ```json
 {
   "status": "healthy",
@@ -143,6 +148,7 @@
 | `/stats` | GET | 统计信息 | ✅ 保留 |
 
 #### `/v1/chat/completions` 请求格式
+
 ```json
 {
   "model": "MiniCPM4-0.5B",
@@ -160,6 +166,7 @@
 ```
 
 #### `/v1/chat/completions` 响应格式
+
 ```json
 {
   "id": "chatcmpl-local",
@@ -269,6 +276,7 @@
 ### Phase 1: 创建包装层服务基础结构（2h）
 
 #### Step 1. 创建项目结构
+
 ```bash
 # 在 D:\embedding_service\ 创建新目录
 cd D:\embedding_service
@@ -285,6 +293,7 @@ mkdir -p tests
 #### Step 2. 实现共享工具模块
 
 **文件**: `shared/config.py`
+
 ```python
 """
 共享配置管理模块
@@ -350,6 +359,7 @@ config = Config()
 ```
 
 **文件**: `shared/utils/config.py`
+
 ```python
 """
 共享工具模块
@@ -482,6 +492,7 @@ def detect_project_name(content: str) -> str:
 ```
 
 **文件**: `shared/utils/cache.py`
+
 ```python
 """
 缓存工具模块
@@ -533,6 +544,7 @@ class LRUCache:
 ### Phase 2: 实现包装服务主程序（6h）
 
 #### 文件**: `src/main.py`
+
 ```python
 """
 包装服务主程序
@@ -907,6 +919,7 @@ if __name__ == '__main__':
 ### Phase 3: 更新启动脚本（1h）
 
 #### 修改 `start_wrapper_service.bat`
+
 ```batch
 @echo off
 chcp 65001 >nul
@@ -1039,6 +1052,7 @@ pause
 ```
 
 #### 修改 `start_embedding_service.bat`
+
 ```batch
 @echo off
 chcp 65001 >nul
@@ -1117,6 +1131,7 @@ pause
 ### Phase 4: 测试和验证（2h）
 
 #### 测试脚本：`tests/test-wrapper-service.py`
+
 ```python
 """
 包装服务测试脚本
@@ -1270,6 +1285,7 @@ if __name__ == '__main__':
 ### 5.2 配置兼容性
 
 **环境变量映射**:
+
 | 现有变量 | 新变量 | 说明 |
 |------------|----------|------|
 | `EMB_MAX_BATCH_SIZE` | `EMB_MAX_BATCH_SIZE` | ✅ 继续支持 |
@@ -1284,6 +1300,7 @@ if __name__ == '__main__':
 | `LLM_MAX_PROMPT_LENGTH` | `LLM_MAX_PROMPT_LENGTH` | ✅ 继续支持 |
 
 **新增变量**:
+
 | 变量名 | 默认值 | 说明 |
 |----------|----------|------|
 | `WRAPPER_PORT` | `3001` | 包装服务端口 | 新增 |
@@ -1311,12 +1328,14 @@ if __name__ == '__main__':
 ## 📋 六、实施步骤总结
 
 ### Phase 1: 准备工作（30 分钟）
+
 - [ ] 阅读 `D:\embedding_service` 的完整文档
 - [ ] 确认所有依赖项已安装
 - [ ] 备制 `start_embedding_service.bat` 和 `start_llm_service.bat` 到 `D:\embedding_service\backup\`
 - [ ] 创建新的开发分支：`git checkout -b wrapper-service-upgrade`
 
 ### Phase 2: 创建包装层基础结构（2h）
+
 - [ ] 创建项目目录结构
 - [ ] 创建 `shared/utils/` 目录
 - [ ] 创建 `shared/config.py` 配置模块
@@ -1326,6 +1345,7 @@ if __name__ == '__main__':
 - [ ] 编写 `README.md` 说明文档
 
 ### Phase 3: 实现包装服务核心功能（4h）
+
 - [ ] 创建 `src/main.py` 主程序
 - [ ] 实现 `/api/health` 端点（统一健康检查）
 - [ ] 实现 `/api/search` 端点（语义搜索）
@@ -1334,6 +1354,7 @@ if __name__ == '__main__':
 - [ ] 添加 `/docs` 端点（API 文档）
 
 ### Phase 4: 测试和调试（2h）
+
 - [ ] 创建 `tests/test-wrapper-service.py` 测试脚本
 - [ ] 测试所有新增端点
 - [ ] 测试向后兼容性
@@ -1341,11 +1362,13 @@ if __name__ == '__main__':
 - [ ] 性能测试
 
 ### Phase 5: 更新 OpenCode Memory Plugin（2h）
+
 - [ ] 更新 NetworkChecker 的 wrapper_url 到 `http://localhost:3001/api/health`
 - [ ] 在 `vector_memory_search` 工具中优先使用远程服务
 - [ ] 添加 `memory_upload` 工具（可选）
 
 ### Phase 6: 部署和验证（1.5h）
+
 - [ ] 创建 `start_wrapper_service.bat` 启动脚本
 - [ ] 启动包装服务
 - [ ] 验证所有现有端点正常工作
@@ -1361,11 +1384,13 @@ if __name__ == '__main__':
 ### 7.1 现有配置方式
 
 **embedding_service.py 配置**:
+
 - 硬编码：端口、批量大小、模型路径
 - 环境变量：`EMB_MAX_BATCH_SIZE`, `EMB_MODEL_PATH`
 - 运行时检测：GPU 内存自动调整
 
 **llm_service.py 配置**:
+
 - 硬编码：端口、批量大小、模型路径
 - 环境变量：`LLM_MAX_BATCH_SIZE`, `LLM_MODEL_PATH`
 - 运行时检测：GPU 内存自动调整
@@ -1373,6 +1398,7 @@ if __name__ == '__main__':
 ### 7.2 建议的统一配置方式
 
 **创建 `shared/config.py`**:
+
 ```python
 from pydantic_settings import BaseSettings
 
@@ -1464,6 +1490,7 @@ config = Config()
 ### 8.1 单服务部署（推荐用于开发/测试）
 
 **方案**:
+
 ```
 D:\embedding_service\
 ├── src\qwen3_embedding_service\
@@ -1484,6 +1511,7 @@ D:\embedding_service\
 ```
 
 **启动命令**:
+
 ```bash
 # 启动所有服务
 start_embedding_service.bat
@@ -1492,11 +1520,13 @@ run_service.bat
 ```
 
 **优点**:
+
 - ✅ 部署简单
 - ✅ 易于开发和测试
 - ✅ 资源利用率高
 
 **缺点**:
+
 - ⚠️ 两个服务共享一个进程
 - ⚠️ 需要处理端口冲突
 - ⚠️ 缺少隔离性
@@ -1504,6 +1534,7 @@ run_service.bat
 ### 8.2 分服务部署（推荐用于生产）
 
 **方案**:
+
 ```
 D:\embedding_service\
 ├── services\
@@ -1521,6 +1552,7 @@ D:\embedding_service\
 ```
 
 **docker-compose.yml**:
+
 ```yaml
 version: '3.8'
 
@@ -1557,17 +1589,20 @@ services:
 ```
 
 **启动命令**:
+
 ```bash
 docker-compose up -d
 ```
 
 **优点**:
+
 - ✅ 服务隔离
 - ✅ 独立扩展
 - ✅ 故障转移
 - ✅ 资源控制
 
 **缺点**:
+
 - ⚠️ 需要更多资源
 - ⚠️ 部署复杂度增加
 
@@ -1601,6 +1636,7 @@ docker-compose up -d
 ### 9.3 配置兼容性
 
 **保留所有现有环境变量**:
+
 - `EMB_MAX_BATCH_SIZE`
 - `EMB_MODEL_PATH`
 - `EMB_CACHE_SIZE`
@@ -1611,6 +1647,7 @@ docker-compose up -d
 - `LLM_CACHE_SIZE`
 
 **新增环境变量**:
+
 - `WRAPPER_PORT` (默认: 3001)
 - `MEMORY_DIR` (默认: ~/.opencode/memory)
 - `UPLOAD_BATCH_SIZE` (默认: 10)
@@ -1675,6 +1712,7 @@ docker-compose up -d
 ## 📋 十二、验收标准
 
 ### 功能完整性
+
 - ✅ 所有现有 API 端点正常工作
 - ✅ 新增的统一健康检查端点正常工作
 - ✅ 语义搜索端点正常工作
@@ -1682,17 +1720,20 @@ docker-compose up -d
 - ✅ API 文档正常访问
 
 ### 向后兼容性
+
 - ✅ 所有现有 API 端点保持不变
 - ✅ 所有环境变量继续支持
 - 所有配置参数继续有效
 - 现有脚本继续可用
 
 ### 性能指标
+
 - ✅ 统一健康检查响应时间 < 100ms
 - ✅ 语义搜索响应时间 < 500ms（10 条）
 - ✅ 记忆上传响应时间 < 200ms（单条）
 
 ### 测试覆盖
+
 - ✅ 所有新增端点有测试用例
 - ✅ 向后兼容性测试通过
 - ✅ 降级策略测试通过

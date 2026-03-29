@@ -3,9 +3,11 @@
 ## 版本历史
 
 ### v2.3.1 (当前) - 同步冲突解决 ✅
+
 **发布日期**: 2026-03-23
 
 **核心功能**:
+
 - Embedding 服务（Qwen3-Embedding-0.6B）
 - LLM 服务（MiniCPM4-0.5B）
 - 最小化包装服务（端口 17999，无熔断器）
@@ -24,9 +26,11 @@
 ---
 
 ### v2.3.0 - Polyglot 搜索架构 ✅
+
 **发布日期**: 2026-03-12
 
 **核心功能**:
+
 - Embedding 服务（Qwen3-Embedding-0.6B）
 - LLM 服务（MiniCPM4-0.5B）
 - 最小化包装服务（端口 17999，无熔断器）
@@ -50,6 +54,7 @@
 **目标**: 一键启动所有服务
 
 **任务清单**:
+
 - [x] 创建 docker-compose.yml
 - [x] 为 embedding-service 创建 Dockerfile
 - [x] 为 llm-service 创建 Dockerfile
@@ -61,6 +66,7 @@
 **状态**: ✅ 已完成 (2026-03-09)
 
 **预期收益**:
+
 - 开发环境标准化
 - 一键启动所有服务
 - 便于测试和演示
@@ -78,6 +84,7 @@
 **目标**: HNSW 索引 O(log n)，延迟 <50ms
 
 **任务清单**:
+
 - [x] 在 SurrealDB 创建 HNSW 索引
 - [x] 修改 search_memories 使用索引
 - [ ] 添加性能基准测试
@@ -86,6 +93,7 @@
 **状态**: ✅ 核心功能已完成 (2026-03-09)
 
 **技术方案**:
+
 ```sql
 DEFINE INDEX memory_embedding_hnsw ON memory 
   FIELDS embedding 
@@ -95,6 +103,7 @@ DEFINE INDEX memory_embedding_hnsw ON memory
 ```
 
 **预期收益**:
+
 - 搜索延迟: 500ms → 50ms
 - 支持百万级记忆
 - CPU使用率降低
@@ -109,10 +118,12 @@ DEFINE INDEX memory_embedding_hnsw ON memory
 **目标**: 解决 SurrealDB 3.0.1 BM25 全文搜索的日期分词 bug 和中文分词不足
 
 **架构决策**: Polyglot Persistence（多模搜索引擎协作）
+
 - SurrealDB → 向量搜索 (HNSW) + 图关系 (RELATE) + 数据存储
 - Meilisearch → 全文搜索 + CJK 中文分词 + 日期精确匹配
 
 **任务清单**:
+
 - [x] MeilisearchConfig 配置类 + 环境变量
 - [x] MeilisearchClient 异步客户端 (meili_client.py)
 - [x] 上传双写同步（SurrealDB + Meilisearch）
@@ -127,6 +138,7 @@ DEFINE INDEX memory_embedding_hnsw ON memory
 **状态**: ✅ 已完成 (2026-03-12)
 
 **预期收益**:
+
 - 日期搜索精确匹配（"2026-03-12" 不再被拆分为三个 token）
 - CJK 中文分词开箱即用
 - 优雅降级（Meilisearch 不可用时回退到 SurrealDB BM25）
@@ -134,6 +146,7 @@ DEFINE INDEX memory_embedding_hnsw ON memory
 
 **工作量**: 2-3天
 **依赖**: P3-2（HNSW 向量索引）
+
 ---
 
 ### P3-3: 监控告警完善
@@ -141,12 +154,14 @@ DEFINE INDEX memory_embedding_hnsw ON memory
 **目标**: 生产环境自动告警
 
 **任务清单**:
+
 - [ ] 添加 Alertmanager 配置
 - [ ] 配置告警规则（错误率、延迟、容量）
 - [ ] 创建 Grafana 仪表板
 - [ ] 集成企业通知（钉钉/企业微信/Slack）
 
 **告警规则示例**:
+
 ```yaml
 - alert: HighErrorRate
   expr: rate(wrapper_requests_total{status=~"5.."}[5m]) > 0.05
@@ -156,6 +171,7 @@ DEFINE INDEX memory_embedding_hnsw ON memory
 ```
 
 **预期收益**:
+
 - 问题及时发现
 - 减少故障恢复时间
 - 提高SLA
@@ -170,6 +186,7 @@ DEFINE INDEX memory_embedding_hnsw ON memory
 **目标**: 云原生部署
 
 **任务清单**:
+
 - [ ] 创建 Helm Charts
 - [ ] 配置 Deployment + Service
 - [ ] 配置 HPA 自动扩缩容
@@ -178,6 +195,7 @@ DEFINE INDEX memory_embedding_hnsw ON memory
 - [ ] 编写部署文档
 
 **预期收益**:
+
 - 自动扩缩容
 - 高可用部署
 - 云厂商无关
@@ -192,12 +210,14 @@ DEFINE INDEX memory_embedding_hnsw ON memory
 **目标**: 合规审计
 
 **任务清单**:
+
 - [ ] 创建审计日志中间件
 - [ ] 记录 API 调用（用户、时间、结果）
 - [ ] 审计日志存储（文件/Elasticsearch）
 - [ ] 审计日志查询 API
 
 **预期收益**:
+
 - 安全合规
 - 故障溯源
 - 用户行为分析
@@ -212,6 +232,7 @@ DEFINE INDEX memory_embedding_hnsw ON memory
 **目标**: 支持多设备、多用户、离线编辑等场景的数据同步
 
 **任务清单**:
+
 - [x] 冲持久化存储（conflict 表）
 - [x] 冲突检测逻辑（sync_incremental 集成）
 - [x] 三种解决策略（use_local/use_remote/keep_both）
@@ -223,6 +244,7 @@ DEFINE INDEX memory_embedding_hnsw ON memory
 **状态**: ✅ 已完成 (2026-03-23)
 
 **核心功能**:
+
 - 冲突记录持久化到 SurrealDB
 - 支持多租户隔离
 - 事务安全的冲突解决
@@ -230,6 +252,7 @@ DEFINE INDEX memory_embedding_hnsw ON memory
 - 幂等操作支持
 
 **预期收益**:
+
 - 多设备无缝同步
 - 离线编辑支持
 - 多用户协作能力
@@ -245,12 +268,14 @@ DEFINE INDEX memory_embedding_hnsw ON memory
 ## 未来展望 (P4+)
 
 ### P4: 高级功能
+
 - [ ] 模型热更新（不停机切换模型）
 - [ ] 多模型路由（负载均衡）
 - [ ] A/B 测试支持
 - [ ] 模型量化（边缘设备部署）
 
 ### P5: 企业级
+
 - [ ] 多租户支持
 - [ ] 数据加密（传输+存储）
 - [ ] 密钥管理系统（Vault 集成）
@@ -265,6 +290,7 @@ DEFINE INDEX memory_embedding_hnsw ON memory
 ## 许可证
 
 [MIT](LICENSE)
+
 ```
 
 ## 文件位置

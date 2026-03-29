@@ -1,4 +1,5 @@
 # 🚀 Meilisearch 代码/开发者工具场景完整方案
+
 ## Windows + Python + 中文内容 | 端口 18003 | 零副作用
 
 ---
@@ -1024,26 +1025,31 @@ docker-compose up -d
 ```
 
 ### 2. 安装依赖
+
 ```bash
 pip install -r requirements.txt
 ```
 
 ### 3. 初始化索引
+
 ```bash
 python init_index.py
 ```
 
 ### 4. 运行测试
+
 ```bash
 python test_search.py
 ```
 
 ### 5. 监控索引
+
 ```bash
 python monitor_index.py
 ```
 
 ### 6. 优化索引
+
 ```bash
 python optimize_index.py
 ```
@@ -1102,6 +1108,7 @@ document = {
     "code_content_search": "代码内容",   # 搜索
 }
 ```
+
 ```
 
 ---

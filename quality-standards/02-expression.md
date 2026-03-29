@@ -15,6 +15,7 @@
 **主工具**: Ruff Format ≥0.6.0
 
 **选择理由**:
+
 - 现代化、快速（比Black快10-100倍）
 - 与Ruff Lint集成，统一工具链
 - 零配置，开箱即用
@@ -30,6 +31,7 @@ indent-width = 4           # 缩进宽度
 ```
 
 **配置说明**:
+
 - `line-length = 120`: 单行最大字符数（PEP 8推荐79，但120更实用）
 - `indent-width = 4`: Python标准缩进（4个空格）
 - `target-version = "py310"`: 确保语法兼容Python 3.10+
@@ -152,6 +154,7 @@ uv run ruff check src/qwen3_embedding_service/llm_service.py
 ### 3.2 项目特定约定
 
 **FastAPI 路由**:
+
 ```python
 @app.post("/api/v1/embeddings")  # kebab-case for URLs
 async def create_embeddings(request: EmbeddingRequest):
@@ -159,6 +162,7 @@ async def create_embeddings(request: EmbeddingRequest):
 ```
 
 **配置类**:
+
 ```python
 class ServiceConfig:  # PascalCase
     model_path: str
@@ -219,18 +223,21 @@ def get_embedding(text: str) -> List[float]:
 ## 5. 实施检查清单
 
 ### 5.1 格式化检查
+
 - [ ] 所有Python文件通过 `ruff format --check`
 - [ ] 行宽不超过120字符
 - [ ] 使用4空格缩进
 - [ ] 文件末尾有换行符
 
 ### 5.2 Linting检查
+
 - [ ] 所有Python文件通过 `ruff check`
 - [ ] 无未使用的导入
 - [ ] 导入顺序正确
 - [ ] 无未使用的变量
 
 ### 5.3 命名检查
+
 - [ ] 模块名使用snake_case
 - [ ] 类名使用PascalCase
 - [ ] 函数/变量使用snake_case

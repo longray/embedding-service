@@ -1,14 +1,17 @@
 # Smart Startup Scripts Guide
 
 ## Overview
+
 Optimized Windows batch scripts with intelligent health checking for embedding services.
 
 ## Files
 
 ### 1. start_all_services.bat (Main Coordinator)
+
 **Purpose**: One-click startup with smart health detection
 
 **Features**:
+
 - Checks if Embedding Service (port 18000) is already running
 - Checks if SurrealDB (port 18002) is already running
 - Checks if Meilisearch (port 7700) is already running (v2.3.0+)
@@ -17,11 +20,13 @@ Optimized Windows batch scripts with intelligent health checking for embedding s
 - Visual status summary with colors
 
 **Usage**:
+
 ```batch
 start_all_services.bat
 ```
 
 **Workflow**:
+
 1. Check Embedding Service health via HTTP GET /health
 2. Check SurrealDB health via TCP socket test
 3. Display status summary
@@ -32,19 +37,23 @@ start_all_services.bat
 ---
 
 ### 2. start_embedding_service.bat (Modified)
+
 **Purpose**: Start Embedding Service with health check
 
 **New Features**:
+
 - Pre-flight health check
 - Reuses existing healthy service
 - Port conflict detection with health verification
 
 **Usage**:
+
 ```batch
 start_embedding_service.bat
 ```
 
 **Health Check**:
+
 - Endpoint: `http://localhost:18000/health`
 - Method: HTTP GET
 - Timeout: 3 seconds
@@ -53,19 +62,23 @@ start_embedding_service.bat
 ---
 
 ### 3. start_surrealdb.bat (Modified)
+
 **Purpose**: Start SurrealDB with health check
 
 **New Features**:
+
 - Pre-flight connection check
 - Reuses existing healthy service
 - Port conflict detection with connection test
 
 **Usage**:
+
 ```batch
 start_surrealdb.bat
 ```
 
 **Health Check**:
+
 - Endpoint: `ws://localhost:18002/rpc` (WebSocket)
 - Method: TCP socket connection test
 - Timeout: 3 seconds
@@ -74,14 +87,17 @@ start_surrealdb.bat
 ---
 
 ### 4. test_health_check.bat (Diagnostic Tool)
+
 **Purpose**: Test health check functionality
 
 **Tests**:
+
 1. Embedding Service HTTP health endpoint
 2. SurrealDB TCP socket connection
 3. Port occupancy status
 
 **Usage**:
+
 ```batch
 test_health_check.bat
 ```
@@ -123,6 +139,7 @@ start_all_services.bat (Coordinator)
 ## Health Check Implementation
 
 ### Embedding Service (PowerShell)
+
 ```powershell
 Invoke-WebRequest -Uri 'http://localhost:18000/health' 
                   -Method GET 
@@ -131,6 +148,7 @@ Invoke-WebRequest -Uri 'http://localhost:18000/health'
 ```
 
 ### SurrealDB (PowerShell TCP Socket)
+
 ```powershell
 $c = New-Object System.Net.Sockets.TcpClient
 $c.Connect('localhost', 18002)
@@ -138,12 +156,14 @@ $c.Close()
 ```
 
 **Why PowerShell?**
+
 - Built into all Windows versions
 - No external dependencies (unlike curl)
 - Supports both HTTP and TCP socket checks
 - Better error handling
 
 ### Meilisearch (HTTP) [v2.3.0+]
+
 ```
 Endpoint: http://localhost:7700/health
 Method: HTTP GET
@@ -158,33 +178,42 @@ Success: {"status": "available"}
 ## Usage Scenarios
 
 ### Scenario 1: Fresh Start
+
 ```batch
 start_all_services.bat
 ```
+
 Both services will start.
 
 ### Scenario 2: Services Already Running
+
 ```batch
 start_all_services.bat
 ```
+
 Script detects healthy services and skips startup.
 
 ### Scenario 3: Partial Start (Only SurrealDB Running)
+
 ```batch
 start_all_services.bat
 ```
+
 Only starts Embedding Service.
 
 ### Scenario 4: Individual Service Start
+
 ```batch
 start_embedding_service.bat    # Start only Embedding
 start_surrealdb.bat            # Start only SurrealDB
 ```
 
 ### Scenario 5: Health Diagnostics
+
 ```batch
 test_health_check.bat
 ```
+
 Check current health status without starting services.
 
 ---
@@ -192,24 +221,28 @@ Check current health status without starting services.
 ## Testing
 
 ### Test 1: Fresh Start
+
 1. Ensure no services running
 2. Run `start_all_services.bat`
 3. Verify both services start
 4. Check endpoints respond
 
 ### Test 2: Idempotency
+
 1. Keep services running from Test 1
 2. Run `start_all_services.bat` again
 3. Verify message: "Service is already running and healthy"
 4. Services should not restart
 
 ### Test 3: Port Conflict Handling
+
 1. Start a dummy service on port 18000
 2. Run `start_embedding_service.bat`
 3. Verify port conflict detection
 4. Verify health check on existing service
 
 ### Test 4: Individual Start
+
 1. Run `start_surrealdb.bat`
 2. Verify only SurrealDB starts
 3. Run `start_embedding_service.bat`
@@ -220,15 +253,18 @@ Check current health status without starting services.
 ## Troubleshooting
 
 ### Health Check Fails but Service is Running
+
 - Check firewall settings
 - Verify PowerShell execution policy
 - Test manually with `test_health_check.bat`
 
 ### Port Already in Use
+
 - Use `netstat -ano | findstr ":18000"` to find process
 - Use `taskkill /PID <PID> /F` to stop process
 
 ### PowerShell Execution Error
+
 - Run: `powershell -ExecutionPolicy Bypass`
 - Or modify script to bypass policy
 

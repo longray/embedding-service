@@ -5,12 +5,14 @@
 ### Python 环境管理
 
 **⚠️ 重要：不要删除 Python 虚拟环境**
+
 - PyTorch 体积很大，重新下载浪费流量
 - 如果包有问题，使用 `uv` 管理包修复
 
 ### 包管理
 
 **使用 uv 管理依赖**：
+
 ```bash
 # 安装包
 uv pip install package_name
@@ -32,7 +34,7 @@ embedding_service/
 │       └── llm_service.py       # LLM API (端口 18001)
 ├── wrapper/                     # 包装层服务 (端口 17999)
 │   └── src/
-│       ├── main.py             # FastAPI 主程序 (v2.4.1)
+│       ├── main.py             # FastAPI 主程序 (v2.4.2)
 │       ├── config.py           # 配置管理 (含 MeilisearchConfig)
 │       └── utils/
 │           ├── memory_manager.py # 记忆管理（双写 + 搜索路由）
@@ -100,7 +102,6 @@ uv run pyright
 - 使用 structlog 进行日志记录
 - API 认证通过环境变量 `WRAPPER_AUTH_ENABLED` 控制
 
-
 ## Meilisearch 使用指南
 
 ### 代码搜索索引配置
@@ -112,6 +113,7 @@ uv run pyright
 ### 使用方式
 
 **1. 全文搜索（中文、代码）**
+
 ```python
 from config import MeiliConfig
 index = MeiliConfig.get_index()
@@ -127,6 +129,7 @@ index.search("python fastapi")
 ```
 
 **2. 精确匹配（IP、邮箱、版本）**
+
 ```python
 # IP 地址
 index.search("", {"filter": 'ip_address = "192.168.1.100"'})
@@ -139,6 +142,7 @@ index.search("", {"filter": 'version = "v2.1.0"'})
 ```
 
 **3. 混合搜索**
+
 ```python
 # 全文搜索 + 过滤器
 index.search("用户", {"filter": 'language = "java" AND status = "active"'})
@@ -147,21 +151,24 @@ index.search("用户", {"filter": 'language = "java" AND status = "active"'})
 ### 双字段策略
 
 - **精确字段**（file_path, version, email, ip_address）→ 使用 filter
-- **搜索字段**（*_zh, *_search）→ 使用全文搜索
+- **搜索字段**（*_zh,*_search）→ 使用全文搜索
 
 ### 代码搜索优化
 
 **104词代码术语字典**：
+
 - FastAPI, Python, Meilisearch, SurrealDB, Docker, Kubernetes 等常用代码术语
 - 版本号：v2.3.0, v3.0.1
 - IP地址：192.168.1.1, 127.0.0.1
 - 日期：2026-03-12
 
 **nonSeparatorTokens 配置**：
+
 - `-`, `.`, `/`, `:`, `@`, `_` 不作为分隔符
 - 支持代码标识符搜索：`meili_client.py`, `config.surrealdb.url`
 
 **使用示例**：
+
 ```python
 # 搜索文件名
 index.search("meili_client.py")
@@ -199,11 +206,13 @@ uv run python monitor_index.py
 ### 认证说明
 
 **必需 Header**：
+
 ```bash
 WRAPPER_MEILI_API_KEY: <your_api_key>
 ```
 
 **API Key 获取方式**：
+
 ```bash
 # 从环境变量获取
 export WRAPPER_MEILI_API_KEY=<your_api_key>
@@ -239,6 +248,7 @@ curl -X DELETE http://localhost:17999/api/v1/memories/clear \
 ### 响应示例
 
 **成功** (200)：
+
 ```json
 {
   "success": true,
@@ -247,6 +257,7 @@ curl -X DELETE http://localhost:17999/api/v1/memories/clear \
 ```
 
 **失败 - 缺少 Key** (401)：
+
 ```json
 {
   "detail": "Missing WRAPPER_MEILI_API_KEY header"
@@ -254,6 +265,7 @@ curl -X DELETE http://localhost:17999/api/v1/memories/clear \
 ```
 
 **失败 - Key 错误** (403)：
+
 ```json
 {
   "detail": "Invalid WRAPPER_MEILI_API_KEY"
@@ -261,6 +273,7 @@ curl -X DELETE http://localhost:17999/api/v1/memories/clear \
 ```
 
 **失败 - 清空失败** (500)：
+
 ```json
 {
   "detail": "清空失败: ..."
@@ -274,6 +287,7 @@ curl -X DELETE http://localhost:17999/api/v1/memories/clear \
 **用途**：清空后端所有数据（SurrealDB + Meilisearch）
 
 **使用方法**：
+
 ```bash
 cd D:/embedding_service
 export WRAPPER_MEILI_API_KEY=<your_api_key>
@@ -281,6 +295,7 @@ uv run python scripts/clear_all_data.py
 ```
 
 **清空流程**：
+
 1. 先清空 Meilisearch（验证 API key）
 2. 如果 Meilisearch 清空成功，再清空 SurrealDB
 3. 如果 API key 错误，Meilisearch 清空失败，SurrealDB 不被清空
@@ -290,3 +305,31 @@ uv run python scripts/clear_all_data.py
 ⚠️ **调试专用**：此接口仅用于调试和测试，生产环境应谨慎使用
 ⚠️ **数据保护**：API key 验证失败时，数据不会被清空
 ⚠️ **不可逆操作**：清空后所有记忆数据将被永久删除
+
+## 文档规范与质量门禁
+
+本项目在 `.pre-commit-config.yaml` 中配置了强制性的 Markdown 质量门禁。
+
+### 工具链决策
+
+- **Marksman**：仅作为 LSP 服务器，提供编辑器内的链接跳转、引用查找和自动补全功能（不支持命令行扫描）。
+- **Markdownlint-cli2**：作为 CLI 检查工具，通过 `pre-commit` 在代码提交时拦截格式不规范的 Markdown 文档。
+
+### 核心忽略规则说明
+
+我们在 `.markdownlint-cli2.jsonc` 中有意禁用了部分过于严格的规则，以平衡排版自由度和历史遗留问题：
+
+- **MD013 (Line length)**: 禁用。允许长行（尤其是包含 URL、复杂表格时），避免强制截断破坏阅读连贯性。
+- **MD024 (Multiple headings)**: 禁用。允许同一文档中出现重复标题（如 CHANGELOG 中的 "Bug Fixes"、BACKLOG 中的 "涉及范围"）。
+- **MD033 (Inline HTML)**: 禁用。允许使用 `<br>` 等 HTML 标签来控制复杂表格内的换行排版。
+- **MD056 / MD060 (Table styles)**: 禁用。放宽表格列数不匹配和对齐的限制，防止工具生成的复杂表格导致海量无意义报错。
+
+### 编写规范强制要求
+
+当 AI Agent 或开发者更新文档时，**必须**遵循以下规范：
+
+1. **标题层级 (MD001)**: 标题级别必须逐级递增（例如：不允许在 `h1` 后直接跟 `h3`），保持清晰的文档大纲。
+2. **代码块语言 (MD040)**: 所有 Fenced code blocks 必须显式声明语言（如 `python`, `bash`, `json`），以便高亮渲染。
+3. **空行隔离 (MD031/MD032)**: 列表 (List) 和代码块 (Fenced code blocks) 的前后**必须**包含一个空行，防止解析器混淆。
+4. **相对链接**: 文档间的引用必须使用相对路径（如 `docs/ROADMAP.md`），严禁使用硬编码的本地绝对路径。
+5. **验证手段**: 提交前使用 `uvx pre-commit run markdownlint-cli2 --all-files` 验证格式是否达标。

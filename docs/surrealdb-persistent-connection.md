@@ -205,6 +205,7 @@ if __name__ == "__main__":
 ```
 
 **安装依赖：**
+
 ```bash
 pip install fastapi uvicorn surrealdb
 ```
@@ -218,6 +219,7 @@ pip install fastapi uvicorn surrealdb
 | `@asynccontextmanager` | 确保连接正确关闭 | `try` → `yield` → `finally` |
 
 **执行流程：**
+
 1. **Uvicorn 启动** → 触发 `lifespan` startup → 建立 WebSocket 连接
 2. **API 请求** → 复用已建立的长期连接执行查询
 3. **Uvicorn 关闭** → 触发 `lifespan` shutdown → 关闭连接释放资源

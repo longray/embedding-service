@@ -16,6 +16,7 @@
    - P2（增强）：监控、日志、优化
 
 2. **测试金字塔**：
+
    ```
    E2E测试 (10%)      ← 完整API流程
    集成测试 (30%)     ← 数据库交互
@@ -237,7 +238,6 @@ async def test_batch_embedding_generation(mock_embedding_service):
     assert duration < 2.0  # 应该在2秒内完成
 ```
 
-
 #### 3.1.4 安全性测试
 
 **测试文件**: `tests/unit/test_security.py`
@@ -432,7 +432,6 @@ async def test_batch_insert_throughput(test_db):
     assert throughput > 100, f"吞吐量{throughput}条/秒，低于100条/秒"
 ```
 
-
 ---
 
 ## 4. Phase B 测试计划
@@ -616,7 +615,6 @@ async def test_prometheus_metrics():
     assert "memory_search_duration_seconds" in metric_names
 ```
 
-
 ---
 
 ## 6. 验收标准
@@ -642,6 +640,7 @@ async def test_prometheus_metrics():
 ### 6.3 功能完整性
 
 **Phase A**：
+
 - ✅ 消除重复向量计算（使用KNN搜索）
 - ✅ 启用传输加密（wss://）
 - ✅ 智能去重决策框架（6个核心规则）
@@ -649,12 +648,14 @@ async def test_prometheus_metrics():
 - ✅ 查询结果缓存
 
 **Phase B**：
+
 - ✅ 变更检测API
 - ✅ 批量上传API
 - ✅ 全量同步API
 - ✅ 冲突处理机制
 
 **Phase C**：
+
 - ✅ 查询性能分析（EXPLAIN）
 - ✅ 连接池优化
 - ✅ 结构化日志
@@ -810,18 +811,21 @@ jobs:
 ### 10.1 测试优先级
 
 **P0（必须通过）**：
+
 - 向量搜索准确性
 - 数据完整性
 - 安全性（TLS加密、租户隔离）
 - 去重逻辑正确性
 
 **P1（强烈建议）**：
+
 - 性能指标达标
 - API可靠性
 - 并发处理
 - 错误处理
 
 **P2（可选）**：
+
 - 压力测试
 - 监控指标
 - 日志完整性
@@ -842,4 +846,3 @@ jobs:
 3. **性能稳定性**：1000+并发 → 延迟<100ms → 无错误
 4. **安全性**：租户隔离 → 注入防护 → TLS加密
 5. **可靠性**：网络故障 → 自动重试 → 数据不丢失
-

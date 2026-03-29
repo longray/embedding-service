@@ -1,6 +1,7 @@
 # Embedding Service (OpenCode Memory Stack)
 
 版本与路线图
+
 - 当前版本: v2.4.2
 - 实施阶段: P0 + P1 + P2 + Phase 3 + Polyglot 搜索架构 + 同步冲突解决 + SQL 注入修复 已完成
 - 详细路线见 ROADMAP.md
@@ -11,6 +12,7 @@
 **实施阶段**: P0 + P1 + P2 + Phase 3 + Polyglot 搜索架构 + 同步冲突解决 + SQL 注入修复 已完成
 
 ### 已完成 ✅
+
 - ✅ P0 核心功能（Embedding + LLM + 包装层）
 - ✅ P1 增强功能（熔断器、缓存、监控、测试套件）
 - ✅ P2 生产就绪（API认证授权、CI/CD、完整文档）
@@ -77,6 +79,7 @@
 🔐 = 需要API Key认证, 🌍 = 公开访问
 
 认证启用方式：
+
 ```bash
 export WRAPPER_AUTH_ENABLED=true
 export WRAPPER_API_KEYS="your_key:read;write"
@@ -87,10 +90,12 @@ export WRAPPER_API_KEYS="your_key:read;write"
 连接 `/ws/memories/live` 端点接收记忆变更的实时通知。
 
 **连接参数**:
+
 - `tenant_id` (可选): 租户 ID，默认 `default`
 - `token` (可选): 认证 token（需配置 `WRAPPER_WEBSOCKET_TOKEN`）
 
 **JavaScript 示例**:
+
 ```javascript
 const ws = new WebSocket('ws://localhost:17999/ws/memories/live?tenant_id=default&token=your_token');
 ws.onmessage = (event) => {
@@ -100,6 +105,7 @@ ws.onmessage = (event) => {
 ```
 
 **Python 示例**:
+
 ```python
 import json
 from websockets import connect
@@ -111,12 +117,14 @@ async with connect('ws://localhost:17999/ws/memories/live?tenant_id=default') as
 ```
 
 **认证配置**:
+
 ```bash
 # 启用 WebSocket 认证（可选，未配置则允许所有连接）
 export WRAPPER_WEBSOCKET_TOKEN=your_secret_token
 ```
 
 ### 核心功能
+
 - ✅ **记忆管理**：SurrealDB 向量存储 + Meilisearch 全文搜索，Polyglot 混合搜索架构
 - ✅ **API 认证**：API Key 认证和权限控制
 - ✅ **LRU 缓存**：文本嵌入结果缓存
@@ -130,6 +138,7 @@ export WRAPPER_WEBSOCKET_TOKEN=your_secret_token
 ### Meilisearch 代码搜索优化
 
 **优化功能**：
+
 - **104词代码术语字典**：FastAPI, Python, Meilisearch, SurrealDB, Docker, Kubernetes 等常用代码术语
 - **代码标识符搜索**：支持 `meili_client.py`, `config.surrealdb.url` 等带点号/下划线的标识符
 - **双字段策略**：搜索字段（content_zh, content_search, code）+ 精确匹配字段（date, version, ip_address, email）
@@ -137,6 +146,7 @@ export WRAPPER_WEBSOCKET_TOKEN=your_secret_token
 - **nonSeparatorTokens**：`-`, `.`, `/`, `:`, `@`, `_` 不作为分隔符，保持代码标识符完整性
 
 **使用场景**：
+
 - 代码文件名搜索：`meili_client.py`, `memory_manager.py`
 - 配置项搜索：`config.surrealdb.url`, `wrapper.meili.enabled`
 - 版本号搜索：`v2.3.0`, `v3.0.1`
@@ -145,8 +155,8 @@ export WRAPPER_WEBSOCKET_TOKEN=your_secret_token
 
 **详细文档**：查看 [meilisearch_code/README.md](meilisearch_code/README.md) 了解完整配置和使用指南。
 
-
 ## 技术要求与兼容性
+
 - 保持向后兼容及现有接口
 - 认证开关可通过环境变量控制
 - 兼容现有文档结构，方便跳转至 ROADMAP.md
@@ -192,11 +202,13 @@ uv run python -m wrapper.src.main
 **清空 API 端点**：`DELETE /api/v1/memories/clear`
 
 **安全机制**：
+
 1. 先清空 Meilisearch（验证 `WRAPPER_MEILI_API_KEY`）
 2. 如果 Meilisearch 清空成功 → 再清空 SurrealDB
 3. 如果 API key 错误 → Meilisearch 清空失败，SurrealDB 不被清空
 
 **使用方法**：
+
 ```bash
 # 从环境变量 MEILI_MASTER_KEY 获取 API Key
 # 默认值：masterKey_change_in_production（生产环境需修改）
@@ -212,6 +224,7 @@ curl -X DELETE http://localhost:17999/api/v1/memories/clear \
 ```
 
 **API Key 配置**：
+
 - 环境变量：`MEILI_MASTER_KEY`
 - Docker Compose 配置：见 `docker-compose.yml` 第 106 行
 - Wrapper 配置：见 `wrapper/src/config.py` 第 146 行
@@ -220,6 +233,7 @@ curl -X DELETE http://localhost:17999/api/v1/memories/clear \
 **响应示例**：
 
 成功 (200)：
+
 ```json
 {
   "success": true,
@@ -228,6 +242,7 @@ curl -X DELETE http://localhost:17999/api/v1/memories/clear \
 ```
 
 失败 (401 - 缺少 key)：
+
 ```json
 {
   "detail": "Missing WRAPPER_MEILI_API_KEY header"
@@ -235,6 +250,7 @@ curl -X DELETE http://localhost:17999/api/v1/memories/clear \
 ```
 
 失败 (403 - key 错误)：
+
 ```json
 {
   "detail": "Invalid WRAPPER_MEILI_API_KEY"
@@ -242,6 +258,7 @@ curl -X DELETE http://localhost:17999/api/v1/memories/clear \
 ```
 
 失败 (500 - 清空失败)：
+
 ```json
 {
   "detail": "清空失败: ..."
@@ -249,6 +266,7 @@ curl -X DELETE http://localhost:17999/api/v1/memories/clear \
 ```
 
 **清空脚本**：
+
 ```bash
 # 清空后端所有数据（SurrealDB + Meilisearch）
 cd D:/embedding_service
@@ -285,6 +303,26 @@ uv run pytest tests/ -v
 uv run python scripts/benchmark.py --iterations 5
 ```
 
+### 代码与文档质量门禁
+
+本项目强制实施严格的质量门禁：
+
+```bash
+# 1. 运行 Python 格式化 (Ruff)
+uv run ruff format src/
+
+# 2. 运行 Python Lint 检查 (Ruff)
+uv run ruff check src/ --fix
+
+# 3. 运行静态类型检查 (Pyright)
+uv run pyright src/
+
+# 4. 运行 Markdown 文档检查 (Markdownlint)
+uvx pre-commit run markdownlint-cli2 --all-files
+```
+
+> **注意**: 建议直接使用 `pre-commit` 自动管理所有 hook：`git commit` 时会自动触发上述所有检查。
+
 ### 性能基线（v2.4.2）
 
 运行 `scripts/benchmark.py` 获取当前环境性能数据：
@@ -306,6 +344,7 @@ uv run python scripts/benchmark.py --iterations 5
 📖 **[同步冲突解决最佳实践](docs/SYNC_CONFLICT_RESOLUTION.md)**
 
 **快速开始**：
+
 ```python
 import httpx
 
@@ -331,9 +370,11 @@ if response.json()["conflicts"]:
 ```
 
 ## 文件位置
+
 D:\embedding_service\README.md
 
 ## 验证
+
 - Markdown 语法正确性检查
 - 通过浏览器打开或在 CI 中渲染 README.md
 

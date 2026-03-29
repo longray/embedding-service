@@ -3,6 +3,7 @@
 ## 测试概述
 
 本测试套件对 Embedding 服务的所有 API 接口进行全面、严格的端到端测试，包括：
+
 - Embedding 服务（端口 18000）
 - LLM 服务（端口 18001）
 - 包装层服务（端口 3001）
@@ -12,9 +13,11 @@
 ## 测试类型
 
 ### 基础功能测试
+
 - 健康检查、API 端点、基本功能
 
 ### 扩展测试
+
 - **边界条件测试**：超长文本、空输入、特殊字符、大批量
 - **错误处理测试**：无效参数、缺失字段、错误类型
 - **熔断器测试**：状态转换、故障恢复
@@ -122,12 +125,15 @@ uv run pytest tests/test_embedding_service.py::TestEmbeddingService::test_health
 | TestPerformance | 4 | 响应时间、并发测试 |
 
 **运行方式**:
+
 ```bash
 uv run pytest tests/test_wrapper_api.py -v
 ```
 
 ### Embedding 服务
+
 **基础测试** (6个):
+
 - ✅ 健康检查
 - ✅ 单个文本嵌入
 - ✅ 批量文本嵌入
@@ -136,6 +142,7 @@ uv run pytest tests/test_wrapper_api.py -v
 - ✅ 统计信息
 
 **扩展测试** (11个):
+
 - ✅ 超长文本（~8000字符）
 - ✅ 空字符串
 - ✅ 特殊字符（emoji、Unicode）
@@ -149,7 +156,9 @@ uv run pytest tests/test_wrapper_api.py -v
 - ✅ 无效模型名
 
 ### LLM服务
+
 **基础测试** (5个):
+
 - ✅ 健康检查
 - ✅ 聊天补全
 - ✅ 简单生成
@@ -157,6 +166,7 @@ uv run pytest tests/test_wrapper_api.py -v
 - ✅ 统计信息
 
 **扩展测试** (13个):
+
 - ✅ 超长消息
 - ✅ 空消息内容
 - ✅ 特殊字符
@@ -172,13 +182,16 @@ uv run pytest tests/test_wrapper_api.py -v
 - ✅ 缺失model字段
 
 ### 包装层服务
+
 **基础测试** (4个):
+
 - ✅ 健康检查
 - ✅ 嵌入接口（缓存测试）
 - ✅ 聊天接口
 - ✅ Prometheus指标
 
 **扩展测试** (9个):
+
 - ✅ 熔断器状态验证
 - ✅ 熔断器关闭状态
 - ✅ 成功请求通过包装层
@@ -190,6 +203,7 @@ uv run pytest tests/test_wrapper_api.py -v
 - ✅ 请求后指标更新
 
 ### 性能测试 (7个)
+
 - ✅ 单个请求响应时间（<2秒）
 - ✅ 并发请求（10个）
 - ✅ 批量处理（100条）
@@ -199,6 +213,7 @@ uv run pytest tests/test_wrapper_api.py -v
 - ✅ 包装层开销（<100ms）
 
 ### 安全测试 (10个)
+
 - ✅ SQL注入防护
 - ✅ XSS攻击防护
 - ✅ 命令注入防护
@@ -224,12 +239,14 @@ uv run pytest tests/test_wrapper_api.py -v
 | TestMeiliSearchRouting | 4 | keyword→Meilisearch、vector→SurrealDB、hybrid→RRF |
 
 **运行方式**:
+
 ```bash
 # 运行 Meilisearch 集成测试
 uv run pytest tests/test_meili_integration.py -v
 ```
 
 **前置条件**:
+
 - Meilisearch 1.4+ 运行中（默认端口 7700）
 - 配置 `WRAPPER_MEILI_ENABLED=true` 环境变量
 - 不需要 Meilisearch 也可运行（mock 测试）
@@ -247,11 +264,13 @@ uv run pytest tests/test_meili_integration.py -v
 | test_batch_deduplication | 批量上传时的去重机制 |
 
 **运行方式**:
+
 ```bash
 uv run pytest tests/test_semantic_deduplication.py -v
 ```
 
 **测试验证**:
+
 - ✅ 语义相似度 >= 0.95 的记忆被正确拒绝
 - ✅ 语义相似度 < 0.95 的记忆被正确接受
 - ✅ 完全相同内容的哈希去重正常工作
@@ -275,6 +294,7 @@ uv run pytest tests/ --html=report.html --self-contained-html
 **原因**：服务未启动
 
 **解决**：
+
 ```bash
 uv run python start_services.py --with-llm
 ```

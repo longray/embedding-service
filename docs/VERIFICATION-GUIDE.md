@@ -20,6 +20,7 @@ pre-commit install --install-hooks
 ```
 
 **预期输出**:
+
 ```
 pre-commit installed at .git\hooks\pre-commit
 ```
@@ -37,6 +38,7 @@ pre-commit run --all-files
 #### P0级别（必须立即修复）
 
 **Gitleaks - 密钥泄露**:
+
 ```bash
 # 如果检测到密钥泄露
 # 1. 立即从代码中移除密钥
@@ -45,6 +47,7 @@ pre-commit run --all-files
 ```
 
 **Bandit - 高危安全问题**:
+
 ```bash
 # 查看详细报告
 uv run bandit -r src/ -f txt
@@ -56,6 +59,7 @@ uv run bandit -r src/ -f txt
 #### P1级别（阻断提交）
 
 **Pyright - 类型错误**:
+
 ```bash
 # 查看类型错误
 uv run pyright src/
@@ -67,6 +71,7 @@ uv run pyright src/
 ```
 
 **Ruff - 严重Lint错误**:
+
 ```bash
 # 查看错误
 uv run ruff check src/
@@ -78,12 +83,14 @@ uv run ruff check src/ --fix
 #### P2级别（自动修复）
 
 **Ruff Format - 格式问题**:
+
 ```bash
 # 自动格式化
 uv run ruff format src/
 ```
 
 **Ruff Check - 可修复问题**:
+
 ```bash
 # 自动修复
 uv run ruff check src/ --fix
@@ -96,6 +103,7 @@ uv run ruff check src/ --fix
 ## 迭代验证循环
 
 ### 目标
+
 连续3个commit通过所有P0/P1检查。
 
 ### 流程

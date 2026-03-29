@@ -1,0 +1,26 @@
+{
+  "config": {
+    "default": true,
+    "MD001": false, // 允许标题跳级（如 H1 后接 H3）
+    "MD013": false, // 行长度限制（允许长行）
+    "MD024": false, // 允许重复标题
+    "MD025": false, // 允许单个文件内有多个 H1
+    "MD033": false, // 允许内联 HTML
+    "MD034": false, // 允许裸 URL
+    "MD036": false, // 允许强调作为标题使用
+    "MD040": false, // 允许代码块不指定语言
+    "MD041": false, // 允许首行不是 H1
+    "MD051": false, // 允许页面内链接不匹配
+    "MD056": false, // 允许表格列数不匹配（常见于复杂/嵌套表格）
+    "MD060": false  // 允许表格列未对齐（避免历史遗留问题引发大量报错）
+  },
+  "ignores": [
+    "node_modules",
+    ".venv",
+    "venv",
+    "CHANGELOG.md",
+    "archive/**",
+    "meilisearch_code/README.md",
+    "src/qwen3_embedding_service/models/**"
+  ]
+}

@@ -70,6 +70,7 @@
 - ✅ **记忆管理**：Polyglot 架构（SurrealDB 向量/图 + Meilisearch 全文搜索）
 - ✅ **混合搜索**：RRF 融合（向量走 SurrealDB + 关键词走 Meilisearch）
 - ✅ **API 认证**：API Key 认证和权限控制
+
 ---
 
 ## 二、API版本管理
@@ -110,14 +111,17 @@ Current (当前版本) → Supported (支持版本) → Deprecated (弃用版本
 ### 2.4 版本升级指南
 
 **添加新字段**：
+
 - ✅ 向后兼容：客户端可忽略新字段
 - ✅ 新字段必须可选或提供默认值
 
 **删除字段**：
+
 - ❌ 破坏性变更：必须升级主版本号
 - ⚠️ 提前3个月发布弃用通知
 
 **修改字段类型**：
+
 - ❌ 破坏性变更：必须升级主版本号
 - ✅ 向下兼容：扩大类型范围（如 int32 → int64）
 
@@ -704,6 +708,7 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
 **请求/响应格式**：与Embedding服务相同
 
 **增强特性**：
+
 - ✅ 智能缓存（LRU + TTL）
 - ✅ 熔断器保护
 - ✅ 连接池复用
@@ -715,6 +720,7 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
 **请求/响应格式**：与LLM服务相同
 
 **增强特性**：
+
 - ✅ 熔断器保护
 - ✅ 连接池复用
 
@@ -954,6 +960,7 @@ class MemoryUploadResponse(BaseModel):
 #### 7.1.1 HTTP API（推荐）
 
 **优势**：
+
 - ✅ 跨语言支持
 - ✅ 易于调试
 - ✅ 标准化协议
@@ -977,6 +984,7 @@ Content-Type: application/json
 #### 7.1.2 WebSocket（实时通信）
 
 **优势**：
+
 - ✅ 双向通信
 - ✅ 实时推送
 - ✅ 低延迟
@@ -1693,6 +1701,7 @@ async def test_full_workflow():
 |------|------|----------|
 | 2.3.0 | 2026-03-12 | Polyglot 搜索架构：Meilisearch 全文搜索 + SurrealDB 向量/图 |
 | 1.0.0 | 2026-03-04 | 初始版本 |
+
 ---
 
 ## 联系方式

@@ -67,3 +67,14 @@ repos:
         pass_filenames: false
         stages: [pre-push]
         require_serial: true
+
+  # ===========================================
+  # 📝 Markdown 质量门禁（P3 优先级）
+  # ===========================================
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.22.0
+    hooks:
+      - id: markdownlint-cli2
+        name: 📝 Markdownlint - Markdown Linting
+        types: [markdown]
+        stages: [pre-commit]

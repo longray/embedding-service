@@ -20,6 +20,7 @@
 | **嵌套深度** | ≤5层 | 人工审查 | P3 | 警告，建议减少嵌套 |
 
 **Ruff 配置**:
+
 ```toml
 [tool.ruff.lint]
 select = ["C901", "PLR0912", "PLR0913", "PLR0915"]
@@ -56,6 +57,7 @@ select = ["C901", "PLR0912", "PLR0913", "PLR0915"]
 | **公共API** | 100% | pytest-cov | P4 | docs/06-TESTING-STANDARDS.md#6.2.7 |
 
 **本项目目标**:
+
 - 初期目标：≥70%（业务应用标准）
 - 中期目标：≥80%
 - 长期目标：≥90%
@@ -118,6 +120,7 @@ select = ["C901", "PLR0912", "PLR0913", "PLR0915"]
 | **本项目** | 21个 | < 3s | < 10s | < 1s |
 
 **当前状态**:
+
 - 文件数量：21个Python文件
 - 代码行数：约2,764行
 - 预期性能：小型项目标准
@@ -125,14 +128,17 @@ select = ["C901", "PLR0912", "PLR0913", "PLR0915"]
 ### 3.2 性能优化策略
 
 **增量检查**:
+
 - Pre-commit `pass_filenames: true`
 - 只检查变更的文件
 
 **缓存策略**:
+
 - Ruff 缓存：`.ruff_cache/`
 - 自动缓存，无需配置
 
 **并行执行**:
+
 - CI/CD job 并行化
 - 独立任务并行运行
 
@@ -209,6 +215,7 @@ jobs:
 **记录位置**: `.quality-state/metrics.log`
 
 **记录内容**:
+
 ```json
 {
   "timestamp": "2026-03-03T14:00:00Z",
@@ -227,6 +234,7 @@ jobs:
 ### 5.2 趋势分析
 
 **每周报告**:
+
 - 错误数趋势
 - 覆盖率趋势
 - 复杂度趋势
@@ -237,18 +245,21 @@ jobs:
 ## 6. 实施检查清单
 
 ### 6.1 门禁配置
+
 - [ ] 配置 P0 级别门禁（Gitleaks, Bandit高危）
 - [ ] 配置 P1 级别门禁（Pyright, Ruff严重错误）
 - [ ] 配置 P2 级别自动修复（Ruff Format, Ruff --fix）
 - [ ] 配置 P3 级别警告（复杂度、命名）
 
 ### 6.2 阈值验证
+
 - [ ] 验证复杂度阈值：McCabe ≤15
 - [ ] 验证函数长度：≤50行
 - [ ] 验证参数数量：≤5个
 - [ ] 验证测试覆盖率：≥70%
 
 ### 6.3 监控配置
+
 - [ ] 创建 .quality-state/ 目录
 - [ ] 配置 metrics.log 记录
 - [ ] 配置每周质量报告
@@ -261,11 +272,19 @@ jobs:
 **规范来源**: D:\github\code-quality-standard
 
 # === QUALITY-SPEC-REF ===
+
 # Repo: longray/code-quality-standard
-# Files: 
-#   - docs/03-LINTING-STANDARDS.md (复杂度阈值)
-#   - docs/05-SECURITY-SCANNING.md (安全扫描)
-#   - docs/06-TESTING-STANDARDS.md (测试覆盖率)
-#   - docs/01-GLOBAL-PRINCIPLES.md (性能指标)
+
+# Files
+
+# - docs/03-LINTING-STANDARDS.md (复杂度阈值)
+
+# - docs/05-SECURITY-SCANNING.md (安全扫描)
+
+# - docs/06-TESTING-STANDARDS.md (测试覆盖率)
+
+# - docs/01-GLOBAL-PRINCIPLES.md (性能指标)
+
 # Priority: P0-P5 as marked
+
 # === /QUALITY-SPEC-REF ===

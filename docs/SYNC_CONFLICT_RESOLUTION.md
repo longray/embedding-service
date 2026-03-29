@@ -27,6 +27,7 @@
 **场景描述**：用户在 PC 和手机上同时编辑记忆，需要云端同步数据。
 
 **关键挑战**：
+
 - 多设备同时修改同一条记忆
 - 网络延迟导致的并发冲突
 - 设备离线后的数据同步
@@ -36,6 +37,7 @@
 **场景描述**：用户在无网络环境下编辑记忆，上线后批量同步到服务端。
 
 **关键挑战**：
+
 - 离线期间服务端可能被其他设备修改
 - 批量同步时的冲突检测
 - 部分同步失败的重试机制
@@ -45,6 +47,7 @@
 **场景描述**：多个用户共享同一个租户，需要处理并发修改冲突。
 
 **关键挑战**：
+
 - 用户间的数据冲突
 - 权限控制和数据隔离
 - 协作历史的追溯
@@ -54,6 +57,7 @@
 **场景描述**：定期将服务端数据导出到本地备份，或从备份恢复。
 
 **关键挑战**：
+
 - 备份文件与服务端数据的冲突
 - 增量备份的高效同步
 - 数据一致性保证
@@ -596,12 +600,14 @@ asyncio.run(backup_restore_workflow())
 #### ✅ 推荐
 
 1. **使用自动同步策略**：
+
    ```python
    # 基于时间戳自动选择
    resolution = "use_local" if local_mtime > server_mtime else "use_remote"
    ```
 
 2. **定期增量同步**：
+
    ```python
    # 每分钟自动同步一次
    while True:
@@ -610,6 +616,7 @@ asyncio.run(backup_restore_workflow())
    ```
 
 3. **冲突通知机制**：
+
    ```python
    # 冲突发生时通知用户
    if conflicts:
@@ -633,12 +640,14 @@ asyncio.run(backup_restore_workflow())
 #### ✅ 推荐
 
 1. **使用本地指纹文件**：
+
    ```python
    # 持久化本地指纹
    fingerprint_file = ".sync_fingerprints.json"
    ```
 
 2. **离线期间标记修改**：
+
    ```python
    # 记录离线期间的所有修改
    offline_changes = {
@@ -648,6 +657,7 @@ asyncio.run(backup_restore_workflow())
    ```
 
 3. **上线后批量同步**：
+
    ```python
    # 一次性同步所有离线修改
    await sync_when_online()
@@ -670,18 +680,21 @@ asyncio.run(backup_restore_workflow())
 #### ✅ 推荐
 
 1. **使用独立的 tenant_id**：
+
    ```python
    # 每个用户独立的租户
    tenant_id = f"{project_id}:{user_id}"
    ```
 
 2. **使用 `keep_both` 策略**：
+
    ```python
    # 保留所有用户的修改
    resolution = "keep_both"
    ```
 
 3. **记录协作历史**：
+
    ```python
    # 在 metadata 中记录用户信息
    metadata = {
@@ -707,17 +720,20 @@ asyncio.run(backup_restore_workflow())
 #### ✅ 推荐
 
 1. **定期全量备份**：
+
    ```python
    # 每天凌晨自动备份
    await backup_manager.full_backup()
    ```
 
 2. **使用时间戳命名**：
+
    ```python
    backup_file = f"backup_{timestamp}.json"
    ```
 
 3. **备份前验证数据**：
+
    ```python
    # 备份前验证数据完整性
    if not await verify_data_integrity():
@@ -771,11 +787,13 @@ asyncio.run(backup_restore_workflow())
 **症状**：调用 `/api/v1/sync/conflicts/{id}/resolve` 返回错误
 
 **可能原因**：
+
 - 冲突 ID 不存在
 - 租户 ID 不匹配
 - 无效的解决策略
 
 **解决方案**：
+
 ```python
 # 1. 验证冲突 ID 存在
 conflict = await get_conflict_detail(conflict_id, tenant_id)
@@ -797,10 +815,12 @@ if resolution not in valid_resolutions:
 **症状**：同一个冲突被多次检测到
 
 **可能原因**：
+
 - 本地指纹未更新
 - 哈希计算错误
 
 **解决方案**：
+
 ```python
 # 1. 同步后立即更新本地指纹
 sync_result = await sync_incremental(local_fingerprints)
@@ -822,10 +842,12 @@ server_hash = calculate_hash(server_content)
 **症状**：冲突解决后搜索结果不一致
 
 **可能原因**：
+
 - Meilisearch 服务不可用
 - 索引更新延迟
 
 **解决方案**：
+
 ```python
 # 1. 检查 Meilisearch 状态
 health = await meili_client.health()

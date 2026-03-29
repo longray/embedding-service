@@ -63,16 +63,19 @@ uv run python start_services.py --with-llm --no-wrapper
 ### 故障排查
 
 **问题1：Embedding服务启动失败**
+
 - 检查端口18000是否被占用
 - 检查模型文件是否存在
 - 查看错误日志
 
 **问题2：服务未能就绪**
+
 - 首次启动需要下载模型（约1.2GB）
 - GPU模式需要更长的启动时间
 - 检查健康检查端点：`curl http://localhost:18000/health`
 
 **问题3：包装层服务启动失败**
+
 - 确保后端服务已启动
 - 检查端口 17999 是否被占用
 - 检查环境变量配置（SurrealDB、Meilisearch 地址等）
@@ -97,13 +100,16 @@ uv run python -m wrapper.src.main
 ```bash
 uv run python start_services.py
 ```
+
 - 只启动必需的服务
 - 快速启动，节省资源
 
 **生产环境**：
+
 ```bash
 uv run python start_services.py --with-llm
 ```
+
 - 启动所有服务
 - 提供完整功能
 

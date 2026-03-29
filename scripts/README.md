@@ -221,6 +221,7 @@ uv run python scripts/init_database.py
 ### 多环境配置
 
 **开发环境**：
+
 ```bash
 export SURREAL_URL=ws://localhost:18002
 export WRAPPER_MEILI_URL=http://localhost:7700
@@ -228,6 +229,7 @@ uv run python scripts/init_all.py
 ```
 
 **测试环境**：
+
 ```bash
 export SURREAL_URL=ws://test.example.com:18002
 export WRAPPER_MEILI_URL=http://test.example.com:7700
@@ -235,6 +237,7 @@ uv run python scripts/init_all.py
 ```
 
 **生产环境**：
+
 ```bash
 export SURREAL_URL=ws://prod.example.com:18002
 export WRAPPER_MEILI_URL=http://prod.example.com:7700
@@ -306,11 +309,13 @@ curl http://localhost:17999/health
 ### 问题 1: SurrealDB 连接失败
 
 **症状**：
+
 ```
 ❌ 连接 SurrealDB 失败: [Errno 111] Connection refused
 ```
 
 **解决方案**：
+
 ```bash
 # 1. 检查 SurrealDB 是否运行
 ps aux | grep surreal
@@ -325,11 +330,13 @@ netstat -an | grep 18002
 ### 问题 2: Meilisearch 连接失败
 
 **症状**：
+
 ```
 ❌ 连接 Meilisearch 失败: [Errno 111] Connection refused
 ```
 
 **解决方案**：
+
 ```bash
 # 1. 检查 Meilisearch 是否运行
 ps aux | grep meilisearch
@@ -344,11 +351,13 @@ netstat -an | grep 7700
 ### 问题 3: Schema 初始化失败
 
 **症状**：
+
 ```
 ❌ Schema 初始化失败: ...
 ```
 
 **解决方案**：
+
 ```bash
 # 1. 检查 SurrealDB 版本
 surreal version
@@ -361,11 +370,13 @@ uv run python scripts/init_database.py
 ### 问题 4: Meilisearch 索引创建失败
 
 **症状**：
+
 ```
 ❌ 创建索引失败: ...
 ```
 
 **解决方案**：
+
 ```bash
 # 1. 检查 Meilisearch 版本
 curl http://localhost:7700/version
@@ -397,6 +408,7 @@ uv run python scripts/init_meilisearch.py
 | `init_meilisearch.py` | 单独初始化索引 | ⭐⭐ |
 
 **推荐流程**：
+
 1. 首次部署：使用 `init_all.py` 一键初始化
 2. 数据库迁移：使用 `init_database.py` 重新初始化
 3. 索引重建：使用 `init_meilisearch.py` 重新配置

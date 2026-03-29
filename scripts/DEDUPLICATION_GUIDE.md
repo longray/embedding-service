@@ -5,11 +5,13 @@
 **方案**: 内容哈希 + 复合 UNIQUE 索引（租户级去重）
 
 **核心机制**:
+
 - 添加 `content_hash` 字段（MD5 哈希）
 - 创建 `(tenant_id, content_hash)` 复合 UNIQUE 索引
 - 自动哈希触发器（CREATE/UPDATE 时自动计算）
 
 **效果**:
+
 - 🚫 完全阻止重复内容插入
 - ⚡ 数据库层面拒绝，性能最优
 - 🔒 无法绕过，安全可靠
@@ -37,6 +39,7 @@ uv run python scripts/migrate_add_deduplication.py
 ```
 
 **输出示例**:
+
 ```
 🔍 步骤1: 分析重复数据...
   - 总记录数: 288

@@ -41,6 +41,7 @@
 | 安全基线不足 | 🟡 中 | 生产环境使用专用账号 + TLS/WSS |
 
 **Oracle 建议要点**：
+
 - HNSW: M=16 ✅，EFC 建议 200-300，EF 建议动态 `max(40, 4*K)`
 - KNN + `vector::distance::knn()` 配合使用
 - Schema migration 必须版本化 + migration lock
@@ -62,6 +63,7 @@
 | Oracle #2 | 实现深度审查 | 🔴 迁移锁需 UPSERT+TTL，Schema 初始化需 fail-fast |
 
 **v1.2 修复清单**：
+
 - [x] HNSW DDL: `EF_CONSTRUCTION` → `EFC`，移除 DDL 中不存在的 `EF_SEARCH` (§5.1)
 - [x] KNN 算子: `<|{ef_search}|>` → `<|$limit,$ef_search|>` (§6.1)
 - [x] M 默认值: 16 → 12 (§5.2)
@@ -82,12 +84,12 @@
 
 **日期**: 2026-03-11
 **变更内容**:
+
 - 融合 OpenCode Memory Plugin MemoryEntry 结构，提升 `type`/`tags`/`project_id` 等高频字段为顶层字段
 - 加入 `tenant_id` 字段支持行级多租户隔离
 - 新增 `project` 表做项目归一化
 - 预留组织结构升级路径（Organization → Team → Tenant）
 - Schema 版本从 1.0.0 升级到 2.0.0
-
 
 ## 1. 执行摘要
 
@@ -511,14 +513,15 @@ UPSERT schema_version:current CONTENT {
 #### 向后兼容保证
 
 旧格式 API 调用仍然有效：
+
 ```json
 {
   "content": "Hello world",
   "metadata": {"key": "value"}
 }
 ```
-所有新字段均为 `option<T>` 或带 `DEFAULT`，旧客户端无需任何修改。
 
+所有新字段均为 `option<T>` 或带 `DEFAULT`，旧客户端无需任何修改。
 
 ### 5.3 全文搜索 Analyzer 设计
 
@@ -537,6 +540,7 @@ UPSERT schema_version:current CONTENT {
 **注意**：当前不添加 `snowball` 词干提取器，因为记忆内容以中文为主，snowball 仅对英文有效。后续如需中文分词增强，可考虑自定义 Analyzer。
 
 > ⚠️ **Oracle 警告**：`blank/class` tokenizer 对中文分词效果有限，仅按 Unicode 类别切分（如 CJK 统一表意文字每字一 token）。如果关键词搜索质量不足，需考虑以下替代方案：
+>
 > - **预分词字段**：在应用层使用 jieba 等分词器预处理，存储分词结果到独立字段
 > - **外部搜索引擎**：接入 Meilisearch/Typesense 做中文全文搜索
 > - **纯向量搜索降级**：中文场景放弃 keyword，依赖 hybrid = vector + 元数据过滤
@@ -588,11 +592,13 @@ SELECT ->relates_to->memory.* FROM memory:abc;
 ```
 
 **优势**：
+
 - 实现简单，无需修改连接管理
 - 复合索引 `(tenant_id, type)` 和 `(tenant_id, project_id)` 保证查询性能
 - 默认值 "default" 保证向后兼容
 
 **查询示例**：
+
 ```sql
 -- 租户隔离的向量搜索
 SELECT id, content, metadata, type, tags, project_id,
@@ -612,6 +618,7 @@ ORDER BY score DESC LIMIT $limit
 ```
 
 **API 变更**：
+
 ```python
 class MemoryUploadRequest(BaseModel):
     memories: list[dict] = Field(..., description="记忆列表")
@@ -642,6 +649,7 @@ SurrealDB 层级:
 ```
 
 **迁移策略**：
+
 1. 为每个租户创建独立 database
 2. 按 `tenant_id` 分批迁移数据
 3. 更新连接管理：按 tenant_id 路由到对应 database
@@ -689,12 +697,12 @@ DEFINE INDEX tenant_org ON tenant FIELDS org_id;
 ```
 
 **注意**：远期实施时，`memory.tenant_id` 可改为 `record<tenant>` 类型以支持图查询：
+
 ```sql
 -- 远期：查询某组织下所有记忆
 SELECT * FROM memory
 WHERE tenant_id->team_id->org_id = organization:acme
 ```
-
 
 ---
 
@@ -703,6 +711,7 @@ WHERE tenant_id->team_id->org_id = organization:acme
 ### 6.1 向量搜索：KNN 操作符 + 索引利用
 
 **升级前**（全表扫描，O(n)）：
+
 ```sql
 SELECT id, content, metadata,
        vector::similarity::cosine(embedding, $embedding) AS score
@@ -712,6 +721,7 @@ ORDER BY score DESC LIMIT $limit
 ```
 
 **升级后**（HNSW 索引，O(log n)）：
+
 ```sql
 -- <|K,EF|> 算子：K=返回最近邻数量，EF=搜索候选集大小（越大越精确但越慢）
 -- vector::distance::knn() 复用索引已计算的距离，无需重复调用 cosine()
@@ -724,12 +734,14 @@ ORDER BY distance ASC
 ```
 
 > ⚠️ **v1.2 修复说明**：
+>
 > - `<|{ef_search}|>` → `<|$limit,$ef_search|>`：KNN 算子需要两个参数（K=结果数, EF=候选集），不是一个
 > - `vector::similarity::cosine()` → `vector::distance::knn()`：KNN 算子已通过索引计算距离，用 `knn()` 复用结果避免重复计算
 > - `ORDER BY score DESC` → `ORDER BY distance ASC`：距离越小越相似（与相似度方向相反）
 > - 如需阈值过滤，可在应用层对 distance 结果做后过滤（`distance < threshold`）
 
 **关键变化**：
+
 - `<|K,EF|>` KNN 操作符触发 HNSW 索引查询，K 为返回数量，EF 为候选集大小
 - `vector::distance::knn()` 复用索引已计算的距离分数，无重复计算开销
 - EF 参数运行时可配置，默认 50，Oracle 建议 `max(40, 4*K)`
@@ -739,12 +751,14 @@ ORDER BY distance ASC
 ### 6.2 关键词搜索：全文索引 + BM25 评分
 
 **升级前**（子字符串匹配，无排序）：
+
 ```sql
 SELECT id, content, metadata
 FROM memory WHERE content CONTAINS $query LIMIT $limit
 ```
 
 **升级后**（全文搜索 + BM25 评分）：
+
 ```sql
 SELECT id, content, metadata, type, tags, project_id,
        search::score(1) AS score
@@ -755,6 +769,7 @@ ORDER BY score DESC LIMIT $limit
 ```
 
 **关键变化**：
+
 - `@1@` 是 SurrealDB 全文搜索操作符，数字 `1` 是索引引用 ID
 - `search::score(1)` 返回 BM25 相关性分数
 - 自动分词、小写化、相关性排序
@@ -762,6 +777,7 @@ ORDER BY score DESC LIMIT $limit
 ### 6.3 混合搜索：RRF 融合算法
 
 **升级前**（硬编码分数合并）：
+
 ```python
 for item in keyword_results:
     item["score"] = 0.5  # 所有关键词结果固定 0.5 分
@@ -823,6 +839,7 @@ def _rrf_merge(
 ```
 
 **RRF 算法优势**：
+
 - 不依赖原始分数的绝对值（向量分数和 BM25 分数天然不可比）
 - 只依赖排名位置，天然归一化
 - k=60 是原始论文（Cormack et al. 2009）推荐值
@@ -849,6 +866,7 @@ class SearchConfig:
 ```
 
 对应环境变量：
+
 ```
 WRAPPER_SEARCH_RRF_K=60
 WRAPPER_SEARCH_RRF_VECTOR_WEIGHT=0.7
@@ -896,6 +914,7 @@ Phase 2 (P1): 增强功能                      ← 未来迭代，按需
 | 1.13 | 更新/新增测试 | `tests/` | 0.5 天 |
 
 **Phase 1 验收标准**：
+
 - [ ] `docker-compose up` 可以正确启动所有服务
 - [ ] SurrealDB 容器重启后数据不丢失
 - [ ] `uv pip install -e .` 包含 surrealdb SDK
@@ -920,6 +939,7 @@ Phase 2 (P1): 增强功能                      ← 未来迭代，按需
 | 2.5 | Computed Fields | 0.5 天 | 需要预计算派生值时 |
 | 2.6 | LIVE SELECT 实时推送 | 2 天 | 需要实时通知时 |
 | 2.7 | Client-side Transactions | 1 天 | 需要多步原子操作时 |
+
 ---
 
 ## 8. 迁移策略
@@ -950,6 +970,7 @@ Phase 2 (P1): 增强功能                      ← 未来迭代，按需
 ### 8.2 Schema 初始化流程
 
 > ⚠️ **v1.2 重大修复**：
+>
 > 1. Schema 初始化失败时 **fail-fast**（`raise SystemExit(1)`），不允许服务在残缺状态运行
 > 2. 迁移锁改用 **UPSERT + TTL** 防死锁，取代 `CREATE`（非幂等）
 > 3. 多语句执行改用 **`query_raw()`** 或逐条拆分执行（`query()` 只返回最后结果）
@@ -1153,6 +1174,7 @@ Schema 初始化失败将导致服务直接退出（`SystemExit(1)`），确保�
 ---
 
 > **下一步**：待老曹审核通过后，进入 Phase 1 实施。
+>
 ### 10.5 版本兼容矩阵（Oracle 建议新增）
 
 > 确保 Server 与 SDK 版本配对正确。
@@ -1165,6 +1187,7 @@ Schema 初始化失败将导致服务直接退出（`SystemExit(1)`），确保�
 | 2.x | 1.0.x | ✅ 兼容 | 当前使用中 |
 
 **建议**：
+
 - `pyproject.toml` 中声明 `surrealdb>=1.0.0,<2.0.0`（排除 2.0.0 alpha）
 - 或锁定已验证版本 `surrealdb==1.0.8`
 - `docker-compose.yml` 中固定 `surrealdb/surrealdb:v3.0.0`
@@ -1197,6 +1220,6 @@ Schema 初始化失败将导致服务直接退出（`SystemExit(1)`），确保�
 | Phase 3 | 组织结构权限模型（Organization/Team 级隔离，见 §5.5.3） | P2 |
 
 **当前 root/root + ws:// 的风险**：
+
 - 开发环境：可接受（本地访问）
 - 生产环境：必须替换为专用账号 + WSS 加密连接
-
