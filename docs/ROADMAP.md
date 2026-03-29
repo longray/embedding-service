@@ -100,7 +100,7 @@ DEFINE INDEX memory_embedding_hnsw ON memory
   TYPE HNSW 
   DIMENSION 1024 
   DISTANCE COSINE;
-```
+```text
 
 **预期收益**:
 
@@ -291,7 +291,7 @@ DEFINE INDEX memory_embedding_hnsw ON memory
 
 [MIT](LICENSE)
 
-```
+```text
 
 ## 文件位置
 

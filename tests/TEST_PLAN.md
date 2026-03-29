@@ -68,7 +68,7 @@
 
 ## 测试文件结构
 
-```
+```text
 tests/
 ├── test_embedding_service.py    # Embedding服务测试
 ├── test_llm_service.py           # LLM服务测试

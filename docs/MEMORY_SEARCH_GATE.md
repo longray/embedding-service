@@ -17,7 +17,7 @@ uv run python scripts/evaluate_memory_search.py \
   --hybrid-threshold 0.75 \
   --enforce-layered-gate \
   --save-report docs/memory-search-eval-report-gate-local.json
-```
+```text
 
 CI 门禁测试（可选开启）：
 

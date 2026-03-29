@@ -66,8 +66,9 @@
 
 ### 1. GitNexus 参考架构
 
-```
+```text
 源代码 → Tree-sitter AST → 符号提取 → 依赖解析 → 社区检测 → 流程追踪 → 知识图谱
+
 ```
 
 **核心经验**（值得借鉴）：
@@ -121,11 +122,13 @@
   local_id: "ULID",
   source_id: "后端ID"
 }
-```
+
+```text
 
 **设计文档规划**（CODE-ANALYSIS-DESIGN.md）：
 
 ```
+
 opencode-memory-plugin/
 ├── lib/
 │   ├── code-parser.js          # AST解析器
@@ -140,7 +143,8 @@ opencode-memory-plugin/
 ├── tools/
 │   └── code-analysis.js        # MCP工具
 └── parsers/                    # 语言解析器配置
-```
+
+```text
 
 **MCP工具规划**（4个核心）：
 
@@ -169,6 +173,7 @@ async def analyze_memory_code(self, memory_id: str, persist: bool = True):
     # 存储到 metadata.code_analysis
     # 同步到 Meilisearch
     pass
+
 ```
 
 **数据存储**：
@@ -194,13 +199,14 @@ async def analyze_memory_code(self, memory_id: str, persist: bool = True):
 
 ### 核心原则
 
-```
+```yaml
 ┌─────────────────────────────────────────────────────────────┐
 │  原则 1: 插件端实时分析优先（用户代码不出本地）                  │
 │  原则 2: 后端负责聚合查询（跨文件关系、语义搜索）                │
 │  原则 3: 增量同步避免重复（指纹对比，只传变更）                  │
 │  原则 4: 后端不复分析（trust 插件端的分析结果）                 │
 └─────────────────────────────────────────────────────────────┘
+
 ```
 
 ### 职责边界划分
@@ -219,7 +225,7 @@ async def analyze_memory_code(self, memory_id: str, persist: bool = True):
 
 ### 架构图
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │  插件端（VS Code Extension）- 实时、本地、增量                  │
 ├─────────────────────────────────────────────────────────────┤
@@ -256,6 +262,7 @@ async def analyze_memory_code(self, memory_id: str, persist: bool = True):
 │  │  全局语义搜索 + 跨文件关系图                          │   │
 │  └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
+
 ```
 
 ---
@@ -327,7 +334,8 @@ self.onmessage = async (e) => {
     self.postMessage({ success: false, error: error.message });
   }
 };
-```
+
+```text
 
 **理由**：
 
@@ -358,6 +366,7 @@ self.onmessage = async (e) => {
 **方案：三层混合策略**
 
 ```
+
 ┌─────────────────────────────────────────────────────────────┐
 │  Layer 1: VS Code File Watcher（本地变更）                   │
 │  - 延迟：即时                                                │
@@ -374,7 +383,8 @@ self.onmessage = async (e) => {
 │  - 触发：定时检测                                            │
 │  - 实现：setInterval                                         │
 └─────────────────────────────────────────────────────────────┘
-```
+
+```text
 
 **实现代码**：
 
@@ -421,6 +431,7 @@ setInterval(async () => {
   const diff = compareFingerprints(localFingerprints, serverFingerprints);
   await syncDifferences(diff);
 }, 30000);
+
 ```
 
 **理由**：
@@ -450,12 +461,13 @@ setInterval(async () => {
 
 **数据流**：
 
-```
+```text
 插件端分析 → 提取符号 → 上传到后端 → 后端构建图关系
                 ↓
          本地只存指纹
                 ↓
          查询时调用后端图遍历
+
 ```
 
 ---
@@ -511,7 +523,8 @@ interface CodeAnalysisResult {
     symbols_hash: string;     // 符号结构的 hash
   };
 }
-```
+
+```text
 
 ### 记忆条目格式（扩展）
 
@@ -542,6 +555,7 @@ interface CodeMemoryItem {
   local_id: string;           // 插件端 ULID
   source_id?: string;         // 后端返回的 ID
 }
+
 ```
 
 ### API 契约
@@ -588,7 +602,8 @@ Response:
   total: 1
   success: 1
   memory_ids: ["mem:abc123"]
-```
+
+```text
 
 #### 增量同步（新增）
 
@@ -616,6 +631,7 @@ Response:
     - path: "src/auth.js"
       local_mtime: 1712345678
       server_mtime: 1712345600
+
 ```
 
 #### 代码搜索（扩展）
@@ -641,7 +657,8 @@ Response:
           functions: [...]
           complexity: {cyclomatic: 7}
       similarity: 0.85
-```
+
+```text
 
 ---
 

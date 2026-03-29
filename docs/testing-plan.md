@@ -17,7 +17,7 @@
 
 2. **测试金字塔**：
 
-   ```
+   ```text
    E2E测试 (10%)      ← 完整API流程
    集成测试 (30%)     ← 数据库交互
    单元测试 (60%)     ← 函数级别
@@ -50,7 +50,8 @@ pytest-asyncio = "^0.23.0"
 pytest-cov = "^4.1.0"
 httpx = "^0.27.0"
 faker = "^24.0.0"
-```
+
+```text
 
 ### 2.2 测试辅助工具
 
@@ -103,6 +104,7 @@ async def test_meili():
 def mock_embedding():
     """Mock embedding向量"""
     return [0.1] * 1024
+
 ```
 
 ---
@@ -150,7 +152,8 @@ async def test_hnsw_index_exists(test_db):
     
     assert "memory_embedding_hnsw" in indexes
     assert indexes["memory_embedding_hnsw"]["fields"] == ["embedding"]
-```
+
+```text
 
 #### 3.1.2 智能去重决策测试
 
@@ -199,6 +202,7 @@ def test_update_longer_content():
     
     action = decide_duplicate_action(new_mem, old_mem, similarity=0.92)
     assert action == "UPDATE"
+
 ```
 
 #### 3.1.3 批量操作测试
@@ -236,7 +240,8 @@ async def test_batch_embedding_generation(mock_embedding_service):
     
     assert len(embeddings) == 100
     assert duration < 2.0  # 应该在2秒内完成
-```
+
+```text
 
 #### 3.1.4 安全性测试
 
@@ -277,6 +282,7 @@ def test_query_sanitization():
     # 限制长度
     long_text = "a" * 1000
     assert len(sanitize_query(long_text)) <= 500
+
 ```
 
 ---
@@ -347,7 +353,8 @@ async def test_duplicate_handling(test_db):
     # 应该更新而非重复
     assert result2["duplicate_count"] == 0
     assert result2["updated_count"] == 1
-```
+
+```text
 
 #### 3.2.2 混合搜索测试
 
@@ -377,6 +384,7 @@ async def test_rrf_merge(test_db, test_meili):
     assert len(results) > 0
     # Python应该排在前面（语义+关键词都匹配）
     assert "Python" in results[0]["content"]
+
 ```
 
 ---
@@ -430,7 +438,8 @@ async def test_batch_insert_throughput(test_db):
     
     throughput = 1000 / duration
     assert throughput > 100, f"吞吐量{throughput}条/秒，低于100条/秒"
-```
+
+```text
 
 ---
 
@@ -477,6 +486,7 @@ async def test_batch_upload_api(test_client):
     data = response.json()
     assert data["success_count"] == 100
     assert data["batches"] == 2
+
 ```
 
 ### 4.2 冲突处理测试
@@ -526,7 +536,8 @@ async def test_conflict_resolution_vector_similarity(test_db):
     
     # 应该合并而非创建新记忆
     assert result["merged_count"] == 1
-```
+
+```text
 
 ---
 
@@ -549,6 +560,7 @@ async def test_explain_query_plan(test_db):
     
     # 验证使用了HNSW索引
     assert "memory_embedding_hnsw" in str(plan)
+
 ```
 
 ### 5.2 连接池优化测试
@@ -574,7 +586,8 @@ async def test_connection_pool_reuse():
     # 验证连接被复用
     assert pool.size() == 10
     assert pool.available() == 10
-```
+
+```text
 
 ### 5.3 监控和日志测试
 
@@ -613,6 +626,7 @@ async def test_prometheus_metrics():
     
     assert "memory_upload_total" in metric_names
     assert "memory_search_duration_seconds" in metric_names
+
 ```
 
 ---
@@ -676,7 +690,8 @@ uv run pytest-watch tests/
 
 # 覆盖率报告
 uv run pytest --cov=. --cov-report=html
-```
+
+```text
 
 ### 7.2 集成阶段
 
@@ -689,6 +704,7 @@ uv run pytest tests/integration/
 
 # 性能测试
 uv run pytest tests/performance/ -v
+
 ```
 
 ### 7.3 发布前
@@ -702,7 +718,8 @@ locust -f tests/load/locustfile.py --headless -u 1000 -r 100
 
 # 安全扫描
 bandit -r . -ll
-```
+
+```text
 
 ---
 
@@ -711,6 +728,7 @@ bandit -r . -ll
 ### 8.1 测试夹具
 
 ```
+
 tests/
 ├── fixtures/
 │   ├── memories/
@@ -723,7 +741,8 @@ tests/
 │       ├── search-results.json
 │       └── upload-responses.json
 └── temp/  # 测试运行时临时目录
-```
+
+```text
 
 ### 8.2 Mock数据生成
 
@@ -750,6 +769,7 @@ def generate_mock_memory(overrides=None):
 def generate_mock_memories(count=100):
     """批量生成Mock记忆"""
     return [generate_mock_memory() for _ in range(count)]
+
 ```
 
 ---
@@ -802,7 +822,8 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           file: ./coverage.xml
-```
+
+```text
 
 ---
 

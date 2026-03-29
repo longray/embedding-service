@@ -16,11 +16,13 @@ uv run python start_services.py --with-llm
 # 方式3：只启动后端服务（测试用）
 uv run python start_services.py --no-wrapper
 uv run python start_services.py --with-llm --no-wrapper
-```
+
+```text
 
 ### 启动流程
 
 ```
+
 1. 启动 Embedding 服务（必需）
    ├── 端口：18000
    └── 等待就绪（约10-30秒）
@@ -32,7 +34,8 @@ uv run python start_services.py --with-llm --no-wrapper
 3. 启动包装层服务（推荐）
    ├── 端口：3001
    └── 等待就绪（<5秒）
-```
+
+```text
 
 ### 服务访问地址
 
@@ -53,12 +56,14 @@ uv run python start_services.py --with-llm --no-wrapper
 ### 依赖关系
 
 ```
+
 包装层服务 (17999)
     ├── 必须依赖：Embedding 服务 (18000)
     ├── 必须依赖：SurrealDB (18002) — 向量搜索 + 图关系
     ├── 可选依赖：LLM 服务 (18001)
     └── 可选依赖：Meilisearch (7700) — 全文搜索（不可用时回退到 SurrealDB BM25）
-```
+
+```text
 
 ### 故障排查
 
@@ -97,8 +102,10 @@ uv run python -m wrapper.src.main
 ## 🎯 推荐配置
 
 **开发环境**：
+
 ```bash
 uv run python start_services.py
+
 ```
 
 - 只启动必需的服务
@@ -108,7 +115,8 @@ uv run python start_services.py
 
 ```bash
 uv run python start_services.py --with-llm
-```
+
+```text
 
 - 启动所有服务
 - 提供完整功能
@@ -141,6 +149,7 @@ export WRAPPER_MEILI_URL=http://127.0.0.1:7700
 export WRAPPER_MEILI_API_KEY=your_master_key
 export WRAPPER_MEILI_INDEX_NAME=memories
 export WRAPPER_MEILI_TIMEOUT=30.0
+
 ```
 
 ## 📦 数据迁移（首次启用 Meilisearch 时）
@@ -155,6 +164,7 @@ export SURREAL_DB=memory_db
 
 # 运行迁移脚本（幂等，可重复运行）
 uv run python scripts/migrate_to_meilisearch.py --batch-size 200
-```
+
+```text
 
 详细配置说明见 `README.md`。

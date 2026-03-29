@@ -12,7 +12,7 @@
 
 ### 1.1 Hook 执行顺序
 
-```
+```bash
 提交前自动执行（git commit）:
 1. Gitleaks（密钥检测）      ← P0: 阻止密钥泄露
 2. Bandit（安全扫描）        ← P0: 阻止安全问题
@@ -22,6 +22,7 @@
 
 推送前执行（git push）:
 6. Pytest（测试）            ← P1: 推送时执行
+
 ```
 
 ### 1.2 Pre-commit 配置
@@ -86,7 +87,8 @@ repos:
         pass_filenames: false
         stages: [pre-push]
         require_serial: true
-```
+
+```text
 
 ### 1.3 常用命令
 
@@ -106,6 +108,7 @@ pre-commit run --skip gitleaks
 
 # 更新 hooks
 pre-commit autoupdate
+
 ```
 
 ---
@@ -116,8 +119,9 @@ pre-commit autoupdate
 
 ### 2.1 功能开发流程
 
-```
+```text
 1. 需求分析 → 2. 技术设计 → 3. 开发实现 → 4. 代码审查 → 5. 测试验证 → 6. 合并主分支
+
 ```
 
 **各阶段要点**:
@@ -160,8 +164,9 @@ pre-commit autoupdate
 
 ### 2.2 Bug 修复流程
 
-```
+```text
 1. 问题确认 → 2. 根因分析 → 3. 修复实现 → 4. 验证测试 → 5. 代码审查 → 6. 合并发布
+
 ```
 
 **关键要求**:
@@ -228,7 +233,8 @@ pre-commit autoupdate
 
 ### 相关 Issue
 - #123: 相关 Issue 链接
-```
+
+```text
 
 ---
 
@@ -258,12 +264,14 @@ pre-commit autoupdate
 ### 5.1 格式要求
 
 ```
+
 <type>(<scope>): <subject>
 
 <body>
 
 <footer>
-```
+
+```text
 
 ### 5.2 Type 类型
 

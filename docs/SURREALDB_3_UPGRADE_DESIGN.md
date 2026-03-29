@@ -131,12 +131,13 @@
 
 ### 2.1 架构概览
 
-```
+```text
 客户端 → 包装服务 (17999) → Embedding 服务 (18000)
               ↕
           SurrealDB (18002)
               ↕
           memory 存储模式（内存，重启丢失）
+
 ```
 
 ### 2.2 代码资产清单
@@ -160,7 +161,8 @@ db = Surreal(config.surrealdb.url)  # ws://localhost:18002/rpc
 db.connect(config.surrealdb.url)
 db.signin({"username": "root", "password": "root"})
 db.use(config.surrealdb.namespace, config.surrealdb.database)
-```
+
+```text
 
 **注意**：使用 `inspect.isawaitable()` 兼容同步/异步 SDK 版本，说明代码是在 SDK API 不稳定时期编写的。
 
@@ -173,6 +175,7 @@ SELECT id, content, metadata,
 FROM memory
 WHERE vector::similarity::cosine(embedding, $embedding) > $threshold
 ORDER BY score DESC LIMIT $limit
+
 ```
 
 **问题**：`vector::similarity::cosine()` 函数在 WHERE 子句中每行都要计算一次相似度，时间复杂度 O(n)。
@@ -183,7 +186,8 @@ ORDER BY score DESC LIMIT $limit
 -- memory_manager.py:183-186 — 无全文索引
 SELECT id, content, metadata
 FROM memory WHERE content CONTAINS $query LIMIT $limit
-```
+
+```text
 
 **问题**：`CONTAINS` 是简单子字符串匹配，无分词、无 BM25 排序、无相关性评分。
 
@@ -194,6 +198,7 @@ FROM memory WHERE content CONTAINS $query LIMIT $limit
 for item in keyword_results:
     item["score"] = 0.5  # ← 所有关键词结果都是 0.5 分
 merged.sort(key=lambda x: x.get("score", 0), reverse=True)
+
 ```
 
 **问题**：关键词结果分数固定为 0.5，无法真实反映相关性。向量结果和关键词结果的分数不在同一尺度上。
@@ -225,7 +230,8 @@ wrapper:
     - "3001:3001"                  # ← 旧端口，实际已改为 17999
   environment:
     - WRAPPER_PORT=3001            # ← 同上
-```
+
+```text
 
 这意味着 `docker-compose up` 无法正确启动 wrapper 服务。
 
@@ -300,6 +306,7 @@ wrapper:
 ### 4.2 目标架构
 
 ```
+
 客户端 → 包装服务 (17999) → Embedding 服务 (18000)
               ↕
           SurrealDB 3.0 (18002)
@@ -307,7 +314,8 @@ wrapper:
           RocksDB 持久存储 + HNSW 索引
               ↕
           Schema: SCHEMAFULL + 全文索引 + 向量索引
-```
+
+```text
 
 ### 4.3 变更范围
 
@@ -468,6 +476,7 @@ UPSERT schema_version:current CONTENT {
     version: "2.0.0",
     description: "融合 MemoryEntry 数据模型 + 多租户 tenant_id + project 表"
 };
+
 ```
 
 ### 5.2 HNSW 参数选择依据
@@ -519,13 +528,15 @@ UPSERT schema_version:current CONTENT {
   "content": "Hello world",
   "metadata": {"key": "value"}
 }
-```
+
+```text
 
 所有新字段均为 `option<T>` 或带 `DEFAULT`，旧客户端无需任何修改。
 
 ### 5.3 全文搜索 Analyzer 设计
 
 ```
+
 输入: "Hello World 你好世界"
   ↓ TOKENIZER blank (空格分词)
   → ["Hello", "World", "你好世界"]
@@ -535,7 +546,8 @@ UPSERT schema_version:current CONTENT {
   → ["hello", "world", "你好", "世界"]
   ↓ FILTER ascii (去除变音符号)
   → ["hello", "world", "你好", "世界"]
-```
+
+```text
 
 **注意**：当前不添加 `snowball` 词干提取器，因为记忆内容以中文为主，snowball 仅对英文有效。后续如需中文分词增强，可考虑自定义 Analyzer。
 
@@ -561,6 +573,7 @@ RELATE memory:abc->relates_to->memory:xyz SET strength = 0.8;
 
 -- 查询某条记忆的关联记忆
 SELECT ->relates_to->memory.* FROM memory:abc;
+
 ```
 
 ### 5.5 多租户架构设计
@@ -569,7 +582,7 @@ SELECT ->relates_to->memory.* FROM memory:abc;
 
 采用共享表 + `tenant_id` 字段的行级多租户模式：
 
-```
+```text
 ┌──────────────────────────────────────────┐
 │          SurrealDB memory_db             │
 │                                          │
@@ -589,6 +602,7 @@ SELECT ->relates_to->memory.* FROM memory:abc;
 │  │  tenant_id + name = UNIQUE          │ │
 │  └─────────────────────────────────────┘ │
 └──────────────────────────────────────────┘
+
 ```
 
 **优势**：
@@ -615,7 +629,8 @@ FROM memory
 WHERE tenant_id = $tenant_id
   AND content @1@ $query
 ORDER BY score DESC LIMIT $limit
-```
+
+```text
 
 **API 变更**：
 
@@ -630,13 +645,14 @@ class MemorySearchRequest(BaseModel):
     limit: int = Field(default=10, ge=1, le=100)
     threshold: float = Field(default=0.7, ge=0.0, le=1.0)
     tenant_id: str = Field(default="default", description="租户ID")
+
 ```
 
 #### 5.5.2 未来演进：数据库级隔离（Phase 2，暂不实施）
 
 当租户数量增长或需要更强隔离时，可利用 SurrealDB 的原生层级结构：
 
-```
+```text
 SurrealDB 层级:
   Namespace (组织) → Database (租户) → Table (数据)
 
@@ -646,6 +662,7 @@ SurrealDB 层级:
       table: memory, project, schema_version
     database: "tenant_bob"
       table: memory, project, schema_version
+
 ```
 
 **迁移策略**：
@@ -657,12 +674,13 @@ SurrealDB 层级:
 
 #### 5.5.3 远期预留：组织结构（Phase 3，仅设计不实施）
 
-```
+```text
 Organization (组织)
   └── Team (团队)
        └── Tenant (租户/用户)
             └── Project (项目)
                  └── Memory (记忆条目)
+
 ```
 
 **预留 Schema（远期实施时创建）**：
@@ -694,7 +712,8 @@ DEFINE INDEX tenant_org ON tenant FIELDS org_id;
 -- RELATE organization:acme->has_team->team:backend
 -- RELATE team:backend->has_member->tenant:alice
 -- RELATE tenant:alice->owns_project->project:embedding_service
-```
+
+```text
 
 **注意**：远期实施时，`memory.tenant_id` 可改为 `record<tenant>` 类型以支持图查询：
 
@@ -702,6 +721,7 @@ DEFINE INDEX tenant_org ON tenant FIELDS org_id;
 -- 远期：查询某组织下所有记忆
 SELECT * FROM memory
 WHERE tenant_id->team_id->org_id = organization:acme
+
 ```
 
 ---
@@ -718,7 +738,8 @@ SELECT id, content, metadata,
 FROM memory
 WHERE vector::similarity::cosine(embedding, $embedding) > $threshold
 ORDER BY score DESC LIMIT $limit
-```
+
+```text
 
 **升级后**（HNSW 索引，O(log n)）：
 
@@ -731,6 +752,7 @@ FROM memory
 WHERE tenant_id = $tenant_id
   AND embedding <|$limit,$ef_search|> $embedding
 ORDER BY distance ASC
+
 ```
 
 > ⚠️ **v1.2 修复说明**：
@@ -755,7 +777,8 @@ ORDER BY distance ASC
 ```sql
 SELECT id, content, metadata
 FROM memory WHERE content CONTAINS $query LIMIT $limit
-```
+
+```text
 
 **升级后**（全文搜索 + BM25 评分）：
 
@@ -766,6 +789,7 @@ FROM memory
 WHERE tenant_id = $tenant_id
   AND content @1@ $query
 ORDER BY score DESC LIMIT $limit
+
 ```
 
 **关键变化**：
@@ -782,7 +806,8 @@ ORDER BY score DESC LIMIT $limit
 for item in keyword_results:
     item["score"] = 0.5  # 所有关键词结果固定 0.5 分
 merged.sort(key=lambda x: x.get("score", 0), reverse=True)
-```
+
+```text
 
 **升级后**（Reciprocal Rank Fusion）：
 
@@ -836,6 +861,7 @@ def _rrf_merge(
         results.append(item)
 
     return results
+
 ```
 
 **RRF 算法优势**：
@@ -863,16 +889,19 @@ class SearchConfig:
 
     # HNSW 查询参数（新增）
     hnsw_ef_search: int = 50           # HNSW 查询候选集大小
-```
+
+```text
 
 对应环境变量：
 
 ```
+
 WRAPPER_SEARCH_RRF_K=60
 WRAPPER_SEARCH_RRF_VECTOR_WEIGHT=0.7
 WRAPPER_SEARCH_RRF_KEYWORD_WEIGHT=0.3
 WRAPPER_SEARCH_HNSW_EF_SEARCH=50
-```
+
+```text
 
 ---
 
@@ -881,9 +910,11 @@ WRAPPER_SEARCH_HNSW_EF_SEARCH=50
 ### 7.1 阶段划分
 
 ```
+
 Phase 1 (P0): 基础设施修复 + 搜索引擎升级  ← 最大 ROI，3-4 天
 Phase 2 (P1): 增强功能                      ← 未来迭代，按需
-```
+
+```text
 
 > ⚠️ **v1.2 调整**：原 Phase 2（Docker 修复）合并到 Phase 1。
 > 原因：开发者需要先修好 docker-compose 才能测试搜索查询变更（Oracle #2 建议）。
@@ -951,13 +982,16 @@ Phase 2 (P1): 增强功能                      ← 未来迭代，按需
 **迁移路径**：
 
 ```
+
 场景 A: 开发环境（无需迁移现有数据）
+
   1. 更新 docker-compose.yml（memory → rocksdb）
   2. 重新启动容器
   3. 运行 init_surrealdb.surql 初始化 Schema
   4. 重新上传测试数据
 
 场景 B: 生产环境（如有持久化数据需迁移）
+
   1. 导出现有数据: surreal export --conn ... > backup.surql
   2. 停止旧版 SurrealDB
   3. 启动 SurrealDB 3.0（rocksdb 模式）
@@ -965,7 +999,8 @@ Phase 2 (P1): 增强功能                      ← 未来迭代，按需
   5. 导入数据: surreal import --conn ... < backup.surql
   6. 验证数据完整性
   7. 验证索引状态: INFO FOR TABLE memory
-```
+
+```text
 
 ### 8.2 Schema 初始化流程
 
@@ -1064,6 +1099,7 @@ class SurrealDBManager:
             )
         except Exception:
             pass  # 锁释放失败不影响正常流程（TTL 会自动过期）
+
 ```
 
 **调用时机**：在 `lifespan` 启动阶段，`connect()` 之后、`MemoryManager` 初始化之前。

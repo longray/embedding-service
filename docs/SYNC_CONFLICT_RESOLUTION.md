@@ -83,7 +83,7 @@ Content-Type: application/json
   ],
   "tenant_id": "default"
 }
-```
+```text
 
 **响应示例**：
 
@@ -115,7 +115,7 @@ Content-Type: application/json
 
 ```http
 GET /api/v1/sync/conflicts?tenant_id=default&status=pending
-```
+```text
 
 **响应示例**：
 
@@ -147,7 +147,7 @@ Content-Type: application/json
   "resolution": "use_local",
   "tenant_id": "default"
 }
-```
+```text
 
 **resolution 策略**：
 
@@ -390,7 +390,7 @@ async def main():
     await manager.sync_when_online()
 
 asyncio.run(main())
-```
+```yaml
 
 ### 工作流 3: 多用户协作
 
@@ -589,7 +589,7 @@ async def backup_restore_workflow():
     await manager.restore_backup(backup_file, strategy="keep_both")
 
 asyncio.run(backup_restore_workflow())
-```
+```text
 
 ---
 
@@ -606,7 +606,7 @@ asyncio.run(backup_restore_workflow())
    resolution = "use_local" if local_mtime > server_mtime else "use_remote"
    ```
 
-2. **定期增量同步**：
+1. **定期增量同步**：
 
    ```python
    # 每分钟自动同步一次
@@ -615,7 +615,7 @@ asyncio.run(backup_restore_workflow())
        await asyncio.sleep(60)
    ```
 
-3. **冲突通知机制**：
+2. **冲突通知机制**：
 
    ```python
    # 冲突发生时通知用户
@@ -835,7 +835,7 @@ def calculate_hash(content: str) -> str:
 # 3. 使用一致的哈希算法
 local_hash = calculate_hash(local_content)
 server_hash = calculate_hash(server_content)
-```
+```yaml
 
 ### 问题 3: Meilisearch 同步失败
 

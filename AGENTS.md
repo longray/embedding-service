@@ -22,11 +22,7 @@ uv run python script.py
 
 # 运行测试
 uv run pytest tests/
-```
-
-## 项目结构
-
-```
+```text
 embedding_service/
 ├── src/                        # Embedding 和 LLM 服务
 │   └── qwen3_embedding_service/
@@ -54,11 +50,9 @@ embedding_service/
 ├── docker-compose.yml           # Docker 一键部署
 ├── .env.example                 # 环境变量模板
 └── pyproject.toml               # 项目配置
-```
+```text
 
 ## 开发命令
-
-```bash
 # 启动服务
 uv run python start_services.py --with-llm
 
@@ -68,6 +62,10 @@ uv run pytest tests/ -v
 # 代码检查
 uv run ruff check .
 uv run pyright
+
+# Markdown 检查
+uv run task lint-md
+uv run task lint-md-stats
 ```
 
 ## 最近变更
@@ -126,7 +124,7 @@ index.search("UserService")
 
 # 组合搜索
 index.search("python fastapi")
-```
+```text
 
 **2. 精确匹配（IP、邮箱、版本）**
 
@@ -146,7 +144,7 @@ index.search("", {"filter": 'version = "v2.1.0"'})
 ```python
 # 全文搜索 + 过滤器
 index.search("用户", {"filter": 'language = "java" AND status = "active"'})
-```
+```text
 
 ### 双字段策略
 
@@ -193,7 +191,7 @@ uv run python test_search.py
 
 # 监控索引
 uv run python monitor_index.py
-```
+```text
 
 ## 清空记忆数据（调试专用）
 
@@ -219,7 +217,7 @@ export WRAPPER_MEILI_API_KEY=<your_api_key>
 
 # 或者从 README.md 获取
 # WRAPPER_MEILI_API_KEY=${MEILI_MASTER_KEY:-masterKey_change_in_production}
-```
+```text
 
 ### 安全机制
 
@@ -254,7 +252,7 @@ curl -X DELETE http://localhost:17999/api/v1/memories/clear \
   "success": true,
   "message": "所有记忆数据已清空"
 }
-```
+```text
 
 **失败 - 缺少 Key** (401)：
 
@@ -270,7 +268,7 @@ curl -X DELETE http://localhost:17999/api/v1/memories/clear \
 {
   "detail": "Invalid WRAPPER_MEILI_API_KEY"
 }
-```
+```text
 
 **失败 - 清空失败** (500)：
 
@@ -292,7 +290,7 @@ curl -X DELETE http://localhost:17999/api/v1/memories/clear \
 cd D:/embedding_service
 export WRAPPER_MEILI_API_KEY=<your_api_key>
 uv run python scripts/clear_all_data.py
-```
+```text
 
 **清空流程**：
 

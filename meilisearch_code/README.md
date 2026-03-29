@@ -11,7 +11,7 @@
 ### 1. 启动服务
 ```bash
 docker-compose up -d
-```
+```text
 
 ### 2. 安装依赖
 ```bash
@@ -21,7 +21,7 @@ pip install -r requirements.txt
 ### 3. 初始化索引
 ```bash
 python init_index.py
-```
+```text
 
 ### 4. 运行测试
 ```bash
@@ -31,7 +31,7 @@ python test_search.py
 ### 5. 监控索引
 ```bash
 python monitor_index.py
-```
+```text
 
 ### 6. 优化索引
 ```bash
@@ -91,4 +91,4 @@ document = {
     "namespace_search": "命名 空间",
     "code_content_search": "代码内容",
 }
-```
+```text

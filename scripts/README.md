@@ -26,13 +26,15 @@ surreal start --log trace
 
 # Meilisearch
 meilisearch --master-key your_key
-```
+
+```text
 
 ### 2. 一键初始化
 
 ```bash
 # 最简单的方式：一键初始化所有服务
 uv run python scripts/init_all.py
+
 ```
 
 ### 3. 验证初始化
@@ -40,7 +42,8 @@ uv run python scripts/init_all.py
 ```bash
 # 仅验证环境，不重新初始化
 uv run python scripts/init_all.py --verify-only
-```
+
+```text
 
 ---
 
@@ -65,6 +68,7 @@ uv run python scripts/init_database.py --verify-only
 
 # 不创建运行时用户
 uv run python scripts/init_database.py --no-runtime-user
+
 ```
 
 ### 环境变量
@@ -118,7 +122,8 @@ uv run python scripts/init_meilisearch.py
 
 # 仅验证索引（不重新初始化）
 uv run python scripts/init_meilisearch.py --verify-only
-```
+
+```text
 
 ### 环境变量
 
@@ -168,6 +173,7 @@ sleep 15
 
 # 3. 一键初始化
 uv run python scripts/init_all.py
+
 ```
 
 ### 命令行选项
@@ -181,7 +187,8 @@ uv run python scripts/init_all.py --skip-db
 
 # 跳过 Meilisearch 初始化
 uv run python scripts/init_all.py --skip-meili
-```
+
+```text
 
 ### 初始化流程
 
@@ -216,6 +223,7 @@ export SURREAL_DB=production_db
 
 # 初始化
 uv run python scripts/init_database.py
+
 ```
 
 ### 多环境配置
@@ -226,7 +234,8 @@ uv run python scripts/init_database.py
 export SURREAL_URL=ws://localhost:18002
 export WRAPPER_MEILI_URL=http://localhost:7700
 uv run python scripts/init_all.py
-```
+
+```text
 
 **测试环境**：
 
@@ -234,6 +243,7 @@ uv run python scripts/init_all.py
 export SURREAL_URL=ws://test.example.com:18002
 export WRAPPER_MEILI_URL=http://test.example.com:7700
 uv run python scripts/init_all.py
+
 ```
 
 **生产环境**：
@@ -243,7 +253,8 @@ export SURREAL_URL=ws://prod.example.com:18002
 export WRAPPER_MEILI_URL=http://prod.example.com:7700
 export WRAPPER_MEILI_API_KEY=$PROD_MEILI_KEY
 uv run python scripts/init_all.py
-```
+
+```text
 
 ### 迁移现有数据
 
@@ -255,6 +266,7 @@ uv run python scripts/init_database.py
 
 # 2. 迁移 SurrealDB 数据到 Meilisearch
 uv run python scripts/migrate_to_meilisearch.py --batch-size 200
+
 ```
 
 ---
@@ -274,7 +286,8 @@ surreal sql --ns memory_ns --db memory_db --query "SELECT * FROM tables"
 curl -X POST http://localhost:18002/sql \
   -H "Content-Type: application/json" \
   -d 'SELECT * FROM tables'
-```
+
+```text
 
 ### 验证 Meilisearch
 
@@ -287,6 +300,7 @@ curl http://localhost:7700/indexes/memories
 
 # 方式 3: 查看索引统计
 curl http://localhost:7700/indexes/memories/stats
+
 ```
 
 ### 验证服务健康
@@ -300,7 +314,8 @@ curl http://localhost:7700/health
 
 # 包装服务健康检查
 curl http://localhost:17999/health
-```
+
+```text
 
 ---
 
@@ -311,8 +326,10 @@ curl http://localhost:17999/health
 **症状**：
 
 ```
+
 ❌ 连接 SurrealDB 失败: [Errno 111] Connection refused
-```
+
+```text
 
 **解决方案**：
 
@@ -325,14 +342,16 @@ docker-compose up -d surrealdb
 
 # 3. 检查端口
 netstat -an | grep 18002
+
 ```
 
 ### 问题 2: Meilisearch 连接失败
 
 **症状**：
 
-```
+```yaml
 ❌ 连接 Meilisearch 失败: [Errno 111] Connection refused
+
 ```
 
 **解决方案**：
@@ -346,15 +365,18 @@ docker-compose up -d meilisearch
 
 # 3. 检查端口
 netstat -an | grep 7700
-```
+
+```yaml
 
 ### 问题 3: Schema 初始化失败
 
 **症状**：
 
 ```
+
 ❌ Schema 初始化失败: ...
-```
+
+```text
 
 **解决方案**：
 
@@ -365,14 +387,16 @@ surreal version
 # 2. 确保版本 >= 2.0（推荐 3.0+）
 # 3. 重新运行初始化（幂等操作，可重复执行）
 uv run python scripts/init_database.py
+
 ```
 
 ### 问题 4: Meilisearch 索引创建失败
 
 **症状**：
 
-```
+```yaml
 ❌ 创建索引失败: ...
+
 ```
 
 **解决方案**：
@@ -386,7 +410,8 @@ curl http://localhost:7700/version
 export WRAPPER_MEILI_API_KEY=your_key
 # 4. 重新运行初始化
 uv run python scripts/init_meilisearch.py
-```
+
+```text
 
 ---
 

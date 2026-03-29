@@ -93,7 +93,8 @@
   "dimensions": 1024,  // 可选，32-1024
   "normalize": true
 }
-```
+
+```text
 
 #### `/v1/embeddings` 响应格式
 
@@ -114,6 +115,7 @@
     "processing_time_ms": 123.45
   }
 }
+
 ```
 
 #### `/health` 响应格式
@@ -133,7 +135,8 @@
   "gpu_memory_used_mb": 1234.56,
   "gpu_memory_reserved_mb": 2048.0
 }
-```
+
+```text
 
 ### 1.2 LLM 服务（端口 18001）
 
@@ -163,6 +166,7 @@
   "stream": false,
   "do_sample": true
 }
+
 ```
 
 #### `/v1/chat/completions` 响应格式
@@ -189,7 +193,8 @@
     "total_tokens": 70
   }
 }
-```
+
+```text
 
 ---
 
@@ -198,6 +203,7 @@
 ### 3.1 整体架构图
 
 ```
+
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                    OpenCode 环境                                       │
 │                                                                         │
@@ -267,7 +273,8 @@
 │  │                                                            │   │
 │  └─────────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────┘
-```
+
+```text
 
 ---
 
@@ -288,6 +295,7 @@ mkdir -p src
 mkdir -p shared
 mkdir -p shared/utils
 mkdir -p tests
+
 ```
 
 #### Step 2. 实现共享工具模块
@@ -356,7 +364,8 @@ class Settings(BaseSettings):
                 return self.memory_dir / "PROJECT_MEMORY.md"
 
 config = Config()
-```
+
+```yaml
 
 **文件**: `shared/utils/config.py`
 
@@ -489,6 +498,7 @@ def detect_project_name(content: str) -> str:
         return project_name
     
     return None
+
 ```
 
 **文件**: `shared/utils/cache.py`
@@ -539,7 +549,8 @@ class LRUCache:
             'misses': 0,
             'hit_rate': 0
         }
-```
+
+```yaml
 
 ### Phase 2: 实现包装服务主程序（6h）
 
@@ -914,6 +925,7 @@ if __name__ == '__main__':
     
     # 启动服务
     uvicorn.run(app, host=host, port=port, workers=1)
+
 ```
 
 ### Phase 3: 更新启动脚本（1h）
@@ -1049,7 +1061,8 @@ echo %RESET%
 echo.
 
 pause
-```
+
+```text
 
 #### 修改 `start_embedding_service.bat`
 
@@ -1126,6 +1139,7 @@ echo %RESET%
 echo.
 
 pause
+
 ```
 
 ### Phase 4: 测试和验证（2h）
@@ -1259,7 +1273,8 @@ async def main():
 if __name__ == '__main__':
     import asyncio
     asyncio.run(main())
-```
+
+```text
 
 ---
 
@@ -1457,6 +1472,7 @@ class Settings(BaseSettings):
 
 settings = Settings()
 config = Config()
+
 ```
 
 ### 7.3 环境变量映射
@@ -1491,7 +1507,7 @@ config = Config()
 
 **方案**:
 
-```
+```text
 D:\embedding_service\
 ├── src\qwen3_embedding_service\
 │   ├── embedding_service.py      # 端口 18000, 包含所有端点
@@ -1508,6 +1524,7 @@ D:\embedding_service\
 ├── run_service.bat            # 统一启动脚本
 ├── start_embedding_service.bat   # Embedding 服务启动脚本
 ├── start_llm_service.bat       # LLM 服务启动脚本
+
 ```
 
 **启动命令**:
@@ -1517,7 +1534,8 @@ D:\embedding_service\
 start_embedding_service.bat
 start_llm_service.bat
 run_service.bat
-```
+
+```text
 
 **优点**:
 
@@ -1536,6 +1554,7 @@ run_service.bat
 **方案**:
 
 ```
+
 D:\embedding_service\
 ├── services\
 │   ├── embedding\
@@ -1549,7 +1568,8 @@ D:\embedding_service\
 │   ├── shared/
 │   └── tests/
 └── docker-compose.yml               # 统一管理
-```
+
+```text
 
 **docker-compose.yml**:
 
@@ -1586,13 +1606,15 @@ services:
     depends_on:
       - embedding
       - llm
+
 ```
 
 **启动命令**:
 
 ```bash
 docker-compose up -d
-```
+
+```text
 
 **优点**:
 

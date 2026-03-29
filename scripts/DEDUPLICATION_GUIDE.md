@@ -29,7 +29,7 @@ surreal export --conn ws://localhost:18002 \
   --user root --pass root \
   --ns memory_ns --db memory_db \
   backup_$(date +%Y%m%d_%H%M%S).surql
-```
+```yaml
 
 ### 步骤2: 清理现有重复数据
 
@@ -40,7 +40,7 @@ uv run python scripts/migrate_add_deduplication.py
 
 **输出示例**:
 
-```
+```yaml
 🔍 步骤1: 分析重复数据...
   - 总记录数: 288
   - 唯一内容: 208
@@ -87,7 +87,7 @@ curl -X POST http://localhost:18002/sql \
   -H "DB: memory_db" \
   -u "root:root" \
   --data-binary @scripts/add_deduplication.surql
-```
+```yaml
 
 ### 步骤4: 验证去重机制
 
@@ -143,7 +143,7 @@ asyncio.run(test_dedup())
 
 ### 插入重复内容时的错误
 
-```
+```yaml
 Database index `memory_tenant_content_unique` already contains 
 [tenant_id: 'test', content_hash: 'a1b2c3d4...']
 ```
@@ -162,7 +162,7 @@ SHOW INDEX ON memory;
 -- 检查触发器
 INFO FOR TABLE memory;
 -- 应该看到 auto_content_hash 事件
-```
+```text
 
 ---
 

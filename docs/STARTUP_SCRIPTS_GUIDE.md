@@ -23,7 +23,7 @@ Optimized Windows batch scripts with intelligent health checking for embedding s
 
 ```batch
 start_all_services.bat
-```
+```text
 
 **Workflow**:
 
@@ -75,7 +75,7 @@ start_embedding_service.bat
 
 ```batch
 start_surrealdb.bat
-```
+```text
 
 **Health Check**:
 
@@ -106,7 +106,7 @@ test_health_check.bat
 
 ## Architecture
 
-```
+```text
 User
   |
   v
@@ -145,7 +145,7 @@ Invoke-WebRequest -Uri 'http://localhost:18000/health'
                   -Method GET 
                   -TimeoutSec 3 
                   -UseBasicParsing
-```
+```text
 
 ### SurrealDB (PowerShell TCP Socket)
 
@@ -164,7 +164,7 @@ $c.Close()
 
 ### Meilisearch (HTTP) [v2.3.0+]
 
-```
+```yaml
 Endpoint: http://localhost:7700/health
 Method: HTTP GET
 Auth: Authorization: Bearer <master_key>
@@ -181,7 +181,7 @@ Success: {"status": "available"}
 
 ```batch
 start_all_services.bat
-```
+```text
 
 Both services will start.
 
@@ -197,7 +197,7 @@ Script detects healthy services and skips startup.
 
 ```batch
 start_all_services.bat
-```
+```text
 
 Only starts Embedding Service.
 
@@ -212,7 +212,7 @@ start_surrealdb.bat            # Start only SurrealDB
 
 ```batch
 test_health_check.bat
-```
+```text
 
 Check current health status without starting services.
 

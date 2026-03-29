@@ -4,7 +4,7 @@
 
 ```bash
 bash scripts/backup.sh
-```
+```text
 
 备份文件保存在 `backups/backup_YYYYMMDD_HHMMSS.surql`
 
@@ -22,7 +22,7 @@ bash scripts/restore.sh backups/backup_20260316_195137.surql
 
 ```bash
 bash scripts/test_restore.sh backups/backup_20260316_195137.surql
-```
+```text
 
 ## 验证
 
@@ -43,7 +43,7 @@ echo "SELECT count() FROM memory GROUP ALL;" | surreal sql \
 ```bash
 # 每天凌晨 2 点备份
 0 2 * * * cd /path/to/embedding_service && bash scripts/backup.sh
-```
+```text
 
 ## 备份文件管理
 

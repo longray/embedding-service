@@ -351,7 +351,7 @@ rid_table, rid_id = rid_parts[0], rid_parts[1]
 params["rid_table"] = rid_table
 params["rid_id"] = rid_id
 await self._db.query("UPDATE type::record($rid_table, $rid_id) SET {set_str}", params)
-```
+```text
 
 **验证**:
 
@@ -677,7 +677,7 @@ curl -X POST http://localhost:17999/api/v1/memories/search \
 
 # 单元测试
 uv run pytest tests/test_code_search.py -v
-```
+```text
 
 ---
 
@@ -758,7 +758,7 @@ curl http://localhost:17999/api/v1/memories/{memory_id}/knowledge-graph?depth=2
 
 # 单元测试
 uv run pytest tests/test_code_relations.py -v
-```
+```text
 
 ---
 

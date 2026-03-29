@@ -83,7 +83,7 @@
 ```bash
 export WRAPPER_AUTH_ENABLED=true
 export WRAPPER_API_KEYS="your_key:read;write"
-```
+```text
 
 ### WebSocket 实时推送
 
@@ -114,7 +114,7 @@ async with connect('ws://localhost:17999/ws/memories/live?tenant_id=default') as
     async for message in ws:
         data = json.loads(message)
         print(data['action'], data['result'])
-```
+```text
 
 **认证配置**:
 
@@ -183,7 +183,7 @@ sleep 15
 uv run python scripts/init_all.py
 
 # 详细文档请查看: [scripts/README.md](scripts/README.md)
-```
+```text
 
 ### 启动最小化包装服务
 
@@ -221,7 +221,7 @@ curl -X DELETE http://localhost:17999/api/v1/memories/clear \
 # 错误的 key（只返回 403，保护数据）
 curl -X DELETE http://localhost:17999/api/v1/memories/clear \
   -H "WRAPPER_MEILI_API_KEY: wrong_key"
-```
+```text
 
 **API Key 配置**：
 
@@ -247,7 +247,7 @@ curl -X DELETE http://localhost:17999/api/v1/memories/clear \
 {
   "detail": "Missing WRAPPER_MEILI_API_KEY header"
 }
-```
+```text
 
 失败 (403 - key 错误)：
 
@@ -263,7 +263,7 @@ curl -X DELETE http://localhost:17999/api/v1/memories/clear \
 {
   "detail": "清空失败: ..."
 }
-```
+```text
 
 **清空脚本**：
 
@@ -282,7 +282,7 @@ export SURREAL_URL=ws://localhost:18002/rpc
 export SURREAL_NS=memory_ns
 export SURREAL_DB=memory_db
 uv run python scripts/migrate_to_meilisearch.py --batch-size 200
-```
+```text
 
 ### 运行测试
 
@@ -319,7 +319,11 @@ uv run pyright src/
 
 # 4. 运行 Markdown 文档检查 (Markdownlint)
 uvx pre-commit run markdownlint-cli2 --all-files
-```
+
+# 5. 使用 taskipy 快捷命令
+uv run task lint-md
+uv run task lint-md-stats
+```bash
 
 > **注意**: 建议直接使用 `pre-commit` 自动管理所有 hook：`git commit` 时会自动触发上述所有检查。
 

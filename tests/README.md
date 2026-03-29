@@ -31,7 +31,7 @@
 
 ```bash
 uv pip install pytest pytest-asyncio httpx
-```
+```text
 
 ### 2. 启动所有服务
 
@@ -49,7 +49,7 @@ uv run python -m wrapper.src.main
 
 ```bash
 uv run pytest tests/ -v
-```
+```text
 
 ### 运行最小化包装服务测试（推荐）
 
@@ -80,7 +80,7 @@ uv run pytest tests/test_security.py -v
 
 # 集成测试
 uv run pytest tests/test_integration.py -v
-```
+```text
 
 ### 运行特定服务的所有测试
 
@@ -99,7 +99,7 @@ uv run pytest tests/test_wrapper_service*.py -v
 
 ```bash
 uv run pytest tests/test_embedding_service.py::TestEmbeddingService::test_health_check -v
-```
+```text
 
 ## 测试覆盖
 
@@ -243,7 +243,7 @@ uv run pytest tests/test_wrapper_api.py -v
 ```bash
 # 运行 Meilisearch 集成测试
 uv run pytest tests/test_meili_integration.py -v
-```
+```text
 
 **前置条件**:
 
@@ -285,7 +285,7 @@ uv run pytest tests/test_semantic_deduplication.py -v
 ```bash
 uv pip install pytest-html
 uv run pytest tests/ --html=report.html --self-contained-html
-```
+```text
 
 ## 故障排查
 
@@ -321,4 +321,4 @@ uv run pytest tests/ -v --tb=short
 pkill -f "python.*embedding_service"
 pkill -f "python.*llm_service"
 pkill -f "python.*wrapper.*main"
-```
+```text

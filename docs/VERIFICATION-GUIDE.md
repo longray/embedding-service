@@ -8,7 +8,7 @@
 # 确认工具已安装
 pip install pre-commit
 uv --version  # 确认uv已安装
-```
+```text
 
 ## 验证步骤
 
@@ -21,7 +21,7 @@ pre-commit install --install-hooks
 
 **预期输出**:
 
-```
+```text
 pre-commit installed at .git\hooks\pre-commit
 ```
 
@@ -29,7 +29,7 @@ pre-commit installed at .git\hooks\pre-commit
 
 ```bash
 pre-commit run --all-files
-```
+```yaml
 
 **预期结果**: 首次运行会发现问题，这是正常的。
 
@@ -54,7 +54,7 @@ uv run bandit -r src/ -f txt
 
 # 修复高危问题（B6xx系列）
 # 常见问题：SQL注入、命令注入、硬编码密码
-```
+```text
 
 #### P1级别（阻断提交）
 
@@ -78,7 +78,7 @@ uv run ruff check src/
 
 # 自动修复（部分）
 uv run ruff check src/ --fix
-```
+```text
 
 #### P2级别（自动修复）
 
@@ -94,7 +94,7 @@ uv run ruff format src/
 ```bash
 # 自动修复
 uv run ruff check src/ --fix
-```
+```text
 
 #### P3级别（仅警告）
 
@@ -141,7 +141,7 @@ git commit -m "chore: final quality fixes"
 ```bash
 # 安装缺失工具
 pip install ruff pyright pytest pytest-cov bandit
-```
+```yaml
 
 ### 问题2: 大量格式错误
 
@@ -158,7 +158,7 @@ uv run ruff check src/ --fix
 # 1. 先修复核心模块
 # 2. 再修复辅助模块
 # 3. 最后修复测试文件
-```
+```yaml
 
 ### 问题4: Pre-commit太慢
 

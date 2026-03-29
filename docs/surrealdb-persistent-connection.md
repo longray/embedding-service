@@ -202,7 +202,7 @@ async def standalone_example():
 if __name__ == "__main__":
     # 测试独立版本
     asyncio.run(standalone_example())
-```
+```text
 
 **安装依赖：**
 

@@ -6,7 +6,7 @@
 
 ## 📁 项目结构
 
-```
+```text
 meilisearch_code/
 ├── docker-compose.yml          # Docker 部署（版本锁定）
 ├── .env                        # 环境变量
@@ -56,7 +56,7 @@ services:
 
 volumes:
   meilisearch_code_data:
-```
+```text
 
 ---
 
@@ -86,7 +86,7 @@ meilisearch>=0.31.0
 python-dotenv>=1.0.0
 requests>=2.31.0
 packaging>=23.0
-```
+```text
 
 ---
 
@@ -567,7 +567,7 @@ def main():
 
 if __name__ == "__main__":
     main()
-```
+```text
 
 ---
 
@@ -882,7 +882,7 @@ def check_index_health():
 
 if __name__ == "__main__":
     check_index_health()
-```
+```text
 
 ---
 
@@ -1002,7 +1002,7 @@ if __name__ == "__main__":
     "code_content_search": "from fastapi import APIRouter router = APIRouter"
   }
 ]
-```
+```text
 
 ---
 
@@ -1028,7 +1028,7 @@ docker-compose up -d
 
 ```bash
 pip install -r requirements.txt
-```
+```text
 
 ### 3. 初始化索引
 
@@ -1040,7 +1040,7 @@ python init_index.py
 
 ```bash
 python test_search.py
-```
+```text
 
 ### 5. 监控索引
 
@@ -1052,7 +1052,7 @@ python monitor_index.py
 
 ```bash
 python optimize_index.py
-```
+```text
 
 ## 核心特性
 
@@ -1109,7 +1109,7 @@ document = {
 }
 ```
 
-```
+```text
 
 ---
 

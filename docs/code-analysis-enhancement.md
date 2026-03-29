@@ -65,7 +65,7 @@ graph LR
     B028 --> B031[B-031 跨文件关系<br/>远期考虑]
     B029 --> B032[B-032 插件端工具]
     B030 --> B032
-```
+```yaml
 
 ### Phase A: 代码分析持久化 (B-028)
 
@@ -192,7 +192,7 @@ const plugin: Plugin = async (input: PluginInput) => {
 };
 
 export default plugin;
-```
+```text
 
 ---
 

@@ -29,7 +29,7 @@
 
 本项目采用**两层服务架构**：
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                       客户端                              │
 └─────────────────────────────────────────────────────────────┘
@@ -49,6 +49,7 @@
         │ 18000   │ │  18001   │ │  18002   │ │   7700     │
         │(Qwen3)  │ │(MiniCPM) │ │向量+图   │ │全文搜索    │
         └──────────┘ └──────────┘ └──────────┘ └────────────┘
+
 ```
 
 ### 1.2 服务列表
@@ -86,7 +87,8 @@
   - /v1/embeddings        # 主版本1
   - /v1/chat/completions # 主版本1
   - /api/v1/memories      # 记忆API主版本1
-```
+
+```text
 
 ### 2.2 版本兼容性原则
 
@@ -99,14 +101,17 @@
 ### 2.3 版本生命周期
 
 ```
+
 Current (当前版本) → Supported (支持版本) → Deprecated (弃用版本) → Retired (退役版本)
 
 示例:
-  - v1.0: Current  (2026-03-04)
-  - v0.9: Supported (至少支持6个月)
-  - v0.8: Deprecated (提前3个月通知)
-  - v0.7: Retired (不再支持)
-```
+
+- v1.0: Current  (2026-03-04)
+- v0.9: Supported (至少支持6个月)
+- v0.8: Deprecated (提前3个月通知)
+- v0.7: Retired (不再支持)
+
+```text
 
 ### 2.4 版本升级指南
 
@@ -148,6 +153,7 @@ POST /v1/embeddings HTTP/1.1
 Host: localhost:3001
 Authorization: Bearer sk-xxxxxxxxxxxxxxxxxxxx
 Content-Type: application/json
+
 ```
 
 **FastAPI实现示例**：
@@ -180,7 +186,8 @@ async def create_embeddings(
 ):
     # 处理请求
     pass
-```
+
+```yaml
 
 #### 方案2: JWT Token认证
 
@@ -191,6 +198,7 @@ POST /v1/embeddings HTTP/1.1
 Host: localhost:3001
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Content-Type: application/json
+
 ```
 
 **JWT Payload示例**：
@@ -202,19 +210,22 @@ Content-Type: application/json
   "exp": 1234567890 + 3600,
   "scopes": ["embeddings:read", "chat:write"]
 }
-```
+
+```yaml
 
 #### 方案3: OAuth2.0
 
 **授权码流程**：
 
 ```
+
 1. 客户端重定向到授权服务器
 2. 用户授权
 3. 授权服务器返回授权码
 4. 客户端用授权码换取访问令牌
 5. 客户端使用访问令牌访问API
-```
+
+```text
 
 ### 3.3 权限模型（推荐）
 
@@ -227,6 +238,7 @@ Content-Type: application/json
   - memories:read     # 读取记忆
   - memories:write    # 写入记忆
   - admin:*           # 管理员权限（所有权限）
+
 ```
 
 ### 3.4 速率限制
@@ -244,7 +256,8 @@ limiter = Limiter(key_func=get_remote_address)
 @limiter.limit("100/minute")
 async def create_embeddings(request: Request):
     pass
-```
+
+```text
 
 ---
 
@@ -285,6 +298,7 @@ async def create_embeddings(request: Request):
   "timestamp": "2026-03-04T14:30:00Z",
   "request_id": "req_abc123xyz"
 }
+
 ```
 
 ### 4.3 统一异常类设计
@@ -315,7 +329,8 @@ class ValidationError(WrapperServiceError):
 class RateLimitExceededError(WrapperServiceError):
     """限流异常 (429)"""
     pass
-```
+
+```text
 
 ### 4.4 全局异常处理器
 
@@ -351,6 +366,7 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
             "request_id": error_id,
         },
     )
+
 ```
 
 ---
@@ -373,7 +389,8 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
   "dimensions": 1024,
   "normalize": true
 }
-```
+
+```text
 
 **请求参数**：
 
@@ -404,6 +421,7 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
     "processing_time_ms": 123.45
   }
 }
+
 ```
 
 **批量请求示例**：
@@ -417,7 +435,8 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
   ],
   "model": "Qwen3-Embedding-0.6B"
 }
-```
+
+```text
 
 **响应示例**：
 
@@ -448,6 +467,7 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
     "processing_time_ms": 456.78
   }
 }
+
 ```
 
 **错误响应**：
@@ -469,7 +489,8 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
   "timestamp": "2026-03-04T14:30:00Z",
   "request_id": "req_abc123"
 }
-```
+
+```text
 
 #### 5.1.2 健康检查
 
@@ -492,6 +513,7 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
   "gpu_memory_used_mb": 1234.56,
   "gpu_memory_reserved_mb": 2048.0
 }
+
 ```
 
 #### 5.1.3 模型列表
@@ -514,7 +536,8 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
   ],
   "object": "list"
 }
-```
+
+```text
 
 #### 5.1.4 统计信息
 
@@ -539,6 +562,7 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
   },
   "model_loaded": true
 }
+
 ```
 
 ---
@@ -564,7 +588,8 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
   "stream": false,
   "do_sample": true
 }
-```
+
+```text
 
 **请求参数**：
 
@@ -602,6 +627,7 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
     "total_tokens": 70
   }
 }
+
 ```
 
 #### 5.2.2 简单生成（支持缓存）
@@ -618,7 +644,8 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
   "max_new_tokens": 512,
   "use_cache": true
 }
-```
+
+```text
 
 **请求参数**：
 
@@ -642,6 +669,7 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
   },
   "generation_time_ms": 1234.56
 }
+
 ```
 
 #### 5.2.3 健康检查
@@ -666,7 +694,8 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
   "gpu_memory_used_mb": 2345.67,
   "gpu_memory_reserved_mb": 4096.0
 }
-```
+
+```text
 
 ---
 
@@ -699,6 +728,7 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
     "hit_rate": 87.15
   }
 }
+
 ```
 
 #### 5.3.2 创建文本嵌入（带缓存+熔断）
@@ -755,7 +785,8 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
     }
   ]
 }
-```
+
+```text
 
 **请求参数**：
 
@@ -776,6 +807,7 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
   "failed": 0,
   "memory_ids": ["mem_abc123"]
 }
+
 ```
 
 #### 5.3.5 搜索记忆
@@ -791,7 +823,8 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
   "limit": 10,
   "threshold": 0.7
 }
-```
+
+```text
 
 **请求参数**：
 
@@ -818,6 +851,7 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
   ],
   "total": 1
 }
+
 ```
 
 #### 5.3.6 Prometheus指标
@@ -826,7 +860,7 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
 
 **返回**：Prometheus格式的指标数据
 
-```
+```text
 # HELP wrapper_requests_total Total number of requests
 # TYPE wrapper_requests_total counter
 wrapper_requests_total{method="POST",endpoint="/v1/embeddings",status="200"} 1234
@@ -836,6 +870,7 @@ wrapper_requests_total{method="POST",endpoint="/v1/embeddings",status="200"} 123
 wrapper_request_duration_seconds_bucket{le="0.1"} 100
 wrapper_request_duration_seconds_bucket{le="0.5"} 500
 wrapper_request_duration_seconds_bucket{le="1.0"} 800
+
 ```
 
 ---
@@ -880,7 +915,8 @@ class EmbeddingResponse(BaseModel):
     data: List[EmbeddingObject]
     model: str
     usage: Usage
-```
+
+```text
 
 ### 6.2 LLM相关模型
 
@@ -914,6 +950,7 @@ class ChatCompletionResponse(BaseModel):
     model: str
     choices: List[Choice]
     usage: Usage
+
 ```
 
 ### 6.3 记忆相关模型
@@ -949,7 +986,8 @@ class MemoryUploadResponse(BaseModel):
     success: int
     failed: int
     memory_ids: List[str]
-```
+
+```text
 
 ---
 
@@ -979,6 +1017,7 @@ Content-Type: application/json
     "limit": 10
   }
 }
+
 ```
 
 #### 7.1.2 WebSocket（实时通信）
@@ -1007,7 +1046,8 @@ ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
   console.log('Received:', data);
 };
-```
+
+```text
 
 ### 7.2 插件注册与生命周期
 
@@ -1035,24 +1075,27 @@ ws.onmessage = (event) => {
     "embedding-service": ">=1.0.0"
   }
 }
+
 ```
 
 #### 7.2.2 插件生命周期
 
-```
+```text
 安装 → 初始化 → 注册 → 激活 → 运行 → 停用 → 卸载
                                     ↓
                                错误恢复
+
 ```
 
 **状态转换图**：
 
-```
+```text
 [UNINSTALLED] → [INSTALLED] → [INITIALIZING] → [ACTIVE] → [DISABLED] → [UNINSTALLED]
                                            ↓
                                         [ERROR]
                                            ↓
                                     [RECOVERING] → [ACTIVE]
+
 ```
 
 ### 7.3 插件权限模型
@@ -1069,7 +1112,8 @@ ws.onmessage = (event) => {
   - public:          # 公开权限（无需授权）
   - user:            # 用户权限（需要认证）
   - admin:           # 管理员权限（需要管理员角色）
-```
+
+```text
 
 ### 7.4 插件API设计原则
 
@@ -1081,6 +1125,7 @@ plugin_permissions = ["read:memories"]
 
 # ❌ 错误：请求过多权限
 plugin_permissions = ["admin:*"]
+
 ```
 
 #### 7.4.2 向后兼容性
@@ -1095,7 +1140,8 @@ def search_memories(query, limit=10, threshold=None):
 def search_memories(query, max_results):
     """搜索记忆（破坏性修改）"""
     pass
-```
+
+```text
 
 #### 7.4.3 版本化API
 
@@ -1109,6 +1155,7 @@ class PluginAPIv2(PluginAPIv1):
     def search_memories(self, query: str, limit: int = 10, filters: dict = None):
         # 向后兼容：新增可选参数
         pass
+
 ```
 
 ### 7.5 插件间通信
@@ -1128,7 +1175,8 @@ event_bus.publish('memory:created', {
 def on_memory_created(event):
     """处理记忆创建事件"""
     print(f"Memory created: {event['memory_id']}")
-```
+
+```text
 
 #### 7.5.2 服务发现（Service Discovery）
 
@@ -1144,6 +1192,7 @@ service_registry.register({
 
 # 发现服务
 services = service_registry.discover('memory:*')
+
 ```
 
 ---
@@ -1187,7 +1236,8 @@ tags:
     description: 记忆管理相关接口
   - name: health
     description: 健康检查相关接口
-```
+
+```text
 
 ### 8.2 端点定义示例
 
@@ -1256,6 +1306,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
+
 ```
 
 ### 8.3 组件定义
@@ -1357,7 +1408,8 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-```
+
+```text
 
 ### 8.4 安全方案
 
@@ -1388,6 +1440,7 @@ components:
 security:
   - ApiKeyAuth: []
   - OAuth2: []
+
 ```
 
 ---
@@ -1411,7 +1464,8 @@ security:
 
 ```http
 GET /api/v1/memories?page=1&limit=20
-```
+
+```text
 
 **响应头**：
 
@@ -1420,18 +1474,21 @@ X-Total-Count: 100
 X-Page-Count: 5
 X-Current-Page: 1
 X-Per-Page: 20
+
 ```
 
 **过滤**：
 
 ```http
 GET /api/v1/memories?status=active&type=preference
-```
+
+```text
 
 **排序**：
 
 ```http
 GET /api/v1/memories?sort=created_at&order=desc
+
 ```
 
 ### 9.2 性能优化
@@ -1466,7 +1523,8 @@ def get_embedding(text: str) -> List[float]:
     }
 
     return embedding
-```
+
+```text
 
 #### 9.2.2 连接池
 
@@ -1478,6 +1536,7 @@ http_client = httpx.AsyncClient(
     limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
     timeout=30.0
 )
+
 ```
 
 #### 9.2.3 批量处理
@@ -1489,7 +1548,8 @@ async def batch_upload_memories(memories: List[Memory], batch_size: int = 10):
     for i in range(0, len(memories), batch_size):
         batch = memories[i:i + batch_size]
         await upload_batch(batch)
-```
+
+```text
 
 ### 9.3 安全建议
 
@@ -1507,6 +1567,7 @@ class EmbeddingRequest(BaseModel):
         if "<script>" in v.lower():
             raise ValueError("Invalid input")
         return v
+
 ```
 
 #### 9.3.2 输出编码
@@ -1519,7 +1580,8 @@ class SafeJSONResponse(JSONResponse):
     def render(self, content) -> bytes:
         # 转义特殊字符
         return super().render(content).replace(b"<", b"\\u003c")
-```
+
+```text
 
 #### 9.3.3 速率限制
 
@@ -1533,6 +1595,7 @@ limiter = Limiter(key_func=get_remote_address)
 @limiter.limit("100/minute")
 async def create_embeddings(request: Request):
     pass
+
 ```
 
 ### 9.4 监控与日志
@@ -1552,7 +1615,8 @@ logger.info(
     duration_ms=123.45,
     request_id="req_abc123"
 )
-```
+
+```text
 
 #### 9.4.2 Prometheus指标
 
@@ -1584,6 +1648,7 @@ async def create_embeddings(request: EmbeddingRequest):
         endpoint="/v1/embeddings",
         status="200"
     ).inc()
+
 ```
 
 ### 9.5 测试建议
@@ -1605,7 +1670,8 @@ def test_create_embeddings():
     data = response.json()
     assert "data" in data
     assert len(data["data"]) == 1
-```
+
+```text
 
 #### 9.5.2 集成测试
 
@@ -1632,6 +1698,7 @@ async def test_full_workflow():
             json={"query": "Test"}
         )
         assert search_response.status_code == 200
+
 ```
 
 ---

@@ -137,3 +137,12 @@ exclude = [
 ]
 pythonVersion = "3.10"
 typeCheckingMode = "basic"
+
+[dependency-groups]
+dev = [
+    "taskipy>=1.14.1",
+]
+
+[tool.taskipy.tasks]
+lint-md = "uvx pre-commit run markdownlint-cli2 --all-files"
+lint-md-stats = "uv run python scripts/assess_md040.py"

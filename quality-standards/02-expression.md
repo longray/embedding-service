@@ -28,7 +28,7 @@
 target-version = "py310"  # Python 3.10
 line-length = 120          # 行宽限制
 indent-width = 4           # 缩进宽度
-```
+```text
 
 **配置说明**:
 
@@ -60,7 +60,7 @@ uv run ruff format --check src/
 
 # 格式化特定文件
 uv run ruff format src/qwen3_embedding_service/embedding_service.py
-```
+```text
 
 ---
 
@@ -132,7 +132,7 @@ uv run ruff check src/ --fix
 
 # 检查特定文件
 uv run ruff check src/qwen3_embedding_service/llm_service.py
-```
+```text
 
 ---
 
@@ -167,7 +167,7 @@ async def create_embeddings(request: EmbeddingRequest):
 class ServiceConfig:  # PascalCase
     model_path: str
     batch_size: int = 32  # snake_case attributes
-```
+```text
 
 ---
 
@@ -201,7 +201,7 @@ def process_text(text: str, max_length: int = 512) -> List[float]:
 # ❌ 避免：缺少类型注解
 def process_text(text, max_length=512):
     pass
-```
+```text
 
 ### 4.3 文档字符串
 

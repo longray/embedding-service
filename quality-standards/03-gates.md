@@ -24,7 +24,8 @@
 ```toml
 [tool.ruff.lint]
 select = ["C901", "PLR0912", "PLR0913", "PLR0915"]
-```
+
+```text
 
 ### 1.2 代码质量指标
 
@@ -69,6 +70,7 @@ select = ["C901", "PLR0912", "PLR0913", "PLR0915"]
 ### 2.1 错误处理流程
 
 ```
+
 收到 lint/安全/测试 错误
     ↓
 解析 priority 字段
@@ -92,7 +94,8 @@ select = ["C901", "PLR0912", "PLR0913", "PLR0915"]
 │ - 不阻断提交                         │
 │ - Code Review 时讨论                 │
 └─────────────────────────────────────┘
-```
+
+```text
 
 ### 2.2 规则优先级映射
 
@@ -181,6 +184,7 @@ repos:
     hooks:
       - id: pyright
         entry: uv run pyright src/
+
 ```
 
 ### 4.2 CI/CD 门禁
@@ -204,7 +208,8 @@ jobs:
       - name: Test Coverage (P4)
         run: |
           uv run pytest --cov=src --cov-report=term --cov-fail-under=70
-```
+
+```text
 
 ---
 
@@ -229,6 +234,7 @@ jobs:
     "test_coverage": 72.5
   }
 }
+
 ```
 
 ### 5.2 趋势分析
