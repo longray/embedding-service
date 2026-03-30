@@ -359,21 +359,25 @@ class MemoryManager:
                     logger.warning("[Meili sync] 同步失败: %s", meili_err)
                     span.set_attribute("memory.upload.meili_error", str(meili_err))
 
-            span.set_attribute("memory.upload.success", success_count)
-            span.set_attribute("memory.upload.failed", failed_count)
-            span.set_attribute("memory.upload.updated", updated_count)  # Phase A-B7
+        # BL-4: Phase A - 自动代码分析（异步触发，不阻塞上传）
+        if memory_ids:
+            asyncio.create_task(self._auto_analyze_memories(memory_ids, effective_tenant_id))
 
-            result_data: dict[str, Any] = {
-                "total": total,
-                "success": success_count,
-                "failed": failed_count,
-                "updated": updated_count,
-                "skipped": skipped,
-                "memory_ids": memory_ids,
-            }
-            if errors:
-                result_data["errors"] = errors[:10]
-            return result_data
+        span.set_attribute("memory.upload.success", success_count)
+        span.set_attribute("memory.upload.failed", failed_count)
+        span.set_attribute("memory.upload.updated", updated_count)  # Phase A-B7
+
+        result_data: dict[str, Any] = {
+            "total": total,
+            "success": success_count,
+            "failed": failed_count,
+            "updated": updated_count,
+            "skipped": skipped,
+            "memory_ids": memory_ids,
+        }
+        if errors:
+            result_data["errors"] = errors[:10]
+        return result_data
 
     # ==================== 搜索 ====================
 
@@ -916,1327 +920,139 @@ class MemoryManager:
             if not records:
                 return False
 
-            await self._db.query("DELETE type::record($rel_table, $rel_id)", {"rel_table": rel_table, "rel_id": rel_id})
+            # 删除关系
+            del_q = "DELETE type::record($rel_table, $rel_id)"
+            await self._db.query(del_q, {"rel_table": rel_table, "rel_id": rel_id})
             return True
         except Exception as e:
-            raise DatabaseError(f"Failed to delete relation: {e!s}") from e
+            logger.error("[Relation Delete] 失败: %s", e)
+            raise DatabaseError(f"删除关系失败: {e}") from e
 
-    async def get_related_memories(
-        self,
-        memory_id: str,
-        depth: int = 1,
-        relationship_type: str | None = None,
-        tenant_id: str | None = None,
-        limit: int = 20,
-    ) -> list[dict[str, Any]]:
-        """图遍历：获取关联的记忆内容（支持多层深度）"""
-        effective_tenant_id = tenant_id or self._default_tenant_id
-        mem_ref = self._normalize_memory_id(memory_id)
-        depth = max(1, min(depth, 3))
+    # ==================== BL-6: LLM Code Summary ====================
 
-        tracer = get_tracer()
-        with tracer.start_as_current_span("graph.traverse") as span:
-            span.set_attribute("graph.start", mem_ref)
-            span.set_attribute("graph.depth", depth)
-            span.set_attribute("tenant.id", effective_tenant_id)
+    async def _generate_code_summary(self, memory_id: str, tenant_id: str) -> dict[str, Any] | None:
+        """调用 LLM 生成代码摘要"""
+        from ..config import LLMConfig
 
-            try:
-                path = "->memory_relation->memory" * depth
-
-                # 拆分 mem_ref 为 table 和 id
-                mem_parts = mem_ref.split(":")
-                mem_table, mem_id = mem_parts[0], mem_parts[1] if len(mem_parts) > 1 else mem_parts[0]
-
-                q = (
-                    f"SELECT {path}.* AS related "  # nosec B608  # path 是内部常量，安全
-                    "FROM type::record($mem_table, $mem_id)"
-                )
-                result = await self._db.query(q, {"mem_table": mem_table, "mem_id": mem_id})
-
-                seen: set[str] = set()
-                memories: list[dict[str, Any]] = []
-                records = self._extract_records(result)
-
-                for record in records:
-                    related_list = record.get("related", [])
-                    if not isinstance(related_list, list):
-                        related_list = [related_list]
-                    for mem in related_list:
-                        if not isinstance(mem, dict):
-                            continue
-                        mem_id = str(mem.get("id", ""))
-                        if not mem_id or mem_id in seen:
-                            continue
-                        if mem.get("tenant_id") != effective_tenant_id:
-                            continue
-                        seen.add(mem_id)
-                        memories.append(self._build_result_item(mem, score=0.0))
-                        if len(memories) >= limit:
-                            break
-                    if len(memories) >= limit:
-                        break
-
-                span.set_attribute("graph.traverse.result_count", len(memories))
-                return memories
-            except Exception as e:
-                span.record_exception(e)
-                raise DatabaseError(f"Failed to get related memories: {e!s}") from e
-
-    # ==================== ID 规范化 ====================
-
-    @staticmethod
-    def _normalize_memory_id(memory_id: str) -> str:
-        """规范化记忆 ID 为 SurrealDB record ID 格式
-
-        接受: "memory:abc123" 或 "abc123"
-        返回: "memory:abc123"
-        """
-        mid = str(memory_id)
-        if mid.startswith("memory:"):
-            return mid
-        return f"memory:{mid}"
-
-    @staticmethod
-    def _to_meili_id(surreal_id: str) -> str:
-        """SurrealDB record ID → Meilisearch 主键（去掉表名前缀）
-
-        'memory:abc123' → 'abc123'
-        'abc123' → 'abc123'
-        """
-        sid = str(surreal_id)
-        if ":" in sid:
-            return sid.split(":", 1)[1]
-        return sid
-
-    @staticmethod
-    def _from_meili_id(meili_id: str) -> str:
-        """Meilisearch 主键 → SurrealDB record ID（补全表名前缀）
-
-        'abc123' → 'memory:abc123'
-        'memory:abc123' → 'memory:abc123'
-        """
-        mid = str(meili_id)
-        if mid.startswith("memory:"):
-            return mid
-        return f"memory:{mid}"
-
-    @staticmethod
-    def _normalize_relation_id(relation_id: str) -> str:
-        """规范化关系 ID 为 SurrealDB record ID 格式"""
-        rid = str(relation_id)
-        if rid.startswith("memory_relation:"):
-            return rid
-        return f"memory_relation:{rid}"
-
-    def _format_relation_results(self, db_result: Any, direction: str) -> list[dict[str, Any]]:
-        """格式化关系查询结果"""
-        raw_items = self._extract_records(db_result)
-        results: list[dict[str, Any]] = []
-        for item in raw_items:
-            results.append(
-                {
-                    "id": str(item.get("id", "")),
-                    "from": str(item.get("in", "")),
-                    "to": str(item.get("out", "")),
-                    "direction": direction,
-                    "relationship_type": item.get("relationship_type", "related"),
-                    "weight": item.get("weight", 0.5),
-                    "description": item.get("description"),
-                    "metadata": item.get("metadata", {}),
-                    "created_at": str(item.get("created_at", "")),
-                }
-            )
-        return results
-
-    # ==================== Phase A-B6/B7: 智能去重辅助方法 ====================
-
-    def _decide_duplicate_action(
-        self, new_memory: dict[str, Any], old_record: dict[str, Any], similarity: float, mem_type: str
-    ) -> str:
-        """
-        智能决策：遇到重复记忆时的操作
-        返回: "UPDATE" | "DISCARD" | "KEEP_BOTH"
-        """
-        new_content = new_memory.get("content", "")
-        old_content = old_record.get("content", "")
-        new_len = len(new_content)
-        old_len = len(old_content)
-
-        # 规则1: 几乎完全相同且时间很近 -> 丢弃
-        if similarity > 0.98:
-            return "DISCARD"
-
-        # 规则2: 用户偏好 -> 更新（偏好会改变）
-        if mem_type == "preference":
-            return "UPDATE"
-
-        # 规则3: 决策记录 -> 保留两者（保留历史决策链）
-        if mem_type == "decision":
-            return "KEEP_BOTH"
-
-        # 规则4: 新内容明显更详细 -> 更新
-        if new_len > old_len * 1.5:
-            return "UPDATE"
-
-        # 规则5: 新内容明显更简略 -> 丢弃
-        if new_len < old_len * 0.7:
-            return "DISCARD"
-
-        # 默认: 保留两者
-        return "KEEP_BOTH"
-
-    async def _update_memory(self, record_id: str, memory_data: dict[str, Any]) -> None:
-        """更新现有记忆记录"""
-        update_fields = {
-            "content": memory_data["content"],
-            "content_hash": memory_data["content_hash"],
-            "embedding": memory_data["embedding"],
-            "tags": memory_data.get("tags", []),
-            "metadata": memory_data.get("metadata", {}),
-            "updated_at": "time::now()",
-        }
-
-        # 构建 UPDATE 语句
-        set_clauses = [f"{k} = ${k}" for k in update_fields.keys() if k != "updated_at"]
-        set_clauses.append("updated_at = time::now()")
-        set_str = ", ".join(set_clauses)
-
-        # 拆分 record_id 为 table 和 id
-        rid_parts = record_id.split(":")
-        rid_table, rid_id = rid_parts[0], rid_parts[1] if len(rid_parts) > 1 else rid_parts[0]
-
-        params = {k: v for k, v in update_fields.items() if k != "updated_at"}
-        params["rid_table"] = rid_table
-        params["rid_id"] = rid_id
-
-        await self._db.query(f"UPDATE type::record($rid_table, $rid_id) SET {set_str}", params)  # nosec B608
-
-    def _build_meili_doc(self, record_id: str, memory: dict[str, Any], tenant_id: str) -> dict[str, Any]:
-        """构建 Meilisearch 文档"""
-        meili_doc: dict[str, Any] = {
-            "id": self._to_meili_id(record_id),
-            "surreal_id": record_id,
-            "content": memory.get("content", ""),
-            "metadata": memory.get("metadata", {}),
-            "tenant_id": tenant_id,
-            "type": memory.get("type", "general"),
-            "tags": memory.get("tags", []),
-            "project_id": memory.get("project_id", "global"),
-        }
-
-        # 额外字段
-        metadata = memory.get("metadata", {})
-        meili_doc["ip_address"] = metadata.get("ip_address") or metadata.get("ip")
-        meili_doc["email"] = metadata.get("email")
-        meili_doc["version"] = metadata.get("version")
-        meili_doc["code"] = memory.get("content", "")
-
-        # v2.4.0: L0/L1/L2 分层字段
-        meili_doc["content_abstract"] = memory.get("content_abstract", "")
-        meili_doc["content_overview"] = memory.get("content_overview", "")
-        meili_doc["local_id"] = memory.get("local_id")
-
-        if "source_id" in memory:
-            meili_doc["source_id"] = memory["source_id"]
-        if "source_timestamp" in memory:
-            meili_doc["date"] = memory["source_timestamp"]
-
-        code_analysis = metadata.get("code_analysis")
-        if code_analysis:
-            meili_doc["code_language"] = code_analysis.get("language")
-            meili_doc["code_functions"] = " ".join(
-                f.get("name", "") for f in code_analysis.get("functions", []) if f.get("name")
-            )
-            meili_doc["code_classes"] = " ".join(
-                c.get("name", "") for c in code_analysis.get("classes", []) if c.get("name")
-            )
-            complexity = code_analysis.get("complexity", {})
-            meili_doc["code_complexity"] = complexity.get("cyclomatic_complexity", 0)
-
-        return meili_doc
-
-    def _extract_record_id(self, result: Any) -> str | None:
-        """从 SurrealDB 结果中提取 record ID"""
-        if isinstance(result, list) and len(result) > 0:
-            return str(result[0].get("id", "")) or None
-        elif isinstance(result, dict) and result.get("id"):
-            return str(result["id"])
-        return None
-
-    def _get_vector_cache_key(self, embedding: list[float], limit: int, threshold: float, tenant_id: str) -> str:
-        """生成向量搜索缓存键"""
-        embedding_hash = hashlib.md5(str(embedding[:10]).encode(), usedforsecurity=False).hexdigest()[:16]
-        return f"vec:{tenant_id}:{embedding_hash}:{limit}:{threshold}"
-
-    def _get_keyword_cache_key(self, query: str, limit: int, tenant_id: str) -> str:
-        """生成关键词搜索缓存键"""
-        query_hash = hashlib.md5(query.encode(), usedforsecurity=False).hexdigest()[:16]
-        return f"kw:{tenant_id}:{query_hash}:{limit}"
-
-    # ==================== Phase B: Sync Methods ====================
-
-    async def get_fingerprints(self, tenant_id: str = "default") -> list[dict]:
-        """获取服务端所有记忆的指纹列表"""
-        try:
-            query = """
-                SELECT source_id, content_hash, updated_at 
-                FROM memory 
-                WHERE tenant_id = $tenant_id
-            """
-            result = await self._db.query(query, {"tenant_id": tenant_id})
-
-            fingerprints = []
-            records = self._extract_records(result)
-            for record in records:
-                source_id = record.get("source_id")
-                if not source_id:
-                    continue  # 跳过 source_id 为 None 的脏数据
-                fingerprints.append(
-                    {
-                        "source_id": source_id,
-                        "hash": record.get("content_hash", ""),
-                        "mtime": record.get("updated_at", 0),
-                    }
-                )
-            return fingerprints
-        except Exception as e:
-            logger.error("[Sync] 获取指纹失败: %s", e)
-            raise DatabaseError(f"获取指纹失败: {e}") from e
-
-    async def sync_preview(self, fingerprints: list[dict], tenant_id: str = "default") -> dict:
-        """增量同步：比对本地指纹与服务端，返回变更指令"""
-        try:
-            # 1. 获取服务端指纹
-            server_fingerprints = await self.get_fingerprints(tenant_id)
-            server_map = {fp["source_id"]: fp for fp in server_fingerprints}
-            local_map = {fp["source_id"]: fp for fp in fingerprints}
-
-            to_upload = []
-            to_delete = []
-            conflicts = []
-
-            # 2. 检查本地 → 服务端（需要上传或冲突）
-            for local_fp in fingerprints:
-                source_id = local_fp["source_id"]
-                server_fp = server_map.get(source_id)
-
-                if not server_fp:
-                    # 本地有，服务端无 → 上传
-                    to_upload.append(
-                        {
-                            "source_id": source_id,
-                            "reason": "new",
-                            "path": local_fp.get("path", ""),
-                        }
-                    )
-                elif server_fp["hash"] != local_fp["hash"]:
-                    # hash不同 → 冲突，记录到数据库
-                    conflict_id = await self._record_conflict(
-                        source_id=source_id,
-                        local_hash=local_fp["hash"],
-                        server_hash=server_fp["hash"],
-                        local_content=local_fp.get("content"),  # 如果提供了内容
-                        server_content=server_fp.get("content"),  # 如果提供了内容
-                        local_mtime=local_fp.get("mtime", 0),
-                        server_mtime=server_fp.get("mtime", 0),
-                        tenant_id=tenant_id,
-                    )
-
-                    conflicts.append(
-                        {
-                            "id": conflict_id,  # 新增：包含冲突ID
-                            "source_id": source_id,
-                            "local_mtime": local_fp.get("mtime", 0),
-                            "server_mtime": server_fp.get("mtime", 0),
-                            "local_hash": local_fp["hash"],
-                            "server_hash": server_fp["hash"],
-                        }
-                    )
-
-            # 3. 检查服务端 → 本地（需要删除）
-            for server_fp in server_fingerprints:
-                source_id = server_fp["source_id"]
-                if source_id and source_id not in local_map:
-                    to_delete.append(source_id)
-
-            logger.info(
-                "[Sync] 增量同步分析: %d 上传, %d 删除, %d 冲突", len(to_upload), len(to_delete), len(conflicts)
-            )
-
-            return {
-                "synced": 0,  # 实际同步数（由调用方执行）
-                "to_upload": to_upload,
-                "to_delete": to_delete,
-                "conflicts": conflicts,
-            }
-        except Exception as e:
-            logger.error("[Sync] 增量同步失败: %s", e)
-            raise DatabaseError(f"增量同步失败: {e}") from e
-
-    async def sync_full(self, memories: list[dict], tenant_id: str = "default") -> dict:
-        total = len(memories)
-        processed = 0
-        updated_count = 0
-        all_skipped: list[dict] = []
-        errors: list[str] = []
-
-        for i, memory in enumerate(memories):
-            try:
-                upload_result = await self.upload_memories([memory], tenant_id)
-                processed += upload_result.get("success", 0)
-                updated_count += upload_result.get("updated", 0)
-                all_skipped.extend(upload_result.get("skipped", []))
-                if upload_result.get("errors"):
-                    errors.append(f"Memory {i}: {upload_result['errors']}")
-            except Exception as e:
-                errors.append(f"Memory {i}: {str(e)}")
-
-        return {
-            "total": total,
-            "success": processed,
-            "failed": total - processed - updated_count - len(all_skipped),
-            "updated": updated_count,
-            "skipped": all_skipped,
-            "errors": errors[:10],
-            "tenant_id": tenant_id,
-        }
-
-    # ==================== Phase B: Conflict Resolution Methods ====================
-
-    async def _record_conflict(
-        self,
-        source_id: str,
-        local_hash: str,
-        server_hash: str,
-        local_content: str | None = None,
-        server_content: str | None = None,
-        local_mtime: int = 0,
-        server_mtime: int = 0,
-        tenant_id: str = "default",
-    ) -> str:
-        """记录冲突到数据库，返回 conflict_id"""
-        try:
-            conflict_data = {
-                "source_id": source_id,
-                "local_hash": local_hash,
-                "server_hash": server_hash,
-                "local_content": local_content,
-                "server_content": server_content,
-                "local_mtime": local_mtime,
-                "server_mtime": server_mtime,
-                "tenant_id": tenant_id,
-                "status": "pending",
-            }
-
-            result = await self._db.create("conflict", conflict_data)
-
-            # 提取冲突ID
-            if isinstance(result, list) and len(result) > 0:
-                conflict_id = str(result[0].get("id", ""))
-                if conflict_id:
-                    logger.info("[Sync] 冲突记录成功: %s, 源ID=%s, 租户=%s", conflict_id, source_id, tenant_id)
-                    return conflict_id
-            elif isinstance(result, dict) and result.get("id"):
-                conflict_id = str(result["id"])
-                logger.info("[Sync] 冲突记录成功: %s, 源ID=%s, 租户=%s", conflict_id, source_id, tenant_id)
-                return conflict_id
-
-            raise DatabaseError("无法创建冲突记录")
-        except Exception as e:
-            logger.error("[Sync] 记录冲突失败: %s", e)
-            raise DatabaseError(f"记录冲突失败: {e}") from e
-
-    async def get_conflicts(
-        self,
-        tenant_id: str = "default",
-        status: str | None = None,  # 'pending' | 'resolved' | None（全部）
-        limit: int = 100,
-    ) -> list[dict]:
-        """获取冲突列表"""
-        try:
-            # 构建查询条件
-            where_conditions = ["tenant_id = $tenant_id"]
-            if status:
-                where_conditions.append("status = $status")
-
-            where_clause = " AND ".join(where_conditions)  # nosec B608: 白名单构建，仅 tenant_id/status
-
-            query = f"""
-                SELECT * FROM conflict 
-                WHERE {where_clause}
-                ORDER BY created_at DESC
-                LIMIT $limit
-            """  # nosec B608: 白名单构建，仅tenant_id/status常量
-
-            params = {"tenant_id": tenant_id, "limit": limit}
-            if status:
-                params["status"] = status
-
-            result = await self._db.query(query, params)
-
-            # 提取记录
-            raw_items = self._extract_records(result)
-            conflicts = []
-
-            for item in raw_items:
-                conflict = {
-                    "id": str(item.get("id", "")),
-                    "source_id": item.get("source_id"),
-                    "local_hash": item.get("local_hash", ""),
-                    "server_hash": item.get("server_hash", ""),
-                    "local_content": item.get("local_content"),
-                    "server_content": item.get("server_content"),
-                    "local_mtime": item.get("local_mtime", 0),
-                    "server_mtime": item.get("server_mtime", 0),
-                    "tenant_id": item.get("tenant_id", "default"),
-                    "status": item.get("status", "pending"),
-                    "resolution": item.get("resolution"),
-                    "resolved_at": item.get("resolved_at"),
-                    "created_at": item.get("created_at"),
-                    "updated_at": item.get("updated_at"),
-                }
-                conflicts.append(conflict)
-
-            logger.info("[Sync] 获取冲突列表: %d 个冲突, 租户=%s, 状态=%s", len(conflicts), tenant_id, status)
-
-            return conflicts
-        except Exception as e:
-            logger.error("[Sync] 获取冲突列表失败: %s", e)
-            raise DatabaseError(f"获取冲突列表失败: {e}") from e
-
-    async def get_conflict_detail(
-        self,
-        conflict_id: str,
-        tenant_id: str = "default",
-    ) -> dict | None:
-        """获取单个冲突的详细信息"""
-        try:
-            # 确保冲突ID是完整格式
-            if not conflict_id.startswith("conflict:"):
-                conflict_id = f"conflict:{conflict_id}"
-
-            # SurrealQL 不支持 FROM $param 参数化表名，必须用 WHERE id = $param
-            # SurrealDB RecordID 类型不能直接与字符串比较，必须用 type::string() 转换
-            query = """
-                SELECT * FROM conflict 
-                WHERE type::string(id) = $conflict_id AND tenant_id = $tenant_id
-            """
-
-            result = await self._db.query(query, {"conflict_id": conflict_id, "tenant_id": tenant_id})
-
-            raw_items = self._extract_records(result)
-
-            if not raw_items:
-                logger.info("[Sync] 未找到冲突详情: %s, 租户=%s", conflict_id, tenant_id)
-                return None
-
-            item = raw_items[0]
-            conflict = {
-                "id": str(item.get("id", "")),
-                "source_id": item.get("source_id"),
-                "local_hash": item.get("local_hash", ""),
-                "server_hash": item.get("server_hash", ""),
-                "local_content": item.get("local_content"),
-                "server_content": item.get("server_content"),
-                "local_mtime": item.get("local_mtime", 0),
-                "server_mtime": item.get("server_mtime", 0),
-                "tenant_id": item.get("tenant_id", "default"),
-                "status": item.get("status", "pending"),
-                "resolution": item.get("resolution"),
-                "resolved_at": item.get("resolved_at"),
-                "created_at": item.get("created_at"),
-                "updated_at": item.get("updated_at"),
-            }
-
-            logger.info("[Sync] 获取冲突详情成功: %s, 租户=%s", conflict_id, tenant_id)
-
-            return conflict
-        except Exception as e:
-            logger.error("[Sync] 获取冲突详情失败: %s", e)
-            raise DatabaseError(f"获取冲突详情失败: {e}") from e
-
-    async def resolve_conflict(
-        self,
-        conflict_id: str,
-        resolution: str,
-        tenant_id: str = "default",
-    ) -> dict:
-        """
-        解决同步冲突
-
-        Args:
-            conflict_id: 冲突记录ID
-            resolution: 解决策略
-                - use_local: 用本地内容覆盖服务端
-                - use_remote: 保留服务端内容，丢弃本地
-                - keep_both: 保留两个版本（重命名本地版本）
-            tenant_id: 租户ID
-
-        Returns:
-            解决结果
-
-        Raises:
-            ValidationError: 无效的冲突ID或解决策略
-            DatabaseError: 数据库操作失败
-        """
-        resolution = resolution.lower().strip()
-        if resolution not in ("use_local", "use_remote", "keep_both"):
-            raise ValidationError(f"无效的解决策略: {resolution}")
+        config = LLMConfig()
+        if not config.enabled:
+            return None
 
         try:
-            # 获取冲突详情
-            conflict_detail = await self.get_conflict_detail(conflict_id, tenant_id)
-            if not conflict_detail:
-                raise ValidationError(f"冲突不存在或不属于当前租户: {conflict_id}")
-
-            if conflict_detail["status"] == "resolved":
-                logger.warning("[Sync] 冲突已被解决: %s, 重复解决操作", conflict_id)
-                return {
-                    "conflict_id": conflict_id,
-                    "resolution": conflict_detail["resolution"],
-                    "status": "already_resolved",
-                    "message": "冲突已解决",
-                }
-
-            source_id = conflict_detail["source_id"]
-
-            if resolution == "use_local":
-                # 使用本地内容覆盖服务端
-                await self._update_server_content_by_source_id(source_id, conflict_detail, tenant_id)
-
-            elif resolution == "use_remote":
-                # 保留服务端内容不变，标记本地为需更新
-                logger.info("[Sync] 使用服务端内容保留: 冲突=%s, 源ID=%s", conflict_id, source_id)
-
-            elif resolution == "keep_both":
-                # 重命名本地版本并创建新记录
-                await self._create_new_memory_version(source_id, conflict_detail, tenant_id)
-
-            # 更新冲突记录为已解决
-            update_query = """
-                UPDATE $conflict_id 
-                SET status = 'resolved', 
-                    resolution = $resolution, 
-                    resolved_at = time::now(),
-                    updated_at = time::now()
-                WHERE tenant_id = $tenant_id
-            """
-
-            result = await self._db.query(
-                update_query, {"conflict_id": conflict_id, "resolution": resolution, "tenant_id": tenant_id}
-            )
-
-            logger.info("[Sync] 冲突解决成功: %s, 策略=%s, 租户=%s", conflict_id, resolution, tenant_id)
-
-            return {
-                "conflict_id": conflict_id,
-                "resolution": resolution,
-                "status": "resolved",
-                "message": f"冲突已使用 {resolution} 策略解决",
-                "source_id": source_id,
-            }
-        except Exception as e:
-            logger.error("[Sync] 解决冲突失败: %s", e)
-            raise DatabaseError(f"解决冲突失败: {e}") from e
-
-    async def _update_server_content_by_source_id(self, source_id: str, conflict_detail: dict, tenant_id: str) -> None:
-        """根据source_id更新服务端内容"""
-        local_content = conflict_detail.get("local_content")
-        if not local_content:
-            logger.warning("[Sync] 本地内容为空，无法更新服务端: 源ID=%s", source_id)
-            return
-
-        # 重新计算嵌入向量
-        try:
-            embeddings = await self._get_embeddings([local_content])
-            new_embedding = embeddings[0]
-        except Exception as e:
-            logger.error("[Sync] 计算新嵌入失败: %s, 源ID=%s", e, source_id)
-            raise DatabaseError(f"计算新嵌入失败: {e}")
-
-        # 更新 SurrealDB 中的记录
-        update_query = """
-            UPDATE memory 
-            SET content = $content,
-                content_hash = $content_hash,
-                embedding = $embedding,
-                updated_at = time::now()
-            WHERE source_id = $source_id AND tenant_id = $tenant_id
-        """
-
-        result = await self._db.query(
-            update_query,
-            {
-                "content": local_content,
-                "content_hash": hashlib.md5(local_content.encode("utf-8"), usedforsecurity=False).hexdigest(),
-                "embedding": new_embedding,
-                "source_id": source_id,
-                "tenant_id": tenant_id,
-            },
-        )
-
-        # 同步更新 Meilisearch
-        if self._meili:
-            try:
-                # 获取更新后的记录ID
-                select_query = """
-                    SELECT id FROM memory 
-                    WHERE source_id = $source_id AND tenant_id = $tenant_id
-                """
-                select_result = await self._db.query(select_query, {"source_id": source_id, "tenant_id": tenant_id})
-
-                records = self._extract_records(select_result)
-                if records:
-                    surreal_id = str(records[0].get("id", ""))
-                    if surreal_id:
-                        # 构建 Meilisearch 文档
-                        meili_doc = self._build_meili_doc(
-                            surreal_id,
-                            {
-                                "content": local_content,
-                                "metadata": {},
-                                "type": "general",
-                                "tags": [],
-                                "project_id": "global",
-                            },
-                            tenant_id,
-                        )
-
-                        # 更新到 Meilisearch
-                        await self._meili.add_documents([meili_doc], primary_key="id", wait=False)
-
-                        logger.info("[Sync] 同步更新 Meilisearch 成功: %s", surreal_id)
-            except Exception as e:
-                logger.warning("[Sync] 同步更新 Meilisearch 失败: %s", e)
-
-        logger.info("[Sync] 服务器端内容更新成功: 源ID=%s", source_id)
-
-    async def _create_new_memory_version(self, source_id: str, conflict_detail: dict, tenant_id: str) -> str:
-        """为本地版本创建新的记忆记录（追加-local后缀）"""
-        local_content = conflict_detail.get("local_content")
-        if not local_content:
-            logger.warning("[Sync] 本地内容为空，无法创建新版本: 源ID=%s", source_id)
-            return ""
-
-        # 生成新的 source_id
-        new_source_id = f"{source_id}-local"
-
-        # 重新计算嵌入向量
-        try:
-            embeddings = await self._get_embeddings([local_content])
-            new_embedding = embeddings[0]
-        except Exception as e:
-            logger.error("[Sync] 计算新嵌入失败: %s, 新源ID=%s", e, new_source_id)
-            raise DatabaseError(f"计算新嵌入失败: {e}")
-
-        # 创建新记录到 SurrealDB
-        new_memory_data = {
-            "content": local_content,
-            "content_hash": hashlib.md5(local_content.encode("utf-8"), usedforsecurity=False).hexdigest(),
-            "embedding": new_embedding,
-            "tenant_id": tenant_id,
-            "type": "general",  # 默认类型
-            "tags": [],  # 默认标签
-            "project_id": "global",
-            "source": "sync",
-            "source_id": new_source_id,
-            "metadata": {},
-        }
-
-        create_result = await self._db.create("memory", new_memory_data)
-
-        # 提取新记录ID
-        new_memory_id = None
-        if isinstance(create_result, list) and len(create_result) > 0:
-            new_memory_id = str(create_result[0].get("id", ""))
-        elif isinstance(create_result, dict) and create_result.get("id"):
-            new_memory_id = str(create_result["id"])
-
-        if not new_memory_id:
-            raise DatabaseError("无法创建新记忆记录")
-
-        # 同步到 Meilisearch
-        if self._meili:
-            try:
-                meili_doc = self._build_meili_doc(new_memory_id, new_memory_data, tenant_id)
-                await self._meili.add_documents([meili_doc], primary_key="id", wait=False)
-
-                logger.info("[Sync] 创建新记忆版本并同步到Meilisearch: %s, 新源ID=%s", new_memory_id, new_source_id)
-            except Exception as e:
-                logger.warning("[Sync] 同步新记忆到 Meilisearch 失败: %s", e)
-
-        logger.info("[Sync] 新记忆版本创建成功: %s, 新源ID=%s", new_memory_id, new_source_id)
-
-        return new_memory_id
-
-    # ==================== New: HNSW Optimization Methods (Phase C-B) ====================
-
-    async def get_memory_stats(self, tenant_id: str = "default") -> dict:
-        """获取记忆统计数据"""
-        try:
-            # 计算各种统计数据
-            query = "SELECT count() as total FROM memory WHERE tenant_id = $tenant_id"
-            result = await self._db.query(query, {"tenant_id": tenant_id})
-            raw_items = self._extract_records(result)
-            total_memories = raw_items[0].get("total", 0) if raw_items else 0
-
-            # 按类型分类
-            type_query = "SELECT type, count() as count FROM memory WHERE tenant_id = $tenant_id GROUP BY type"
-            type_result = await self._db.query(type_query, {"tenant_id": tenant_id})
-            type_stats = self._extract_records(type_result)
-
-            # 按日期统计（SurrealDB 用 time::group 替代 date_trunc）
-            date_query = "SELECT count() as count, time::group(created_at, 'day') as day FROM memory WHERE tenant_id = $tenant_id GROUP BY day ORDER BY day DESC LIMIT 7"
-            date_result = await self._db.query(date_query, {"tenant_id": tenant_id})
-            date_stats = self._extract_records(date_result)
-
-            return {
-                "total": total_memories,
-                "by_type": type_stats,
-                "recent_activity": date_stats,
-                "tenant_id": tenant_id,
-            }
-        except Exception as e:
-            logger.error("[HNSW] 获取记忆统计失败: %s", e)
-            raise DatabaseError(f"获取记忆统计失败: {e}") from e
-
-    async def optimize_hnsw(self, tenant_id: str = "default") -> dict:
-        """优化HNSW参数"""
-        try:
-            # 这里可以实现HNSW索引的自动优化逻辑
-            # 当前只是返回推荐的参数
-            stats = await self.get_memory_stats(tenant_id)
-
-            # 基于数据量推荐HNSW参数
-            total_memories = stats.get("total", 0)
-            recommended_params = self._recommend_hnsw_params(total_memories)
-
-            return {
-                "current_magnitude": total_memories,
-                "recommended_params": recommended_params,
-                "optimization_performed": False,  # 这里实际的优化逻辑需要在SurrealDB层面处理
-            }
-        except Exception as e:
-            logger.error("[HNSW] 优化失败: %s", e)
-            raise DatabaseError(f"优化HNSW失败: {e}") from e
-
-    def _recommend_hnsw_params(self, n_items: int) -> dict:
-        """基于数据量推荐HNSW参数"""
-        # 基于内存中的研究推荐参数
-        if n_items < 1000:
-            return {"M": 8, "ef_construction": 64, "ef_search": 32}
-        elif n_items < 10000:
-            return {"M": 12, "ef_construction": 100, "ef_search": 50}
-        elif n_items < 100000:
-            return {"M": 16, "ef_construction": 200, "ef_search": 100}
-        else:
-            return {"M": 24, "ef_construction": 300, "ef_search": 150}
-
-    async def rebuild_hnsw_index(self, tenant_id: str = "default", force: bool = False) -> dict:
-        """重建HNSW索引"""
-        try:
-            # SurrealDB的HNSW索引是自动维护的，这里只是重新计算/更新索引
-            # 重新计算所有记忆的嵌入（仅在force为True时）
-            if force:
-                # 查询所有记忆
-                query = "SELECT id, content FROM memory WHERE tenant_id = $tenant_id"
-                result = await self._db.query(query, {"tenant_id": tenant_id})
-                records = self._extract_records(result)
-
-                updates_made = 0
-                for record in records:
-                    memory_id = record.get("id")
-                    content = record.get("content")
-
-                    if content:
-                        # 重新计算嵌入
-                        embeddings = await self._get_embeddings([content])
-                        new_embedding = embeddings[0]
-
-                        # 更新数据库
-                        update_query = "UPDATE $memory_id SET embedding = $embedding"
-                        await self._db.query(update_query, {"memory_id": memory_id, "embedding": new_embedding})
-                        updates_made += 1
-
-                return {
-                    "status": "completed",
-                    "updates_made": updates_made,
-                    "force_rebuilt": force,
-                    "tenant_id": tenant_id,
-                }
-            else:
-                return {
-                    "status": "completed",
-                    "message": "Index maintained normally (not force rebuilt)",
-                    "force_rebuilt": force,
-                    "tenant_id": tenant_id,
-                }
-        except Exception as e:
-            logger.error("[HNSW] 重建索引失败: %s", e)
-            raise DatabaseError(f"重建HNSW索引失败: {e}") from e
-
-    # ==================== New: Embedding Cache Methods (Phase C-B) ====================
-
-    async def get_cache_stats(self) -> dict:
-        """获取嵌入缓存统计信息"""
-        if self._vector_cache:
-            try:
-                stats = await self._vector_cache.get_stats()
-                return {
-                    "hits": stats.get("hits", 0),
-                    "misses": stats.get("misses", 0),
-                    "ratio": stats.get("ratio", 0.0),
-                    "size": stats.get("size", 0),
-                    "config": {
-                        "max_size": getattr(self, "_cache_enabled", False),
-                        "ttl_seconds": getattr(self, "_cache_ttl", 300),
-                    },
-                }
-            except Exception:  # nosec B110
-                pass
-
-        return {"hits": 0, "misses": 0, "ratio": 0.0, "size": 0, "config": {"enabled": False}}
-
-    async def clear_embedding_cache(self) -> dict:
-        """清空嵌入缓存"""
-        if self._vector_cache:
-            try:
-                await self._vector_cache.clear()
-                return {"cleared": True, "cache_type": "vector_cache"}
-            except Exception:  # nosec B110
-                pass
-
-        if self._keyword_cache:
-            try:
-                await self._keyword_cache.clear()
-                return {"cleared": True, "cache_type": "keyword_cache"}
-            except Exception:  # nosec B110
-                pass
-
-        return {"cleared": False, "message": "No cache available"}
-
-    async def warmup_embedding_cache(self, tenant_id: str = "default", limit: int = 100) -> dict:
-        try:
-            if not self._vector_cache:
-                return {
-                    "loaded": 0,
-                    "attempted": 0,
-                    "limit": limit,
-                    "tenant_id": tenant_id,
-                    "skipped_reason": "cache_disabled",
-                }
-
-            query = """
-                SELECT id, content, created_at FROM memory 
-                WHERE tenant_id = $tenant_id 
-                ORDER BY created_at DESC 
-                LIMIT $limit
-            """
-            result = await self._db.query(query, {"tenant_id": tenant_id, "limit": limit})
-            records = self._extract_records(result)
-
-            loaded_count = 0
-            for record in records:
-                content = record.get("content", "")
-                if not content:
-                    continue
-                try:
-                    embeddings = await self._get_embeddings([content])
-                    embedding = embeddings[0] if embeddings else []
-
-                    if embedding:
-                        cache_key = hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()
-                        await self._vector_cache.set(cache_key, embedding, ttl=self._cache_ttl)
-                        loaded_count += 1
-                except Exception:  # nosec B112
-                    continue
-
-            return {"loaded": loaded_count, "attempted": len(records), "limit": limit, "tenant_id": tenant_id}
-        except Exception as e:
-            logger.error("[Cache] 预热失败: %s", e)
-            raise DatabaseError(f"预热嵌入缓存失败: {e}") from e
-
-    # ==================== New: Prefetch Methods (Phase C-B) ====================
-
-    async def prefetch_related_memories(
-        self, memory_id: str, tenant_id: str = "default", depth: int = 1, limit: int = 10
-    ) -> dict:
-        """预取与给定记忆相关的记忆嵌入"""
-        try:
-            related_memories = await self.get_related_memories(
-                memory_id=memory_id, depth=depth, tenant_id=tenant_id, limit=limit
-            )
-
-            # 预计算这些相关记忆的嵌入并放入缓存
-            processed = 0
-            for memory in related_memories:
-                content = memory.get("content", "")
-                if content and self._vector_cache:
-                    try:
-                        embeddings = await self._get_embeddings([content])
-                        embedding = embeddings[0] if embeddings else []
-
-                        if embedding:
-                            cache_key = hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()
-                            await self._vector_cache.set(cache_key, embedding, ttl=self._cache_ttl)
-                            processed += 1
-                    except Exception:  # nosec B112
-                        continue
-
-            return {
-                "processed": processed,
-                "total_related": len(related_memories),
-                "memory_id": memory_id,
-                "depth": depth,
-                "limit": limit,
-            }
-        except Exception as e:
-            logger.error("[Prefetch] 相关记忆预取失败: %s", e)
-            raise DatabaseError(f"预取相关记忆失败: {e}") from e
-
-    async def prefetch_popular_queries(self, tenant_id: str = "default", top_n: int = 20) -> dict:
-        """预取热门查询的嵌入（假设有查询日志或热度统计）"""
-        try:
-            # 在当前实现中，我们模拟预取一些常见内容类型的嵌入
-            # 在实际实现中，这应该连接到查询日志或热度统计系统
-            common_topics = [
-                "error",
-                "bug",
-                "fix",
-                "solution",
-                "optimization",
-                "performance",
-                "architecture",
-                "design",
-                "implementation",
-                "development",
-            ]
-
-            processed = 0
-            for topic in common_topics[:top_n]:
-                if self._vector_cache:
-                    try:
-                        embeddings = await self._get_embeddings([topic])
-                        embedding = embeddings[0] if embeddings else []
-
-                        if embedding:
-                            cache_key = hashlib.md5(topic.encode(), usedforsecurity=False).hexdigest()
-                            await self._vector_cache.set(cache_key, embedding, ttl=self._cache_ttl)
-                            processed += 1
-                    except Exception:  # nosec B112
-                        continue
-
-            return {"processed": processed, "queried_topics": common_topics[:top_n], "top_n_requested": top_n}
-        except Exception as e:
-            logger.error("[Prefetch] 热门查询预取失败: %s", e)
-            raise DatabaseError(f"预取热门查询失败: {e}") from e
-
-    # ==================== New: Leiden Clustering Algorithm ====================
-
-    async def cluster_memories_leiden(
-        self, tenant_id: str = "default", content_threshold: float = 0.75, max_clusters: int = 20
-    ) -> dict:
-        """
-        使用Leiden算法对记忆进行聚类
-        注意：真实的Leiden算法需要graph分析库，这里实现简化版本的社区检测
-        """
-        try:
-            # 获取所有记忆及其嵌入
-            query = """
-                SELECT id, content, embedding, type, tags, project_id 
-                FROM memory 
-                WHERE tenant_id = $tenant_id
-            """
-            result = await self._db.query(query, {"tenant_id": tenant_id})
-            records = self._extract_records(result)
-
-            if len(records) < 2:
-                return {
-                    "clusters": [],
-                    "total_memories": len(records),
-                    "tenant_id": tenant_id,
-                    "message": "Not enough memories to cluster",
-                }
-
-            # 构建相似度图（简化版）
-            similarities = []
-            for i in range(len(records)):
-                for j in range(i + 1, len(records)):
-                    memory1 = records[i]
-                    memory2 = records[j]
-
-                    # 计算嵌入余弦相似度
-                    embedding1 = memory1.get("embedding", [])
-                    embedding2 = memory2.get("embedding", [])
-
-                    if embedding1 and embedding2:
-                        similarity = self._cosine_similarity(embedding1, embedding2)
-                        if similarity >= content_threshold:
-                            similarities.append(
-                                {
-                                    "from_id": memory1["id"],
-                                    "to_id": memory2["id"],
-                                    "similarity": similarity,
-                                    "from_content": memory1.get("content", "")[:50],
-                                    "to_content": memory2.get("content", "")[:50],
-                                }
-                            )
-
-            # 使用边的集合进行简化聚类
-            clusters = self._simple_community_detection(similarities, max_clusters)
-
-            # 为每个集群命名（基于内容关键词）
-            named_clusters = []
-            for i, cluster in enumerate(clusters):
-                cluster_contents = [records[idx]["content"] for idx in cluster if idx < len(records)]
-                cluster_keywords = self._extract_cluster_keywords(cluster_contents)
-
-                named_clusters.append(
-                    {
-                        "cluster_id": i,
-                        "size": len(cluster),
-                        "memory_ids": [records[idx]["id"] for idx in cluster if idx < len(records)],
-                        "keywords": cluster_keywords,
-                        "sample_contents": [c[:100] for c in cluster_contents[:3]],
-                    }
-                )
-
-            return {
-                "clusters": named_clusters,
-                "total_memories": len(records),
-                "total_clusters": len(named_clusters),
-                "tenant_id": tenant_id,
-                "threshold": content_threshold,
-            }
-        except Exception as e:
-            logger.error("[Clustering] Leiden聚类失败: %s", e)
-            raise DatabaseError(f"Leiden聚类失败: {e}") from e
-
-    def _cosine_similarity(self, vec1: list, vec2: list) -> float:
-        """计算两个向量的余弦相似度"""
-        if len(vec1) != len(vec2):
-            return 0.0
-
-        dot_product = sum(a * b for a, b in zip(vec1, vec2))
-        magnitude1 = sum(a * a for a in vec1) ** 0.5
-        magnitude2 = sum(b * b for b in vec2) ** 0.5
-
-        if magnitude1 == 0 or magnitude2 == 0:
-            return 0.0
-
-        return dot_product / (magnitude1 * magnitude2)
-
-    def _simple_community_detection(self, edges: list, max_clusters: int) -> list:
-        """简单的社区检测算法（模拟Leiden）"""
-        # 创建邻接列表
-        nodes = set()
-        adj_list = {}
-
-        for edge in edges:
-            from_node = edge["from_id"]
-            to_node = edge["to_id"]
-
-            nodes.add(from_node)
-            nodes.add(to_node)
-
-            if from_node not in adj_list:
-                adj_list[from_node] = []
-            if to_node not in adj_list:
-                adj_list[to_node] = []
-
-            adj_list[from_node].append(to_node)
-            adj_list[to_node].append(from_node)
-
-        # 使用连通组件作为简单聚类
-        visited = set()
-        clusters = []
-
-        for node in nodes:
-            if node not in visited:
-                cluster = []
-                queue = [node]
-                visited.add(node)
-
-                while queue and len(clusters) < max_clusters:
-                    current = queue.pop(0)
-                    cluster.append(current)
-
-                    for neighbor in adj_list.get(current, []):
-                        if neighbor not in visited:
-                            visited.add(neighbor)
-                            queue.append(neighbor)
-
-                clusters.append(cluster)
-
-                if len(clusters) >= max_clusters:
-                    break
-
-        return clusters
-
-    def _extract_cluster_keywords(self, contents: list) -> list:
-        """从集群内容中提取关键词"""
-        # 简单的关键字提取：最常见的词汇
-        all_words = []
-        for content in contents:
-            words = content.lower().split()
-            # 过滤掉常见的停用词
-            stop_words = {
-                "the",
-                "a",
-                "an",
-                "and",
-                "or",
-                "but",
-                "in",
-                "on",
-                "at",
-                "to",
-                "for",
-                "of",
-                "with",
-                "by",
-                "is",
-                "are",
-                "was",
-                "were",
-                "be",
-                "been",
-                "being",
-                "have",
-                "has",
-                "had",
-                "do",
-                "does",
-                "did",
-                "will",
-                "would",
-                "could",
-                "should",
-            }
-            filtered_words = [
-                word.strip(".,!?;:") for word in words if word.lower() not in stop_words and len(word) > 3
-            ]
-            all_words.extend(filtered_words)
-
-        # 统计词频并返回最高频的词
-        word_count = {}
-        for word in all_words:
-            word_count[word] = word_count.get(word, 0) + 1
-
-        # 返回前5个高频词
-        sorted_words = sorted(word_count.items(), key=lambda x: x[1], reverse=True)
-        return [word for word, count in sorted_words[:5]]
-
-    # ==================== New: Code Analysis Integration ====================
-
-    async def analyze_memory_code(self, memory_id: str, tenant_id: str = "default", persist: bool = True) -> dict:
-        """分析记忆中的代码内容
-
-        Args:
-            memory_id: 记忆 ID
-            tenant_id: 租户 ID
-            persist: 是否将分析结果持久化到 metadata（默认 True）
-
-        Returns:
-            分析结果字典
-        """
-        try:
-            # 获取记忆内容
-            query = "SELECT * FROM $memory_id WHERE tenant_id = $tenant_id"
+            # 获取记忆内容和代码分析结果
+            query = "SELECT content, metadata FROM $memory_id WHERE tenant_id = $tenant_id"
             result = await self._db.query(query, {"memory_id": memory_id, "tenant_id": tenant_id})
             records = self._extract_records(result)
 
             if not records:
-                raise ValidationError(f"记忆不存在: {memory_id}")
+                return None
 
             memory = records[0]
             content = memory.get("content", "")
-            record_id = memory.get("id", memory_id)
+            metadata = memory.get("metadata", {}) or {}
+            code_analysis = metadata.get("code_analysis", {})
 
-            # 确定编程语言（简单判断）
-            language = self._detect_programming_language(content)
+            if not code_analysis:
+                return None
 
-            # 使用代码分析器分析代码
-            code_analyzer = CodeAnalyzer()
-            analysis_result = await code_analyzer.analyze_code(content, language)
+            # 构建 LLM 提示
+            functions = code_analysis.get("functions", [])
+            classes = code_analysis.get("classes", [])
+            language = code_analysis.get("language", "unknown")
 
-            analysis_dict = {
-                "memory_id": memory_id,
-                "language": analysis_result.language,
-                "functions": analysis_result.functions,
-                "classes": analysis_result.classes,
-                "imports": analysis_result.imports,
-                "comments_count": len(analysis_result.comments),
-                "dependencies": analysis_result.dependencies,
-                "complexity_metrics": analysis_result.complexity_metrics,
-                "comment_content": " | ".join(
-                    [c["text"] for c in analysis_result.comments] + [d["text"] for d in analysis_result.docstrings]
-                ),
+            prompt = f"""分析以下 {language} 代码并提供摘要：
+
+代码内容：
+```
+{content[:2000]}
+```
+
+函数列表：{", ".join(f.get("name", "") for f in functions[:10])}
+类列表：{", ".join(c.get("name", "") for c in classes[:10])}
+
+请提供：
+1. 一句话摘要（描述这个模块/文件的主要功能）
+2. 关键函数列表（最重要的3-5个函数及其作用）
+3. 代码用途（这个代码解决什么问题）
+
+以 JSON 格式返回：
+{{
+    "summary": "一句话摘要",
+    "key_functions": ["函数1: 作用", "函数2: 作用"],
+    "purpose": "代码用途描述"
+}}"""
+
+            # 调用 LLM API
+            http_pool = await self._get_http_pool()
+            headers = {"Content-Type": "application/json"}
+            if config.api_key:
+                headers["Authorization"] = f"Bearer {config.api_key}"
+
+            payload = {
+                "model": config.model_name,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": config.max_tokens,
+                "temperature": 0.3,
             }
 
-            if persist:
-                try:
-                    metadata = memory.get("metadata", {}) or {}
-                    metadata["code_analysis"] = analysis_result.to_metadata_dict()
+            response = await http_pool.post(
+                f"{config.endpoint}/v1/chat/completions",
+                json=payload,
+                headers=headers,
+                timeout=config.timeout,
+            )
 
-                    update_query = """
-                        UPDATE type::record($record_id)
-                        SET metadata = $metadata
-                    """
-                    await self._db.query(update_query, {"record_id": record_id, "metadata": metadata})
+            if response.status_code != 200:
+                logger.warning("[LLM Summary] API 调用失败: %s", response.status_code)
+                return None
 
-                    if self._meili:
-                        meili_doc = self._build_meili_doc(record_id, {**memory, "metadata": metadata}, tenant_id)
-                        await self._meili.add_documents([meili_doc])
+            result_data = response.json()
+            llm_content = result_data.get("choices", [{}])[0].get("message", {}).get("content", "")
 
-                    logger.info("[Code Analysis] 分析结果已持久化: %s", memory_id)
-                except Exception as persist_error:
-                    logger.warning("[Code Analysis] 持久化失败，但分析已完成: %s", persist_error)
+            # 解析 JSON 响应
+            try:
+                # 尝试提取 JSON 部分
+                json_start = llm_content.find("{")
+                json_end = llm_content.rfind("}")
+                if json_start >= 0 and json_end > json_start:
+                    json_str = llm_content[json_start : json_end + 1]
+                    summary_data = json.loads(json_str)
+                else:
+                    # 如果不是 JSON，使用原始内容作为摘要
+                    summary_data = {
+                        "summary": llm_content[:200],
+                        "key_functions": [],
+                        "purpose": "",
+                    }
 
-            return analysis_dict
+                # 保存到 metadata
+                code_summary = {
+                    "summary": summary_data.get("summary", ""),
+                    "key_functions": summary_data.get("key_functions", []),
+                    "purpose": summary_data.get("purpose", ""),
+                    "generated_at": asyncio.get_event_loop().time(),
+                    "model": config.model_name,
+                }
+
+                metadata["code_summary"] = code_summary
+
+                # 更新数据库
+                update_query = """
+                    UPDATE type::record($record_id)
+                    SET metadata = $metadata
+                """
+                await self._db.query(update_query, {"record_id": memory_id, "metadata": metadata})
+
+                logger.info("[LLM Summary] 摘要生成完成: %s", memory_id)
+                return code_summary
+
+            except json.JSONDecodeError as e:
+                logger.warning("[LLM Summary] JSON 解析失败: %s", e)
+                return None
+
         except Exception as e:
-            logger.error("[Code Analysis] 分析失败: %s", e)
-            raise DatabaseError(f"代码分析失败: {e}") from e
-
-    def _detect_programming_language(self, content: str) -> str:
-        """简单的编程语言检测"""
-        content_lower = content.lower()
-
-        # 常见的语言标识符
-        if (
-            "import torch" in content_lower
-            or "import tensorflow" in content_lower
-            or "def " in content
-            and "class " in content
-        ):
-            return "python"
-        elif (
-            "function " in content_lower
-            or "var " in content_lower
-            or "let " in content_lower
-            or "const " in content_lower
-        ):
-            if "{" in content and "}" in content:
-                return "javascript"
-        elif "class " in content_lower and ":" in content and "def " not in content:
-            return "java"
-        elif "#include" in content_lower:
-            return "c"
-        elif "func " in content_lower and "package " in content_lower:
-            return "go"
-        elif "fn " in content_lower and "::" in content_lower:
-            return "rust"
-        elif "using system;" in content_lower or "namespace " in content_lower:
-            return "csharp"
-        elif "<html" in content_lower or "<div" in content_lower:
-            return "html"
-        elif ".class {" in content or "#" in content:
-            return "css"
-        elif "select " in content_lower or "create table" in content_lower:
-            return "sql"
-
-        # 默认返回python
-        return "python"
+            logger.warning("[LLM Summary] 生成失败: %s", e)
+            return None
 
     # ==================== v2.4.0 Access Log ====================
 
@@ -2256,3 +1072,67 @@ class MemoryManager:
             "logged_count": logged_count,
             "total_received": len(entries),
         }
+
+    # ==================== BL-4: Code Analysis Auto-trigger ====================
+
+    async def _auto_analyze_memories(self, memory_ids: list[str], tenant_id: str) -> None:
+        """自动分析记忆中的代码内容（异步执行，不阻塞上传）"""
+        from ..config import CodeAnalysisConfig
+
+        config = CodeAnalysisConfig()
+        if not config.enabled or not config.auto_analyze:
+            return
+
+        for memory_id in memory_ids:
+            try:
+                # 检查内容长度
+                query = "SELECT content FROM $memory_id WHERE tenant_id = $tenant_id"
+                result = await self._db.query(query, {"memory_id": memory_id, "tenant_id": tenant_id})
+                records = self._extract_records(result)
+
+                if not records:
+                    continue
+
+                content = records[0].get("content", "")
+                content_length = len(content)
+
+                if content_length < config.min_content_length or content_length > config.max_content_length:
+                    continue
+
+                # 检测是否为代码内容
+                if not self._is_code_content(content):
+                    continue
+
+                # 异步执行代码分析
+                await self.analyze_memory_code(memory_id, tenant_id, persist=True)
+                logger.info("[Auto Code Analysis] 分析完成: %s", memory_id)
+
+            except Exception as e:
+                # 降级策略：分析失败不影响上传
+                logger.warning("[Auto Code Analysis] 分析失败，跳过: %s - %s", memory_id, e)
+
+    def _is_code_content(self, content: str) -> bool:
+        """检测内容是否为代码"""
+        code_indicators = [
+            r"^\s*(def|class|import|from)\s+",  # Python
+            r"^\s*(function|const|let|var)\s+",  # JavaScript
+            r"^\s*(#include|#define|int|void)\s+",  # C/C++
+            r"^\s*(public|private|class|interface)\s+",  # Java/C#
+            r"^\s*(func|package|import)\s+",  # Go
+            r"^\s*(fn|let|mut|use)\s+",  # Rust
+            r"^\s*<[^>]+>.*</[^>]+>\s*$",  # HTML/XML
+            r"^\s*\{[^}]*\}\s*$",  # JSON
+        ]
+
+        content_sample = content[:1000]  # 检查前1000字符
+        for pattern in code_indicators:
+            if re.search(pattern, content_sample, re.MULTILINE):
+                return True
+
+        # 检查代码特征比例
+        code_chars = len(re.findall(r"[{}();=<>/]", content_sample))
+        total_chars = len(content_sample.replace(" ", "").replace("\n", ""))
+        if total_chars > 0 and code_chars / total_chars > 0.1:
+            return True
+
+        return False

@@ -333,13 +333,14 @@ uv run task lint-md-stats
 
 | 操作 | 平均延迟 | P50 | P95 |
 |------|----------|-----|-----|
-| 单文本 Embedding | 156ms | 160ms | 201ms |
-| 向量搜索 | 157ms | 156ms | 180ms |
-| 混合搜索 | 21ms | 22ms | 24ms |
-| 单条上传 | 542ms | 699ms | 724ms |
-| E2E 完整流程 | 883ms | 884ms | 919ms |
+| 单文本 Embedding | 211.5ms | 176.3ms | 290.9ms |
+| 向量搜索 | 102.6ms | 98.3ms | 120.0ms |
+| 混合搜索 | 14.1ms | 14.1ms | 14.8ms |
+| 单条上传 | 277.6ms | 102.8ms | 633.9ms |
+| E2E 完整流程 | 754.3ms | 746.4ms | 777.8ms |
 
 **环境**: NVIDIA GTX 1060 6GB, Qwen3-Embedding-0.6B, SurrealDB 3.0 + Meilisearch 1.4
+**测试时间**: 2026-03-30, 3 次迭代
 
 ### 同步冲突解决
 

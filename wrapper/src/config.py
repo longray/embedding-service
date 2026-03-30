@@ -111,9 +111,21 @@ class MeilisearchConfig:
 @dataclass
 class CodeAnalysisConfig:
     enabled: bool = True
-    auto_analyze: bool = False
+    auto_analyze: bool = True  # BL-4: 默认启用自动代码分析
     min_content_length: int = 50
     max_content_length: int = 50000
+
+
+@dataclass
+class LLMConfig:
+    """BL-6: LLM 服务配置"""
+
+    endpoint: str = "http://localhost:18001"
+    api_key: str = ""
+    model_name: str = "minicpm4-0.5b"
+    max_tokens: int = 512
+    timeout: float = 30.0
+    enabled: bool = True
 
 
 @dataclass
@@ -130,6 +142,7 @@ class AppConfig:
     telemetry: TelemetryConfig = field(default_factory=TelemetryConfig)
     meilisearch: MeilisearchConfig = field(default_factory=MeilisearchConfig)
     code_analysis: CodeAnalysisConfig = field(default_factory=CodeAnalysisConfig)
+    llm: LLMConfig = field(default_factory=LLMConfig)
 
 
 def load_config():
@@ -193,6 +206,14 @@ def load_config():
     cfg.code_analysis.max_content_length = int(
         os.getenv("WRAPPER_CODE_ANALYSIS_MAX_LENGTH", str(cfg.code_analysis.max_content_length))
     )
+
+    # BL-6: LLM 配置
+    cfg.llm.enabled = os.getenv("WRAPPER_LLM_ENABLED", "true").lower() == "true"
+    cfg.llm.endpoint = os.getenv("WRAPPER_LLM_ENDPOINT", cfg.llm.endpoint)
+    cfg.llm.api_key = os.getenv("WRAPPER_LLM_API_KEY", cfg.llm.api_key)
+    cfg.llm.model_name = os.getenv("WRAPPER_LLM_MODEL", cfg.llm.model_name)
+    cfg.llm.max_tokens = int(os.getenv("WRAPPER_LLM_MAX_TOKENS", str(cfg.llm.max_tokens)))
+    cfg.llm.timeout = float(os.getenv("WRAPPER_LLM_TIMEOUT", str(cfg.llm.timeout)))
 
     return cfg
 

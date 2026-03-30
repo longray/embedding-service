@@ -67,6 +67,17 @@ uv run pyright
 uv run task lint-md
 uv run task lint-md-stats
 ```
+## 工具选择规则
+
+**搜索与重构任务的工具优先级**：
+
+1. **ripgrep (rg)**：文本搜索首选（自动跳过 node_modules，并行搜索）
+2. **ast-grep (sg)**：结构重构首选（AST 感知，精准替换）
+3. **grep**：仅用于管道过滤或极简环境（无 rg/sg 时）
+
+**禁止**：使用 `grep -r` 进行递归目录搜索。
+
+**复杂场景**：调用 `skill("code-search")` 获取详细策略。
 
 ## 最近变更
 

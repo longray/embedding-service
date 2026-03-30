@@ -1005,5 +1005,59 @@ async def report_access_log(request: AccessLogRequest):
         raise HTTPException(status_code=500, detail=f"记录访问日志失败: {e}") from e
 
 
+# ==================== BL-6: LLM Code Summary API ====================
+
+
+@app.post("/api/v1/memories/{memory_id}/enrich/llm")
+async def enrich_memory_llm(memory_id: str, tenant_id: str = "default"):
+    """手动触发 LLM 代码摘要生成"""
+    if not memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        result = await memory_manager._generate_code_summary(memory_id, tenant_id)
+        if result:
+            return {"status": "success", "summary": result}
+        else:
+            return {"status": "skipped", "message": "无法生成摘要（可能不是代码或LLM未启用）"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LLM摘要生成失败: {e}") from e
+
+
+@app.get("/api/v1/memories/{memory_id}/summary")
+async def get_memory_summary(memory_id: str, tenant_id: str = "default"):
+    """获取记忆的代码摘要"""
+    if not memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        # 查询记忆的 metadata
+        from surrealdb import AsyncSurreal
+
+        db = AsyncSurreal(config.surrealdb.url)
+        await db.signin({"user": config.surrealdb.username, "pass": config.surrealdb.password})
+        await db.use(config.surrealdb.namespace, config.surrealdb.database)
+
+        query = "SELECT metadata FROM type::record($memory_id) WHERE tenant_id = $tenant_id"
+        result = await db.query(query, {"memory_id": memory_id, "tenant_id": tenant_id})
+
+        if not result or not result[0]["result"]:
+            raise HTTPException(status_code=404, detail="记忆不存在")
+
+        metadata = result[0]["result"][0].get("metadata", {})
+        code_summary = metadata.get("code_summary")
+
+        await db.close()
+
+        if code_summary:
+            return {"status": "success", "summary": code_summary}
+        else:
+            return {"status": "not_found", "message": "该记忆没有代码摘要"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取摘要失败: {e}") from e
+
+
 if __name__ == "__main__":
     uvicorn.run(app, host=config.host, port=config.port)
