@@ -38,3 +38,6 @@ scripts/archive/
 EXECUTION_REPORT.md
 docs/DATE_SEARCH_SOLUTION.md
 docs/智能记忆系统*
+
+# 性能基准测试数据（临时文件，不纳入版本控制）
+benchmark_*.json

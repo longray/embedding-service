@@ -14,7 +14,7 @@
     "MD060": false  // 允许表格列未对齐（避免历史遗留问题引发大量报错）
   },
   "ignores": [
-    "node_modules",
+    "**/node_modules/**",
     ".venv",
     "venv",
     "CHANGELOG.md",
