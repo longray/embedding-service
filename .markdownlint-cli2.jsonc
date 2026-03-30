@@ -20,6 +20,7 @@
     "CHANGELOG.md",
     "archive/**",
     "meilisearch_code/README.md",
-    "src/qwen3_embedding_service/models/**"
+    "src/qwen3_embedding_service/models/**",
+    "inbox/**"  // 通信信件，不需要严格格式检查
   ]
 }
