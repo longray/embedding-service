@@ -81,6 +81,13 @@ uv run task lint-md-stats
 
 ## 最近变更
 
+- **v2.6.0 质量治理**：
+  - BL-35: `memory_manager.py` 1715行 → Mixin 模式 10 子模块
+  - BL-28: 实现 `analyze_memory_code`（CodeAnalyzer 集成）
+  - BL-33/34: 修复 pyproject.toml 过时配置 + meilisearch_code/ 9 个类型错误
+  - BL-38/39: 移除硬编码 API Key + 清理裸 except
+  - BL-D1: 归档 29 个过时文档 + 23 个 JSON 报告
+  - CHANGELOG 补充 v2.5.0/v2.6.0 条目
 - **v2.4.1 sync_preview conflict 检测修复 + 代码质量修复**：
   - 修复 `get_fingerprints` 返回空导致无法检测冲突
   - B-005-B: SurrealDB 3.0 SDK 结果解析逻辑错误（改用 `_extract_records()`）

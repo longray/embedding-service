@@ -41,3 +41,13 @@ docs/智能记忆系统*
 
 # 性能基准测试数据（临时文件，不纳入版本控制）
 benchmark_*.json
+
+# 临时测试文件
+test_*.json
+!tests/test_*.py
+
+# 调试快照
+*.heapsnapshot
+
+# Docker 数据（本地运行时生成）
+docker-data/

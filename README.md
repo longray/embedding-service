@@ -2,7 +2,7 @@
 
 版本与路线图
 
-- 当前版本: v2.4.2
+- 当前版本: v2.6.0
 - 实施阶段: P0 + P1 + P2 + Phase 3 + Polyglot 搜索架构 + 同步冲突解决 + SQL 注入修复 已完成
 - 详细路线见 ROADMAP.md
 
@@ -52,14 +52,14 @@
 | `/api/v1/memories/search` | POST | 搜索记忆 | 🌍 公开 |
 | `/ws/memories/live` | WebSocket | 实时推送记忆变更 | 🔓 可选 |
 | `/api/v1/memories/clear` | DELETE | **NEW** 清空所有记忆（调试专用） | 🔐 API Key |
-| `/api/v1/hnsw/stats` | GET | **NEW** HNSW 索引统计 | 🌍 公开 |
-| `/api/v1/hnsw/optimize` | POST | **NEW** 优化 HNSW 参数 | 🌍 公开 |
-| `/api/v1/hnsw/rebuild` | POST | **NEW** 重建 HNSW 索引 | 🌍 公开 |
-| `/api/v1/cache/stats` | GET | **NEW** 缓存统计 | 🌍 公开 |
-| `/api/v1/cache/clear` | POST | **NEW** 清空缓存 | 🌍 公开 |
-| `/api/v1/cache/warmup` | POST | **NEW** 预热缓存 | 🌍 公开 |
-| `/api/v1/prefetch/related` | POST | **NEW** 预取关联记忆 | 🌍 公开 |
-| `/api/v1/prefetch/popular` | POST | **NEW** 预取热门记忆 | 🌍 公开 |
+| `/api/v1/hnsw/stats` | GET | HNSW 索引统计 ⏳ 计划中 | 🌍 公开 |
+| `/api/v1/hnsw/optimize` | POST | 优化 HNSW 参数 ⏳ 计划中 | 🌍 公开 |
+| `/api/v1/hnsw/rebuild` | POST | 重建 HNSW 索引 ⏳ 计划中 | 🌍 公开 |
+| `/api/v1/cache/stats` | GET | 缓存统计 ⏳ 计划中 | 🌍 公开 |
+| `/api/v1/cache/clear` | POST | 清空缓存 ⏳ 计划中 | 🌍 公开 |
+| `/api/v1/cache/warmup` | POST | 预热缓存 ⏳ 计划中 | 🌍 公开 |
+| `/api/v1/prefetch/related` | POST | 预取关联记忆 ⏳ 计划中 | 🌍 公开 |
+| `/api/v1/prefetch/popular` | POST | 预取热门记忆 ⏳ 计划中 | 🌍 公开 |
 | `/api/v1/sync/preview` | POST | 同步预览（差异分析） | 🌍 公开 |
 | `/api/v1/sync/incremental` | POST | 同步预览（兼容别名） | 🌍 公开 |
 | `/api/v1/sync/full` | POST | 全量同步 | 🌍 公开 |

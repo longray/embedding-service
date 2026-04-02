@@ -5,6 +5,74 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-04-02
+
+### Changed
+
+- **BL-35: memory_manager.py 重构**
+  - 将 1715 行的上帝文件拆分为 Mixin 模式 10 子模块
+  - `manager.py` (268行): 主类 + 生命周期 + 基础设施
+  - `crud.py` (415行): 上传/更新/embedding
+  - `search.py` (~310行): 向量/关键词/混合搜索 + RRF
+  - `sync.py` (~110行): 指纹/预览/全量同步/冲突解决
+  - `relations.py` (~265行): 图关系 + 遍历
+  - `dedup.py`: 去重决策逻辑
+  - `meili_sync.py`: Meilisearch 双写 + ID 转换
+  - `code_analysis.py`: analyze_memory_code
+  - `stubs.py`: 9 个 NotImplementedError 占位方法
+  - `__init__.py`: 重导出 `MemoryManager`，保持向后兼容
+  - 导入路径 `from wrapper.src.utils.memory_manager import MemoryManager` 不变
+
+### Fixed
+
+- **BL-33: pyproject.toml 过时配置**
+  - 移除重复的 `RUF001/RUF002/RUF003` 忽略规则
+  - `testpaths` 从 `wrapper-service/tests` 修正为 `tests`
+  - coverage source 从 `wrapper-service/src` 修正为 `wrapper/src`
+
+- **BL-34: meilisearch_code/ Pyright 类型错误**
+  - `IndexStats.get("numberOfDocuments")` → `stats.model_dump().get("number_of_documents")`（IndexStats 是 Pydantic model）
+  - 空的 `except:` 添加 `pass`
+
+- **BL-38: 移除硬编码 API Key**
+  - `meili_client.py` docstring 中 `masterKey` → `your_api_key`
+
+- **BL-39: scripts/ 裸 except 清理**
+  - 5 处 `except:` → `except Exception:`
+
+### Added
+
+- **BL-28: analyze_memory_code 实现**
+  - 上传 `type="code"` 记忆时自动调用 `CodeAnalyzer.analyze()`
+  - 分析结果写入 `metadata.code_analysis`
+  - 分析失败不影响上传（记录 warning）
+
+- **BL-D1: 文档归档**
+  - 归档 14 个过时设计文档到 `archive/docs/`
+  - 归档 13 个 JSON 评估报告到 `archive/reports/`
+  - 归档 10 个 benchmark JSON 到 `archive/reports/benchmarks/`
+  - 清理根目录临时文件（test_*.json, *.log, *.heapsnapshot）
+
+---
+
+## [2.5.0] - 2026-03-30
+
+### Changed
+
+- **性能基线建立**：新增 `scripts/benchmark.py` 性能基准测试工具
+
+### Added
+
+- **Docker 部署支持**：新增 `Dockerfile.embedding`, `Dockerfile.llm`, `wrapper/Dockerfile`, `docker-compose.dev.yml`
+- **启动脚本**：`docker-start.bat`, `docker-stop.bat`
+- **Meilisearch 代码搜索优化**：104 词代码术语字典、nonSeparatorTokens 配置、双字段策略
+
+### Technical Details
+
+- **环境**: NVIDIA GTX 1060 6GB, Qwen3-Embedding-0.6B, SurrealDB 3.0 + Meilisearch 1.4
+
+---
+
 ## [2.4.1] - 2026-03-28
 
 ### Fixed
