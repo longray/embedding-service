@@ -21,7 +21,7 @@ def load_metrics() -> list[dict]:
         if line.strip():
             try:
                 metrics.append(json.loads(line))
-            except:
+            except Exception:
                 pass
     return metrics
 

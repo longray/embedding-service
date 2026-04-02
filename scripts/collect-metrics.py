@@ -37,7 +37,7 @@ def collect_metrics() -> dict:
             ruff_data = json.loads(output) if output else []
             metrics["metrics"]["ruff_errors"] = len([x for x in ruff_data if x.get("type") == "error"])
             metrics["metrics"]["ruff_warnings"] = len([x for x in ruff_data if x.get("type") == "warning"])
-        except:
+        except Exception:
             metrics["metrics"]["ruff_errors"] = -1
 
     # Pyright errors
@@ -46,7 +46,7 @@ def collect_metrics() -> dict:
         try:
             pyright_data = json.loads(output)
             metrics["metrics"]["pyright_errors"] = pyright_data.get("summary", {}).get("errorCount", -1)
-        except:
+        except Exception:
             metrics["metrics"]["pyright_errors"] = -1
 
     # Test coverage
@@ -57,7 +57,7 @@ def collect_metrics() -> dict:
             if cov_file.exists():
                 cov_data = json.loads(cov_file.read_text())
                 metrics["metrics"]["test_coverage"] = cov_data.get("totals", {}).get("percent_covered", 0)
-        except:
+        except Exception:
             metrics["metrics"]["test_coverage"] = 0
 
     return metrics

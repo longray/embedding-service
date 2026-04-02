@@ -31,6 +31,7 @@ def check_server_health(max_retries=30, delay=2):
                 return True
         except requests.RequestException:
             # 连接失败，继续重试
+            pass
         print(f"   重试 {i + 1}/{max_retries}...")
         time.sleep(delay)
 

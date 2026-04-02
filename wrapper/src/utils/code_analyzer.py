@@ -8,7 +8,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,12 @@ class CodeAnalysisResult:
     analyzed_at: str = ""  # ISO 8601 时间戳
     analyzer_version: str = "1.0.0"
 
+    # Phase 1 代码分析新增字段
+    analyzer: str = "tree-sitter"  # "tree-sitter" 或 "regex"
+    interfaces: List[Dict[str, Any]] = field(default_factory=list)
+    errors: List[Dict[str, str]] = field(default_factory=list)
+    warnings: List[Dict[str, str]] = field(default_factory=list)
+
     def to_metadata_dict(self) -> dict[str, Any]:
         """将分析结果转换为 metadata.code_analysis 字典（不含原始 content）"""
         return {
@@ -55,6 +61,10 @@ class CodeAnalysisResult:
             "complexity": self.complexity_metrics,
             "analyzed_at": self.analyzed_at,
             "analyzer_version": self.analyzer_version,
+            "analyzer": self.analyzer,
+            "interfaces": self.interfaces,
+            "errors": self.errors,
+            "warnings": self.warnings,
         }
 
 
@@ -106,6 +116,7 @@ class CodeAnalyzer:
                 dependencies=dependencies,
                 complexity_metrics=complexity_metrics,
                 analyzed_at=datetime.now(timezone.utc).isoformat(),
+                analyzer="tree-sitter",
             )
         except Exception as e:
             logger.warning(f"Tree-sitter analysis failed: {e}, falling back to regex")
@@ -434,6 +445,7 @@ class CodeAnalyzer:
             complexity_metrics=complexity,
             analyzed_at=datetime.now(timezone.utc).isoformat(),
             analyzer_version="1.0.0",
+            analyzer="regex",
         )
 
     def extract_comment_and_docstring_content(self, analysis_result: CodeAnalysisResult) -> str:
@@ -447,6 +459,31 @@ class CodeAnalyzer:
 
 # 全局代码分析器实例
 code_analyzer = CodeAnalyzer()
+
+
+def build_code_symbols(code_analysis: dict) -> str:
+    """将 code_analysis 中的符号名拼接为可搜索的空格分隔字符串。
+
+    从 functions / classes / interfaces / exports 中提取 name 字段，
+    兼容旧格式（exports 为 str 列表）和新格式（exports 为 dict 列表）。
+    """
+    names: list[str] = []
+
+    for key in ("functions", "classes", "interfaces"):
+        for item in code_analysis.get(key, []):
+            name = item.get("name")
+            if name:
+                names.append(name)
+
+    for item in code_analysis.get("exports", []):
+        if isinstance(item, dict):
+            name = item.get("name")
+        else:
+            name = str(item)
+        if name:
+            names.append(name)
+
+    return " ".join(names)
 
 
 async def get_code_analysis(content: str, language: str = "python") -> CodeAnalysisResult:

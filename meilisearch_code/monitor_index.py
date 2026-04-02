@@ -26,8 +26,9 @@ def check_index_health():
 
         # 2. 索引统计
         stats = index.get_stats()
-        doc_count = stats.get("numberOfDocuments", 0)
-        db_size = stats.get("rawDocumentDbSize", 0)
+        stats_dict = stats.model_dump()
+        doc_count = stats_dict.get("number_of_documents", 0)
+        db_size = stats_dict.get("raw_document_db_size", 0)
 
         print(f"\n📁 索引统计:")
         print(f"   - 文档数量：{doc_count:,}")

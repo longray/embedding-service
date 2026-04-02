@@ -31,7 +31,7 @@ class MeilisearchClient:
     """异步 Meilisearch 客户端
 
     Usage:
-        client = MeilisearchClient(url="http://localhost:7700", api_key="masterKey")
+        client = MeilisearchClient(url="http://localhost:7700", api_key="your_api_key")
         await client.connect()
         await client.ensure_index()
         await client.configure_index({...})
@@ -42,7 +42,15 @@ class MeilisearchClient:
     # 记忆索引的默认配置
     DEFAULT_INDEX_SETTINGS: ClassVar[dict[str, Any]] = {
         # 将更多字段设为可搜索字段，支持代码/元数据等多类型搜索
-        "searchableAttributes": ["content_zh", "title_zh", "tags_zh", "content_search", "code", "content"],
+        "searchableAttributes": [
+            "content_zh",
+            "title_zh",
+            "tags_zh",
+            "content_search",
+            "code",
+            "content",
+            "code_symbols",
+        ],  # 新增
         "filterableAttributes": [
             "tenant_id",
             "type",
@@ -56,8 +64,11 @@ class MeilisearchClient:
             "source_id",
             "code_language",
             "code_complexity",
+            "code_function_count",
+            "code_class_count",
+            "code_analyzer",
         ],
-        "sortableAttributes": ["date", "created_at", "code_complexity"],
+        "sortableAttributes": ["date", "created_at", "code_complexity", "code_function_count"],
         # 让日期格式 2026-03-11 在全文搜索时保持整体，不被 - 分割
         "nonSeparatorTokens": [".", "-", "@", ":", "/", "_"],
         "localizedAttributes": [{"locales": ["zho"], "attributePatterns": ["*_zh"]}],
@@ -274,6 +285,26 @@ class MeilisearchClient:
         await self._wait_for_task(task["taskUid"])
         logger.info("[Meilisearch] 索引配置已更新: %s", list(effective_settings.keys()))
 
+    # ==================== ID 转换 ====================
+
+    def _to_meili_id(self, surreal_id: str) -> str:
+        """SurrealDB ID → Meilisearch ID
+
+        转换规则:
+        - memory:abc123 → memory_abc123
+        - 只替换第一个冒号，保留后续字符
+        """
+        return surreal_id.replace(":", "_", 1)
+
+    def _from_meili_id(self, meili_id: str) -> str:
+        """Meilisearch ID → SurrealDB ID
+
+        转换规则:
+        - memory_abc123 → memory:abc123
+        - 将第一个下划线还原为冒号
+        """
+        return meili_id.replace("_", ":", 1)
+
     # ==================== 文档管理 ====================
 
     async def add_documents(
@@ -296,9 +327,16 @@ class MeilisearchClient:
         if not documents:
             return {"status": "skipped", "reason": "empty documents list"}
 
+        converted_docs = []
+        for doc in documents:
+            converted_doc = doc.copy()
+            if "id" in converted_doc:
+                converted_doc["id"] = self._to_meili_id(converted_doc["id"])
+            converted_docs.append(converted_doc)
+
         resp = await self.client.post(
             f"/indexes/{self._index_name}/documents",
-            json=documents,
+            json=converted_docs,
             params={"primaryKey": primary_key},
         )
         resp.raise_for_status()
@@ -385,7 +423,14 @@ class MeilisearchClient:
             json=body,
         )
         resp.raise_for_status()
-        return resp.json()
+        result = resp.json()
+
+        if "hits" in result:
+            for hit in result["hits"]:
+                if "id" in hit:
+                    hit["id"] = self._from_meili_id(hit["id"])
+
+        return result
 
     # ==================== 任务管理 ====================
 

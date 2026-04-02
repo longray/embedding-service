@@ -1,393 +1,577 @@
 # Backlog
 
-> 后端任务追踪文档，按优先级排序。已完成任务归档至 backlog_archive.md。
+> 后端任务追踪文档，按真实场景驱动排序。已完成任务归档至 `archive/docs/`。
 
-**更新时间**: 2026-03-30
+**更新时间**: 2026-04-02
 
 ---
 
-## v2.4.2 - 进行中
+## 场景 1: 记忆上传与搜索
 
-### BL-1 [P2] Tenant ID 不匹配 #sync #low-priority
+> **用户流程**: AI 对话 → 插件识别重要信息 → `POST /api/v1/memories` → 后端存储 → 用户提问 → `POST /api/v1/memories/search` → 返回相关记忆
+>
+> **当前状态**: 核心流程可用，87/87 核心 API 测试通过。
 
-**目标**: 解决插件端和后端使用不同 tenant_id 导致的数据隔离问题，确保用户上传的记忆能在正确的租户下查询。
+### 待修复
+
+#### BL-25 [P1] 清理调试日志 #scene1
+
+**目标**: 移除 `memory_manager.py` 中残留的调试日志，避免生产环境日志刷屏。
 
 **涉及范围**:
-- **后端**: `wrapper/src/config.py`（default_tenant_id 配置）
-- **后端**: `wrapper/src/main.py`（API 参数处理）
-- **后端**: `wrapper/src/utils/memory_manager.py`（数据隔离逻辑）
-- **插件端**: `opencode-memory-plugin` 配置（需插件端配合）
+
+- `wrapper/src/utils/memory_manager.py` 中 `[Meili Debug]` / `[_update_memory]` 等调试前缀日志
 
 **前置依赖**: 无
 
 **完成标准**:
-- [ ] 确认后端已完整支持自定义 tenant_id（✅ 已完成）
-- [ ] 插件端在所有 API 调用中传递用户配置的 tenant_id
-- [ ] 后端用 `longray` tenant_id 能查询到插件上传的记忆
-- [ ] 后端用 `default` tenant_id 查询不到插件上传的记忆
+
+- [ ] `rg "Meili Debug" wrapper/src/` 结果为 0
+- [ ] `rg "\[_update_memory\]" wrapper/src/` 结果为 0（或改为正常业务日志）
+- [ ] 核心测试通过
 
 **验证方式**:
-```bash
-# 1. 插件上传记忆（使用 tenant_id="longray"）
-# 2. 后端查询验证
-curl "http://localhost:17999/api/v1/memories/search" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "test", "tenant_id": "longray"}'
-# 期望: 能找到记忆
 
-curl "http://localhost:17999/api/v1/memories/search" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "test", "tenant_id": "default"}'
-# 期望: 找不到记忆
+```bash
+rg "Meili Debug" wrapper/src/
+uv run pytest tests/test_wrapper_api.py -v --tb=short
 ```
 
-**状态**: ⏳ 进行中（需插件端配合）
+**状态**: ✅ 已完成（代码中已无 Meili Debug 日志）
 
 ---
 
-### BL-2 [P1] 性能基线建立 #performance
+### 已完成
 
-**目标**: 建立当前版本的性能基准数据，为后续优化提供可量化的对比依据，识别性能瓶颈。
-
-**涉及范围**:
-- **脚本**: `scripts/benchmark.py`（扩展测试覆盖）
-- **文档**: `README.md`（更新性能表格）
-- **文档**: `docs/BENCHMARK_RESULTS.md`（新增详细报告）
-
-**前置依赖**: 无
-
-**完成标准**:
-- [ ] 运行 benchmark.py 获取当前环境性能数据（至少 5 次迭代）
-- [ ] 更新 README.md 性能基线表格（替换旧数据）
-- [ ] 识别 3 个关键优化方向（基于数据分析）
-- [ ] 记录优化目标和当前基线的对比
-
-**验证方式**:
-```bash
-# 1. 运行基准测试
-uv run python scripts/benchmark.py --iterations 5
-
-# 2. 验证 README.md 已更新
-grep -A 10 "性能基线" README.md
-
-# 3. 确认数据合理性（单条上传 < 1000ms，搜索 < 500ms）
-```
-
-**状态**: ⏳ 进行中
+| 编号 | 目标 | 状态 |
+|------|------|------|
+| BL-18 | 修复测试用例适配 abstract/overview 必填 | ✅ 已完成 |
+| BL-19 | 修复双写测试验证上传→Meilisearch 流程 | ✅ 已完成 |
+| BL-20 | 端到端验证上传→搜索全链路（87/87） | ✅ 已完成 |
+| BL-24 | 修复 get_memory_summary 连接泄露 | ✅ 已完成 |
+| BL-25 | 清理调试日志 | ✅ 已完成 |
+| BL-26 | 实现智能去重决策（替代硬编码 KEEP_BOTH） | ✅ 已完成 |
+| BL-27 | 实现 _update_memory（SurrealDB UPDATE + Meilisearch 同步） | ✅ 已完成 |
 
 ---
 
-## v2.5.0 - 代码分析增强
+## 场景 2: 代码分析
 
-> 基于 GitNexus 设计理念，增强 Memory Stack 的代码分析能力。核心定位：**记忆级代码分析**（非仓库级）。
+> **用户流程**: 用户编辑代码 → 插件 Tree-sitter 解析 → `POST /api/v1/memories` (type="code") → 后端存储 + 自动分析 → 用户搜索函数名 → 返回匹配代码
+>
+> **当前状态**: 上传和 LLM 摘要可用。`analyze_memory_code` 抛 NotImplementedError（被 try/except 吞掉，不影响上传但无分析结果）。
 
-### BL-3 [P1] 修复代码分析增强设计文档 #docs #design
+### 待修复
 
-**目标**: 修复 `docs/code-analysis-enhancement.md` 的格式问题，确保文档符合质量门禁标准，为后续开发提供准确参考。
+#### BL-28 [P1] 实现 analyze_memory_code #scene2
 
-**涉及范围**:
-- **文档**: `docs/code-analysis-enhancement.md`（全面审查和修复）
-
-**前置依赖**: 无
-
-**完成标准**:
-- [ ] 修复 MD031/MD032 格式问题（代码块前后空行隔离）
-- [ ] 修复 mermaid 代码块后悬空 `yaml` 标签问题（第60-68行）
-- [ ] 通过 `markdownlint-cli2` 检查无报错
-- [ ] 术语统一："插件端"（非"前端"），"代码分析增强"（非"代码智能增强"）
-
-**验证方式**:
-```bash
-# 1. 运行 Markdown 检查
-uvx pre-commit run markdownlint-cli2 --files docs/code-analysis-enhancement.md
-
-# 2. 确认无报错
-echo $?
-# 期望: 0
-
-# 3. 本地渲染检查
-# 使用 VS Code 或浏览器打开文档，确认格式正确
-```
-
-**状态**: ✅ 已完成
-
----
-
-### BL-4 [P1] 代码分析结果持久化（Phase A）#code-analysis
-
-**目标**: 将 `analyze_memory_code()` 的返回结果持久化到记忆的 `metadata.code_analysis` 字段，上传代码记忆时自动触发分析，避免每次查看都重新计算。
+**目标**: 上传 type="code" 的记忆时，自动调用 CodeAnalyzer 获取分析结果，写入 `metadata.code_analysis`。
 
 **涉及范围**:
-- **后端**: `wrapper/src/utils/memory_manager.py`
-  - 修改 `create_memory()` 添加自动分析触发逻辑
-  - 添加 `_is_code_content()` 方法检测内容类型
-  - 确保分析失败降级策略
-- **后端**: `wrapper/src/config.py`
-  - 修改 `CodeAnalysisConfig.auto_analyze` 默认值为 `True`（或按需启用）
-- **后端**: `wrapper/src/main.py`
-  - 确保 `POST /api/v1/memories` 支持 `auto_analyze_code` 参数
 
-**前置依赖**: 
-- BL-3（设计文档确认后实施更准确）
-- 确认 `CodeAnalyzer` 功能正常（已验证 ✅）
+- `wrapper/src/utils/memory_manager.py`:
+  - `analyze_memory_code()` (当前第 1499 行，抛 NotImplementedError)
+- `wrapper/src/utils/code_analyzer.py` (已有 `CodeAnalyzer.analyze()`，可直接调用)
+
+**前置依赖**: 无（CodeAnalyzer 已就绪）
 
 **完成标准**:
-- [ ] 上传代码记忆时，`auto_analyze_code=true` 自动触发分析并持久化
-- [ ] 分析结果写入 `metadata.code_analysis` 字段
-- [ ] 分析结果包含：language, functions, classes, imports, complexity, analyzed_at, analyzer_version
-- [ ] 分析失败**不影响上传**（记录警告，metadata.code_analysis 为 null）
-- [ ] 现有 32 个同步测试全部通过
-- [ ] Pyright 类型检查 0 errors
+
+- [ ] `analyze_memory_code` 调用 `CodeAnalyzer.analyze()` 获取结果
+- [ ] 分析结果写入 `metadata.code_analysis`（language, functions, classes, complexity 等）
+- [ ] 分析失败不影响上传（记录 warning，`metadata.code_analysis` 为 null）
+- [ ] 核心测试通过
 
 **验证方式**:
+
 ```bash
-# 1. 单元测试
-uv run pytest tests/test_code_analysis_persistence.py -v
-
-# 2. 回归测试
-uv run pytest tests/test_phase_b_sync.py -v
-# 期望: 32/32 passed
-
-# 3. E2E 测试
-curl -X POST http://localhost:17999/api/v1/memories \
-  -H "Content-Type: application/json" \
-  -d '{
-    "memories": [{"content": "def test(): pass", "type": "general"}],
-    "auto_analyze_code": true
-  }'
-
-# 4. 验证分析结果已持久化
-curl "http://localhost:17999/api/v1/memories/{memory_id}"
-
-# 5. 类型检查
-uv run pyright
-# 期望: 0 errors
-```
-
-**状态**: ✅ 已完成（已实现）
-
----
-
-### BL-5 [P2] Meilisearch 代码分析字段索引（Phase B）#code-analysis #meilisearch
-
-**目标**: 将代码分析结果同步到 Meilisearch 索引，支持按代码属性（语言、函数名、复杂度）过滤搜索，实现"找出所有 Python 函数中复杂度大于 5 的代码"。
-
-**涉及范围**:
-- **后端**: `wrapper/src/utils/meili_client.py`
-  - 修改索引设置，添加 code_analysis 相关字段
-- **后端**: `wrapper/src/utils/memory_manager.py`
-  - 修改 `_build_meili_doc()` 构建 Meilisearch 文档时添加 code_analysis 字段
-  - 修改 `create_memory()` / `_update_memory()` 同步时携带代码分析字段
-- **Meilisearch**: 索引 schema 更新（需重新初始化或添加新字段）
-
-**前置依赖**: 
-- BL-4（需要先有代码分析数据）
-- Meilisearch 服务运行中
-
-**完成标准**:
-- [ ] Meilisearch 文档包含 code_analysis 字段（language, function_names, class_names, max_complexity）
-- [ ] 支持按 `code_language` 过滤: `filter = "code_language = python"`
-- [ ] 支持按 `code_functions` 搜索: 搜索函数名
-- [ ] 支持按 `code_complexity` 排序: 按复杂度降序
-- [ ] 搜索 API 添加 `code_filter` 参数支持
-- [ ] 现有搜索功能不受影响（向后兼容）
-
-**验证方式**:
-```bash
-# 1. Meilisearch 字段验证
-curl -X GET "http://localhost:18003/indexes/memories/settings" \
-  -H "Authorization: Bearer masterKey"
-
-# 2. 代码搜索测试
-curl -X POST http://localhost:17999/api/v1/memories/search \
-  -H "Content-Type: application/json" \
-  -d '{"query": "authentication", "code_filter": {"language": "python"}}'
-
-# 3. 单元测试
-uv run pytest tests/test_code_search.py -v
+uv run pytest tests/test_code_analysis.py -v --tb=short
+uv run pytest tests/test_wrapper_api.py -v --tb=short
 ```
 
 **状态**: 📋 待开始
 
 ---
 
-### BL-6 [P2] LLM 代码摘要生成（Phase C）#code-analysis #llm
+### 已完成
 
-**目标**: 调用外部 LLM API 为代码记忆生成自然语言摘要，使用户能看到"这个模块实现了用户认证功能"的描述，而非仅函数名列表。
+| 编号 | 目标 | 状态 |
+|------|------|------|
+| BL-4 | 代码分析结果持久化（Phase A） | ✅ 已实现 |
+| BL-6 | LLM 代码摘要生成（Phase C） | ✅ 已实现 |
+| BL-CA-07 | 代码文件指纹同步 API | ✅ 已实现 |
+| BL-CA-08 | 代码文件 Upsert | ✅ 已实现 |
+
+---
+
+## 场景 3: 多设备同步
+
+> **用户流程**: 插件端有本地记忆文件 → `GET /api/v1/sync/fingerprints` 获取服务端指纹 → `POST /api/v1/sync/preview` 比对差异 → 用户确认 → `POST /api/v1/sync/full` 执行同步 → 冲突时解决
+>
+> **当前状态**: 4 个核心端点全部是 stub，返回空结果。测试用例已编写但全部失败（测试的是期望行为）。
+
+### 待修复
+
+#### BL-29 [P2] 实现指纹查询 #scene3
+
+**目标**: `GET /api/v1/sync/fingerprints` 返回服务端所有记忆的指纹列表。
 
 **涉及范围**:
-- **后端**: `wrapper/src/config.py`
-  - 新增 `LLMConfig` 数据类: endpoint, api_key, model_name, max_tokens
-  - 环境变量: `WRAPPER_LLM_ENDPOINT`, `WRAPPER_LLM_API_KEY`, `WRAPPER_LLM_MODEL`
-- **后端**: `wrapper/src/utils/memory_manager.py`
-  - 新增 `async _generate_code_summary()` 方法: 调用 LLM API 生成摘要
-  - 修改 `create_memory()`: 上传代码后异步触发摘要生成（不阻塞上传）
-  - `metadata.code_summary` 字段: {summary, key_functions, purpose, generated_at, model}
-- **后端**: `wrapper/src/main.py`
-  - 新增 `POST /api/v1/memories/{memory_id}/enrich/llm`: 手动触发 LLM 摘要生成
-  - 新增 `GET /api/v1/memories/{memory_id}/summary`: 获取代码摘要
 
-**前置依赖**: 
-- BL-4（需要先有代码分析结果作为 LLM 输入）
-- LLM 服务运行中（端口 18001，独立运行）
+- `wrapper/src/utils/memory_manager.py`:
+  - `get_fingerprints()` (当前返回空列表 `[]`)
+
+**前置依赖**: 无
 
 **完成标准**:
-- [ ] `POST /api/v1/memories` 上传代码后异步触发 LLM 摘要（不阻塞上传响应）
-- [ ] LLM 调用失败不影响上传（只记录警告）
-- [ ] 摘要结果存入 `metadata.code_summary`: {summary, key_functions, purpose, generated_at, model}
-- [ ] 支持 Kaggle LLM 或其他 OpenAI 兼容 API（通过配置切换）
-- [ ] `POST /api/v1/memories/{memory_id}/enrich/llm` 支持手动触发
-- [ ] `GET /api/v1/memories/{memory_id}/summary` 返回摘要
+
+- [ ] 查询 SurrealDB `SELECT id, content_hash, local_id, source_id, mtime FROM memory WHERE tenant_id = $tenant_id`
+- [ ] 数据库有数据时返回非空列表
+- [ ] `tests/test_phase_b_sync.py::TestSyncFingerprints` 相关测试通过
 
 **验证方式**:
+
 ```bash
-# 1. 手动触发 LLM 摘要
-curl -X POST http://localhost:17999/api/v1/memories/{memory_id}/enrich/llm \
-  -H "Content-Type: application/json" \
-  -d '{"type": "summary"}'
-
-# 2. 获取摘要
-curl http://localhost:17999/api/v1/memories/{memory_id}/summary
-
-# 3. 单元测试（mock LLM 调用）
-uv run pytest tests/test_llm_summary.py -v
+uv run pytest tests/test_phase_b_sync.py::TestSyncFingerprints -v --tb=short
 ```
 
-**状态**: ✅ 已完成
+**状态**: 📋 待开始
+
+---
+
+#### BL-30 [P2] 实现同步预览 #scene3
+
+**目标**: `POST /api/v1/sync/preview` 比对本地与服务端指纹，返回差异（新增/跳过/冲突）。
+
+**涉及范围**:
+
+- `wrapper/src/utils/memory_manager.py`:
+  - `sync_preview()` (当前返回空结构)
+
+**前置依赖**: BL-29
+
+**完成标准**:
+
+- [ ] 接受 `SyncFingerprint` 列表（path, mtime, hash, source_id）
+- [ ] 比对 content_hash → 匹配则跳过（skipped）
+- [ ] 比对 source_id → 匹配但 hash 不同则冲突（conflicts）
+- [ ] 无匹配 → 需上传（to_upload）
+- [ ] `tests/test_phase_b_sync.py::TestSyncPreview` 相关测试通过
+
+**验证方式**:
+
+```bash
+uv run pytest tests/test_phase_b_sync.py::TestSyncPreview -v --tb=short
+```
+
+**状态**: 📋 待开始
+
+---
+
+#### BL-31 [P2] 实现全量同步 #scene3
+
+**目标**: `POST /api/v1/sync/full` 批量上传所有记忆，自动去重 + 双写 Meilisearch。
+
+**涉及范围**:
+
+- `wrapper/src/utils/memory_manager.py`:
+  - `sync_full()` (当前返回 `errors: ["Not implemented"]`)
+
+**前置依赖**: BL-29
+
+**完成标准**:
+
+- [ ] 接受 memories 列表，复用 `upload_memories` 的去重 + 双写逻辑
+- [ ] 返回 `{total, success, failed, updated, skipped, errors}`
+- [ ] `tests/test_phase_b_sync.py::TestSyncFull` 相关测试通过
+
+**验证方式**:
+
+```bash
+uv run pytest tests/test_phase_b_sync.py::TestSyncFull -v --tb=short
+```
+
+**状态**: 📋 待开始
+
+---
+
+#### BL-32 [P2] 实现冲突解决 #scene3
+
+**目标**: `POST /api/v1/sync/conflicts/{id}/resolve` 支持三种解决策略。
+
+**涉及范围**:
+
+- `wrapper/src/utils/memory_manager.py`:
+  - `resolve_conflict()` (当前返回 `{"resolved": False, "error": "Not implemented"}`)
+
+**前置依赖**: BL-30（需要先有冲突记录）
+
+**完成标准**:
+
+- [ ] `use_local`: 用本地版本覆盖服务端（UPDATE SurrealDB + Meilisearch）
+- [ ] `use_backend`: 丢弃本地版本（删除冲突记录）
+- [ ] `keep_both`: 两版本都保留（标记冲突为已解决）
+- [ ] `tests/test_phase_b_sync.py::TestResolveConflict` 相关测试通过
+
+**验证方式**:
+
+```bash
+uv run pytest tests/test_phase_b_sync.py::TestResolveConflict -v --tb=short
+```
+
+**状态**: 📋 待开始
+
+---
+
+## 场景 4: 开发者体验
+
+> **开发者流程**: 开发者拉取代码 → 运行 lint/typecheck/测试 → 修改功能 → 添加测试 → 提交
+>
+> **当前状态**: 核心代码 ruff/pyright 通过，但 pyproject.toml 有过时配置导致覆盖率/测试路径错误，meilisearch_code/ 有 9 个类型错误，memory_manager.py 1660 行难以维护。
+
+### 待修复
+
+#### BL-33 [P1] 修复 pyproject.toml 过时配置 #dx
+
+**目标**: 消除重复忽略规则和过时路径，使开发者工具配置反映真实项目结构。
+
+**涉及范围**:
+
+- `pyproject.toml`:
+  - 第 85-92 行: `[tool.ruff.lint.per-file-ignores]` 中 `RUF001`, `RUF002`, `RUF003` 各重复一次，`E501` 缺失第二次但 `W293` 也有重复 → 删除第 90-92 行的重复项
+  - 第 98 行: `testpaths = ["wrapper-service/tests"]` → `"tests"`（注: `pytest.ini` 已正确配置为 `tests`，pyproject.toml 中此配置被覆盖不生效，但仍应修正避免误导）
+  - 第 107 行: `source = ["src", "wrapper-service/src"]` → `["src", "wrapper/src"]`
+
+**前置依赖**: 无
+
+**完成标准**:
+
+- [ ] `rg "wrapper-service" pyproject.toml` 结果为 0
+- [ ] `uv run ruff check .` 通过
+- [ ] `uv run pytest tests/ --collect-only -q` 能正确收集测试（确认 pyproject.toml 不会干扰 pytest.ini）
+
+**验证方式**:
+
+```bash
+rg "wrapper-service" pyproject.toml
+uv run ruff check .
+uv run pytest tests/ --collect-only -q
+```
+
+**状态**: 📋 待开始
+
+---
+
+#### BL-34 [P1] 修复 meilisearch_code/ Pyright 错误 #dx
+
+**目标**: 消除 `meilisearch_code/` 目录下的 9 个类型错误，使 `uv run pyright .` 全量通过。
+
+**涉及范围**:
+
+- `meilisearch_code/init_index.py:34`: `except:` 缺少 body → `except Exception: pass`
+- `meilisearch_code/monitor_index.py:29-30`: `stats.get("number_of_documents")` → `stats.number_of_documents`
+- `meilisearch_code/optimize_index.py:26-27,36-37,40`: 同上（共 8 处 `.get()` → 属性访问）
+
+**前置依赖**: 无
+
+**完成标准**:
+
+- [ ] `uv run pyright .` 返回 0 errors, 0 warnings
+
+**验证方式**:
+
+```bash
+uv run pyright .
+```
+
+**状态**: 📋 待开始
+
+---
+
+#### BL-35 [P1] 拆分 memory_manager.py #dx #refactor
+
+**目标**: 将 1660 行的上帝文件拆分为职责单一的子模块，降低维护难度。拆分后 `upload_memories()` 从 246 行/36 分支降至 ≤ 50 行编排层。
+
+**涉及范围**:
+
+- 新建 `wrapper/src/utils/memory_manager/` 目录:
+  - `__init__.py` — 导出 `MemoryManager`（保持 `from .utils.memory_manager import MemoryManager` 导入路径不变）
+  - `manager.py` — 主编排层（~200 行）
+  - `crud.py` — 上传、更新、删除
+  - `search.py` — 搜索路由、RRF 融合
+  - `sync.py` — 同步、指纹、冲突
+  - `relations.py` — 图关系、遍历
+  - `dedup.py` — 去重决策、content_hash
+  - `meili_sync.py` — Meilisearch 双写/同步
+  - `code_analysis.py` — 代码分析桥接
+- 删除 `wrapper/src/utils/memory_manager.py`（替换为目录）
+
+**前置依赖**: 无
+
+**完成标准**:
+
+- [ ] `upload_memories()` ≤ 50 行（当前 246 行）
+- [ ] 每个子模块 ≤ 300 行
+- [ ] `from .utils.memory_manager import MemoryManager` 导入路径不变
+- [ ] `uv run pytest tests/` 全部通过
+- [ ] `uv run ruff check .` 通过
+- [ ] `uv run pyright wrapper/src/` 通过
+
+**验证方式**:
+
+```bash
+uv run pytest tests/ -v
+uv run ruff check .
+uv run pyright wrapper/src/
+```
+
+**状态**: 📋 待开始
+
+---
+
+#### BL-36 [P2] 拆分 main.py 路由 #dx #refactor
+
+**目标**: 将 1173 行的 `main.py` 拆分为 FastAPI Router 模块，每个路由文件 ≤ 200 行。
+
+**涉及范围**:
+
+- 新建 `wrapper/src/routers/` 目录:
+  - `health.py`, `embeddings.py`, `memories.py`, `search.py`
+  - `sync.py`, `relations.py`, `websocket.py`
+- 新建 `wrapper/src/models.py`: 所有 Pydantic 模型集中管理
+- 精简 `wrapper/src/main.py` 为应用创建 + lifespan + include_router（~100 行）
+
+**前置依赖**: 无（可与 BL-35 并行）
+
+**完成标准**:
+
+- [ ] `main.py` ≤ 150 行
+- [ ] 每个 router 文件 ≤ 200 行
+- [ ] `from wrapper.src.main import app` 导入路径不变
+- [ ] 所有测试通过
+
+**验证方式**:
+
+```bash
+uv run pytest tests/ -v
+uv run ruff check .
+```
+
+**状态**: 📋 待开始
+
+---
+
+#### BL-37 [P2] 补充工具模块单元测试 #dx #testing
+
+**目标**: 为 cache、http_pool、auth、exceptions 四个工具模块补充单元测试，确保重构时有安全网。
+
+**涉及范围**:
+
+- 新建 `tests/test_cache.py`: 命中/未命中/TTL/线程安全/容量淘汰
+- 新建 `tests/test_http_pool.py`: 连接复用/超时/关闭清理
+- 新建 `tests/test_auth.py`: token 验证成功/失败/缺失
+- 新建 `tests/test_exceptions.py`: 异常层级/消息格式
+
+**前置依赖**: 无
+
+**完成标准**:
+
+- [ ] 每个模块 ≥ 3 个测试用例
+- [ ] 全部新测试通过
+
+**验证方式**:
+
+```bash
+uv run pytest tests/test_cache.py tests/test_http_pool.py tests/test_auth.py tests/test_exceptions.py -v
+```
+
+**状态**: 📋 待开始
+
+---
+
+#### BL-38 [P2] 移除硬编码默认 API Key #dx #security
+
+**目标**: 消除 `meili_client.py` 中的硬编码默认值 `"masterKey"`。
+
+**涉及范围**:
+
+- `wrapper/src/utils/meili_client.py`:
+  - 构造函数参数 `api_key="masterKey"` → `api_key: str | None = None`
+  - `api_key is None` 时记录 warning 而非使用硬编码值
+
+**前置依赖**: 无
+
+**完成标准**:
+
+- [ ] `rg 'masterKey' wrapper/src/` 无匹配
+- [ ] Docker Compose 通过环境变量正常工作
+- [ ] 测试通过
+
+**验证方式**:
+
+```bash
+rg "masterKey" wrapper/src/
+uv run pytest tests/test_meili_integration.py -v --tb=short
+```
+
+**状态**: 📋 待开始
+
+---
+
+#### BL-39 [P3] 清理 scripts/ 裸 except 块 #dx
+
+**目标**: 将 scripts/ 和 tests/ 中的裸 `except:` 改为 `except Exception:`，避免静默吞掉 KeyboardInterrupt 等系统异常。
+
+**涉及范围**:
+
+- `tests/test_phase_a_backend.py:57`
+- `scripts/collect-metrics.py:40,49,60`
+- `scripts/generate-report.py:24`
+
+**前置依赖**: 无
+
+**完成标准**:
+
+- [ ] `rg "except\s*:" --type py scripts/ tests/` 仅匹配 `except Exception:`（无裸 except）
+
+**验证方式**:
+
+```bash
+rg "except\s*:" --type py scripts/ tests/
+```
+
+**状态**: 📋 待开始
+
+---
+
+## 文档治理
+
+> 不直接服务用户场景，但消除文档与代码的偏差可避免误导后续开发。
+
+### 待修复
+
+#### BL-D1 [P0] 归档历史文档 #docs
+
+**目标**: 将过时的 md 文件和 JSON 报告移入 `archive/`，保持 `docs/` 目录干净。
+
+**涉及范围**:
+
+- 归档 22 个 md → `archive/docs/`
+- 归档 11 个 JSON → `archive/reports/`
+
+**前置依赖**: 无
+
+**完成标准**:
+
+- [ ] `docs/` 目录仅保留活跃文档（约 13 个 md）
+- [ ] 归档文件在 `archive/` 中可找到
+- [ ] 无死链
+
+**验证方式**:
+
+```bash
+ls docs/*.md | wc -l
+```
+
+**状态**: 📋 待开始
+
+---
+
+#### BL-D2 [P0] 更新设计与 README 反映真实状态 #docs
+
+**目标**: 消除 WRAPPER_SERVICE_DESIGN.md / README.md 与实际代码的偏差。
+
+**涉及范围**:
+
+- `docs/architecture/WRAPPER_SERVICE_DESIGN.md`: Stub 表更新
+- `README.md`: stub 端点标注、CHANGELOG 补充 v2.5.0 条目
+- `CHANGELOG.md`: 补充 v2.5.0 变更记录
+
+**前置依赖**: BL-D1
+
+**完成标准**:
+
+- [ ] WRAPPER_SERVICE_DESIGN.md Stub 表与实际代码一致
+- [ ] README.md stub 端点有"计划中"标注
+- [ ] CHANGELOG.md 包含 v2.5.0 条目
+
+**验证方式**:
+
+```bash
+rg "计划中" README.md
+```
+
+**状态**: 📋 待开始
 
 ---
 
 ## 暂缓任务
 
-### BL-7 [P3] 跨文件关系解析（Phase D）#code-analysis #future
+| 编号 | 目标 | 原因 |
+|------|------|------|
+| BL-5 [P2] Meilisearch 代码分析字段索引 | 依赖 BL-28 |
+| BL-7 [P3] 跨文件关系解析 | 记忆级输入顺序不确定 |
+| BL-8 [P3] 插件端代码分析工具 | 需插件端配合 |
+| BL-1 [P2] Tenant ID 不匹配 | 需插件端配合 |
 
-**目标**: 解析代码记忆间的 import/call 关系，存入 SurrealDB `relation` 表，支持"谁调用了 validate_user"或"这个函数被哪些文件依赖"的查询。
+## 可无限期推迟（无用户场景）
 
-**涉及范围**:
-- **后端**: `wrapper/src/utils/code_analyzer.py`
-  - 新增 `resolve_imports()` 方法: 解析 import 语句，提取目标文件路径
-  - 新增 `resolve_calls()` 方法: 解析函数调用，提取被调用函数名
-- **后端**: `wrapper/src/utils/memory_manager.py`
-  - 新增 `async _resolve_code_relations()` 方法: 在已有记忆中搜索匹配的 import/call 目标
-  - 延迟解析: 上传时标记 import，定时或手动触发批量关联
-  - 关系类型新增: IMPORTS, CALLS, EXTENDS, IMPLEMENTS
-  - 关系带 confidence (0.0-1.0) 和 reason 字段
-- **后端**: `wrapper/src/main.py`
-  - 新增 `POST /api/v1/memories/{memory_id}/resolve-relations`: 手动触发关系解析
-  - 新增 `GET /api/v1/memories/{memory_id}/knowledge-graph`: 获取代码知识图谱
+以下 9 个端点已注册但无调用方，当前返回 NotImplementedError：
 
-**前置依赖**: 
-- BL-4（需要先有代码分析结果）
-- BL-5（需要 Meilisearch 索引来搜索目标文件）
+| 端点 | 说明 |
+|------|------|
+| `/api/v1/hnsw/stats` | HNSW 索引统计 |
+| `/api/v1/hnsw/optimize` | HNSW 优化 |
+| `/api/v1/hnsw/rebuild` | HNSW 重建 |
+| `/api/v1/cache/stats` | 缓存统计 |
+| `/api/v1/cache/clear` | 缓存清空 |
+| `/api/v1/cache/warmup` | 缓存预热 |
+| `/api/v1/prefetch/related` | 关系预取 |
+| `/api/v1/prefetch/popular` | 热门查询预取 |
+| `/api/v1/memories/cluster/leiden` | Leiden 聚类 |
 
-**完成标准**:
-- [ ] 上传代码后自动提取 import 语句和函数调用
-- [ ] `POST /api/v1/memories/{memory_id}/resolve-relations` 在已有记忆中搜索匹配目标，建立关系
-- [ ] 关系带置信度: 同文件 1.0, import 解析 0.85, 模糊匹配 0.5
-- [ ] `GET /api/v1/memories/{memory_id}/knowledge-graph` 返回 N 跳关系图
-- [ ] 延迟解析策略: 上传时标记，批量关联时建立关系
-
-**验证方式**:
-```bash
-# 1. 上传两个有依赖关系的文件，然后解析关系
-curl -X POST http://localhost:17999/api/v1/memories/{memory_id}/resolve-relations
-
-# 2. 查看知识图谱
-curl http://localhost:17999/api/v1/memories/{memory_id}/knowledge-graph?depth=2
-
-# 3. 单元测试
-uv run pytest tests/test_code_relations.py -v
-```
-
-**状态**: ⚪ 暂缓（可行性待评估，记忆级输入的上传顺序不确定）
-
----
-
-### BL-8 [P3] 插件端代码分析工具（Phase E）#code-analysis #plugin
-
-**目标**: 在 OpenCode 插件中注册代码分析相关工具，使 AI Agent 能够通过插件调用后端的代码分析 API。
-
-**涉及范围**:
-- **插件端**（TypeScript）:
-  - 新增 `memory_code_analyze` 工具: 调用 `POST /api/v1/memories/{id}/analyze/code`
-  - 新增 `memory_code_search` 工具: 调用 `POST /api/v1/memories/search` + `code_filter`
-  - 新增 `memory_code_enrich` 工具: 调用 `POST /api/v1/memories/{id}/enrich/llm`
-  - 新增 `memory_code_summary` 工具: 调用 `GET /api/v1/memories/{id}/summary`
-  - 新增 `memory_code_graph` 工具: 调用 `GET /api/v1/memories/{id}/knowledge-graph`
-  - 新增 `memory_code_impact` 工具: 调用 `POST /api/v1/memories/{id}/impact`（远期）
-  - 新增 `memory_code_processes` 工具: 调用 `GET /api/v1/memories/{id}/processes`（远期）
-- **配置**: `memory-config.json`
-  - 新增 `code_analysis` 配置节: auto_analyze, auto_enrich_llm
-
-**前置依赖**: 
-- BL-4 ~ BL-6（后端 API 就绪后才能注册工具）
-
-**完成标准**:
-- [ ] 7 个新工具注册成功，LLM 可通过工具名调用
-- [ ] 每个工具有完整的 `description` 和 `parameters` JSON Schema
-- [ ] 工具注册代码基于 `@opencode-ai/plugin` v1.3.3 的 `Hooks.tool` 类型
-- [ ] `memory-config.json` 包含 `code_analysis` 配置
-
-**验证方式**:
-```bash
-# 1. 在 OpenCode 中调用工具
-memory_code_analyze(memory_id="xxx")
-
-# 2. 验证 code_filter 过滤生效
-memory_code_search(query="auth", code_filter={"language": "python"})
-
-# 3. 检查配置格式
-cat memory-config.json | jq '.code_analysis'
-```
-
-**状态**: ⏳ 待后端 API 就绪
+> 不删除（保持 API 契约完整性），README 中标注"计划中"。
 
 ---
 
 ## 执行路线图
 
 ```
-本周（立即执行）
-├── BL-2 [P1] 性能基线建立 ─────────────────► 运行脚本 + 更新文档 ────► 1-2小时
-│   └── 命令: uv run python scripts/benchmark.py --iterations 5
-│
-└── BL-3 [P1] 修复设计文档 ─────────────────► Markdown检查 + 修复 ────► 2小时
-    └── 命令: uvx pre-commit run markdownlint-cli2 --files docs/code-analysis-enhancement.md
+场景 4: 开发者体验 — 快速修复（P1，约 30 分钟）
+├── BL-33 [P1] pyproject.toml 修复 ───────────► 📋 待开始（~15 分钟）
+└── BL-34 [P1] meilisearch_code/ 类型修复 ────► 📋 待开始（~15 分钟）
 
-下周（核心开发）
-└── BL-4 [P1] 代码分析持久化 ───────────────► 自动触发 + 降级策略 ────► 1-2天
-    ├── 修改 create_memory() 添加自动分析
-    ├── 添加 _is_code_content() 检测
-    └── 确保分析失败不影响上传
+场景 2: 代码分析（P1，约 1-2 小时）
+└── BL-28 [P1] analyze_memory_code 实现 ──────► 📋 待开始
 
-下下周（并行开发）
-├── BL-5 [P2] Meilisearch字段索引 ──────────► 索引配置 + 搜索过滤 ────► 1-2天
-│   ├── 修改 Meilisearch 索引设置
-│   ├── 修改 _build_meili_doc()
-│   └── 搜索 API 添加 code_filter 参数
-│
-└── BL-6 [P2] LLM代码摘要 ─────────────────► LLM集成 + 异步触发 ────► 1-2天
-    ├── 添加 LLMConfig
-    ├── 实现 _generate_code_summary()
-    └── 异步调用 LLM 服务
+场景 4: 开发者体验 — 中等重构（P1-P2，约 6-9 小时）
+├── BL-35 [P1] memory_manager.py 拆分 ────────► 📋 待开始（~4-6 小时）
+├── BL-36 [P2] main.py 路由拆分 ──────────────► 📋 待开始（~2-3 小时，可与 BL-35 并行）
+├── BL-37 [P2] 工具模块单元测试 ──────────────► 📋 待开始（~1-2 小时）
+├── BL-38 [P2] 移除硬编码 API Key ────────────► 📋 待开始（~15 分钟）
+└── BL-39 [P3] scripts/ 裸 except 清理 ───────► 📋 待开始（~15 分钟）
 
-转移/暂缓
-├── BL-1 [P2] ─────────────────────────────► 移至插件端 backlog
-├── BL-8 [P3] ─────────────────────────────► 移至插件端 backlog
-└── BL-7 [P3] ─────────────────────────────► 保持暂缓
+场景 3: 多设备同步（P2，约 4-6 小时）
+├── BL-29 [P2] 指纹查询 ─────────────────────► 📋 待开始
+├── BL-30 [P2] 同步预览 ─────────────────────► 📋 待开始（依赖 BL-29）
+├── BL-31 [P2] 全量同步 ─────────────────────► 📋 待开始（依赖 BL-29）
+└── BL-32 [P2] 冲突解决 ─────────────────────► 📋 待开始（依赖 BL-30）
+
+文档治理（P0，约 30 分钟）
+├── BL-D1 [P0] 归档历史文档 ─────────────────► 📋 待开始
+└── BL-D2 [P0] 更新设计与 README ─────────────► 📋 待开始（依赖 BL-D1）
 ```
 
 ---
 
 ## Backlog 规范
 
-**格式**: `- [ ] BL-{N} [{Priority}] 描述 #标签`
+**格式**: `BL-{N} [{Priority}] 描述 #标签`
 
 **优先级**: P0 = 紧急, P1 = 重要, P2 = 普通, P3 = 低优先级
 
-**状态**: ⏳ 进行中, 📋 待开始, ⚪ 暂缓
-
 **5 要素**:
+
 1. **目标**: 解决什么问题，达成什么效果
 2. **涉及范围**: 修改哪些文件/模块
 3. **前置依赖**: 依赖哪些任务/条件
@@ -396,10 +580,4 @@ cat memory-config.json | jq '.code_analysis'
 
 ---
 
-**已完成任务**: 见 [backlog_archive.md](backlog_archive.md)
-
-**历史归档**: v2.4.0 之前的已完成任务已归档至 CHANGELOG.md
-
----
-
-*最后更新: 2026-03-30*
+*最后更新: 2026-04-02*
