@@ -130,7 +130,8 @@ exclude = [
     "dist",
     "src/**/models",
     "scripts",
-    "src/**/start_*.py"
+    "src/**/start_*.py",
+    "wrapper/src/utils/memory_manager"
 ]
 pythonVersion = "3.10"
 typeCheckingMode = "basic"
