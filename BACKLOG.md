@@ -186,7 +186,7 @@ uv run task lint-md
 
 > **用户流程**: 插件端有本地记忆文件 → `GET /api/v1/sync/fingerprints` 获取服务端指纹 → `POST /api/v1/sync/preview` 比对差异 → 用户确认 → `POST /api/v1/sync/full` 执行同步 → 冲突时解决
 >
-> **当前状态**: 端点已注册，API 模型已定义，测试已编写（32 个 mock 测试）。但 sync_preview/sync_full 仍是 stub，19 个测试失败。
+> **当前状态**: ✅ 全部完成。BL-29~32 已实现，32 个 mock 测试全部通过，辅助方法（_record_conflict/get_conflicts/get_conflict_detail）已就绪。
 >
 > **产品文档**: `docs/product-sync-v2.7.md`
 > **开发文档**: `docs/dev-sync-v2.7.md`
@@ -217,7 +217,7 @@ uv run task lint-md
 uv run pytest tests/test_phase_b_sync.py::TestSyncFingerprints -v --tb=short
 ```
 
-**状态**: 📋 待开始
+**状态**: ✅ 已完成
 
 ---
 
@@ -250,7 +250,7 @@ uv run pytest tests/test_phase_b_sync.py::TestSyncFingerprints -v --tb=short
 uv run pytest tests/test_phase_b_sync.py::TestSyncPreview -v --tb=short
 ```
 
-**状态**: 📋 待开始（依赖 BL-29）
+**状态**: ✅ 已完成
 
 ---
 
@@ -278,7 +278,7 @@ uv run pytest tests/test_phase_b_sync.py::TestSyncPreview -v --tb=short
 uv run pytest tests/test_phase_b_sync.py::TestSyncFull -v --tb=short
 ```
 
-**状态**: 📋 待开始
+**状态**: ✅ 已完成
 
 ---
 
@@ -309,7 +309,7 @@ uv run pytest tests/test_phase_b_sync.py::TestSyncFull -v --tb=short
 uv run pytest tests/test_phase_b_sync.py::TestResolveConflict tests/test_phase_b_sync.py::TestConflictPersistence -v --tb=short
 ```
 
-**状态**: 📋 待开始（依赖 BL-30）
+**状态**: ✅ 已完成
 
 | 端点 | 说明 |
 |------|------|
@@ -765,11 +765,11 @@ v2.6.0 质量治理 — 全部完成 ✅
  ├── BL-T6 pre-commit 配置 ──────────────────► ✅
  └── BL-T10 语义去重阈值修复 ───────────────► 📋 P3（可选）
 
-下一阶段 — 多设备同步 v2.7.0（P2，约 4-6 小时）
-├── BL-29 指纹查询 ─────────────────────────► 📋 待开始
-├── BL-30 同步预览 ─────────────────────────► 📋 待开始（依赖 BL-29）
-├── BL-31 全量同步 ─────────────────────────► 📋 待开始（可与 BL-29 并行）
-└── BL-32 冲突解决 ─────────────────────────► 📋 待开始（依赖 BL-30）
+下一阶段 — 多设备同步 v2.7.0（P2，约 4-6 小时） ✅ 全部完成
+├── BL-29 指纹查询 ─────────────────────────► ✅
+├── BL-30 同步预览 ─────────────────────────► ✅
+├── BL-31 全量同步 ─────────────────────────► ✅
+└── BL-32 冲突解决 ─────────────────────────► ✅
 ```
 
 > **产品文档**: `docs/product-sync-v2.7.md`
