@@ -2,7 +2,7 @@
 
 > 后端任务追踪文档，按真实场景驱动排序。已完成任务归档至 `archive/docs/`。
 
-**更新时间**: 2026-04-03
+**更新时间**: 2026-04-04
 
 ---
 
@@ -332,18 +332,17 @@ uv run pytest tests/test_phase_b_sync.py::TestResolveConflict tests/test_phase_b
 
 > **用户流程**: 开发者 `git commit` → pre-commit 秒级跑 unit 测试 → 推送前手动跑 unit+integration → CI 跑全量（含 e2e）
 >
-> **当前状态**: 27 个文件 / 299 个用例，12 文件 OK / 15 文件失败。全量 ~395s，pre-commit 经常超 120s。无分层标记，无 fixture scope 优化。
+> **当前状态**: ✅ 已完成。21 个文件 / 289 个用例。unit 50P (9.52s) / integration 123P 26S (10.90s) / e2e 140 用例。pre-commit 9.52s。e2e 在 embedding+wrapper 启动时 0F。
 >
 > **根因诊断**: 架构问题，非局部问题 — 详见 `handoffs/handoff-20260403-test-architecture-diagnosis.md`
 >
-> **失败文件分类**:
+> **e2e 失败分类（当前 10F）**:
 >
-> | 原因 | 文件数 | 失败数 | 说明 |
-> |------|--------|--------|------|
-> | SERVICE_DOWN | 7 | 44F | 需要真实服务（embedding/llm/wrapper 3001 端口未启动） |
-> | ATTR/TYPE_ERROR | 4 | 44F | BL-35 Mixin 拆分后 mock 断言不匹配新结构 |
-> | ASSERT_FAIL | 2 | 5F | 接口返回字段变更（embedding health、去重逻辑） |
-> | UNKNOWN | 2 | 1F | 待进一步确认 |
+> | 原因 | F数 | 说明 |
+> |------|-----|------|
+> | FEATURE_REMOVED | 8 | circuit_breakers(4F)、metrics(3F)、chat_completions(1F) — 旧版功能已移除 |
+> | FIELD_CHANGED | 1 | cache_stats.size → max_size/current_size |
+> | DESIGN_LIMIT | 1 | batch input array 不支持（接口只接受 string） |
 
 ### 待实现
 
@@ -527,7 +526,7 @@ uv run pytest tests/test_embedding_service.py tests/test_embedding_service_exten
 uv run pytest tests/ -m "unit or integration" -q
 ```
 
-**状态**: 📋 待开始
+**状态**: ✅ 已完成（2026-04-04）— 端口 3001→17999 + embedding_client/wrapper_client 回退为 function scope
 
 ---
 
@@ -563,7 +562,7 @@ uv run pytest tests/ -m "unit or integration" -q
 uv run pytest tests/test_llm_service.py tests/test_llm_service_extended.py -v
 ```
 
-**状态**: 📋 待开始（依赖 BL-T8）
+**状态**: ✅ 已完成（2026-04-04）— `pytest_collection_modifyitems` hook + db_connection skip
 
 ---
 
@@ -595,25 +594,62 @@ uv run pytest tests/test_semantic_deduplication.py -v
 
 ---
 
+#### BL-T11 [P1] 修复 wrapper 接口变更测试 #scene4
+
+**目标**: 修复 3 个文件中因最小化 wrapper (17999) 不再提供旧版功能而导致的 10 个测试失败。
+
+**真实场景**: `test_wrapper_service.py`、`test_wrapper_service_extended.py`、`test_integration.py` 是为旧版完整包装服务 (3001 端口) 编写的，测试了 circuit_breakers、metrics、chat_completions 等功能。最小化 wrapper 已移除这些功能，但测试未同步更新，导致 10F 噪音掩盖真正的代码问题。
+
+**涉及范围**:
+
+| 根因 | 文件 | F数 | 处理方式 |
+|------|------|-----|----------|
+| `circuit_breakers` 字段不存在 | `test_wrapper_service.py`(1), `test_wrapper_service_extended.py`(2), `test_integration.py`(1) | 4F | 删除测试用例（功能已移除） |
+| `/metrics` 端点 404 | `test_wrapper_service.py`(1), `test_wrapper_service_extended.py`(2) | 3F | 删除测试用例（prometheus 已移除） |
+| `/v1/chat/completions` 404 | `test_wrapper_service.py`(1) | 1F | 删除测试用例（最小化 wrapper 不代理 LLM） |
+| `cache_stats.size` → `max_size/current_size` | `test_wrapper_service_extended.py`(1) | 1F | 更新断言适配新字段 |
+| batch input array 返回 422 | `test_wrapper_service_extended.py`(1) | 1F | 标记 skip（接口设计：只接受 string input） |
+
+**前置依赖**: **BL-T8**（端口修复已完成 ✅）
+
+**完成标准**:
+
+- [ ] 10F 全部消除（删除 8F + 更新 1F + skip 1F）
+- [ ] `uv run pytest tests/test_wrapper_service.py tests/test_wrapper_service_extended.py tests/test_integration.py -v` 0F
+- [ ] unit/integration 无回归
+- [ ] 不修改业务代码，只修改测试代码
+
+**验证方式**:
+
+```bash
+# wrapper 相关测试 0F
+uv run pytest tests/test_wrapper_service.py tests/test_wrapper_service_extended.py tests/test_integration.py -v --tb=short
+
+# 无回归
+uv run pytest tests/ -m "unit or integration" -q
+```
+
+**状态**: ✅ 已完成（2026-04-04）— 删除 8F + 更新 1F + skip 1F
+
+---
+
 #### BL-T5 [P2] 清理无效测试文件 #scene4
 
-**目标**: 处理 `test_memory_search_gate.py`（0 个用例）。
+**目标**: 删除 `test_memory_search_gate.py`（1 个空 fixture，无实际用例）。
 
 **涉及范围**:
 
 | 文件 | 问题 | 处理 |
 |------|------|------|
-| `test_memory_search_gate.py` | 0 个用例（空 fixture 定义） | 删除文件 |
-
-> 注：原 BL-T5 中的 SERVICE_DOWN 和端口问题已分别归入 BL-T8（端口修复）和 BL-T9（条件跳过）。
+| `test_memory_search_gate.py` | 1 个空 fixture（pytestmark=unit），无实际测试函数 | 删除文件 |
 
 **前置依赖**: 无
 
 **完成标准**:
 
 - [ ] `test_memory_search_gate.py` 已删除
-- [ ] `uv run pytest tests/ --collect-only -q` 总数正确
-- [ ] unit 测试无回归
+- [ ] `uv run pytest tests/ --collect-only -q` 总数从 290 减为 289
+- [ ] unit 测试无回归（该文件的 1S 不再出现）
 
 **验证方式**:
 
@@ -621,7 +657,7 @@ uv run pytest tests/test_semantic_deduplication.py -v
 uv run pytest tests/ -m unit -q
 ```
 
-**状态**: 📋 待开始（依赖 BL-T8 替代原 BL-T1）
+**状态**: ✅ 已完成（2026-04-04）— 删除 test_memory_search_gate.py，289 collected
 
 ---
 
@@ -654,40 +690,46 @@ uv run pytest tests/ -m unit -v --tb=short
 
 #### BL-T7 [P2] 合并小型测试文件 #scene4
 
-**目标**: 将 10 个 ≤6 用例的小文件合并到同主题的大文件中，减少 pytest 收集开销。
+**目标**: 将 5 个小文件合并到同主题的大文件中，减少文件数量和 pytest 收集开销。
+
+**真实场景**: 当前 27 个文件中有多对同主题的拆分文件，合并后减少文件数但不减少用例数。
 
 **涉及范围**:
 
-| 被合并文件 | 用例数 | 合并目标 |
-|-----------|--------|---------|
-| `test_code_filter_max_complexity.py` | 4 | → `test_code_analysis.py` |
-| `test_memory_search_gate.py` | 0 | → `test_wrapper_api.py` |
-| `test_db_connection.py` | 1 | → `test_wrapper_service.py` |
-| `test_integration.py` | 2 | → `test_api_integration.py` |
-| `test_websocket.py` | 4 | → `test_wrapper_service_extended.py` |
-| `test_wrapper_service.py` | 4 | → `test_wrapper_service_extended.py` |
-| `test_http_pool.py` | 5 | → `test_wrapper_api.py` |
-| `test_llm_service.py` | 5 | → `test_llm_service_extended.py` |
-| `test_auth.py` | 6 | → `test_security.py` |
-| `test_embedding_service.py` | 6 | → `test_embedding_service_extended.py` |
+| 被合并文件 | 用例数 | 层级 | 合并目标 | 合并后 |
+|-----------|--------|------|---------|--------|
+| `test_wrapper_service.py` | 2 | e2e | → `test_wrapper_service_extended.py` (4) | 7 |
+| `test_llm_service.py` | 5 | e2e | → `test_llm_service_extended.py` (13) | 18 |
+| `test_db_connection.py` | 1 | e2e (skip) | → `test_wrapper_service_extended.py` | +1 |
+| `test_code_filter_max_complexity.py` | 4 | unit | → `test_code_analysis.py` (11) | 15 |
+| `test_embedding_service.py` | 6 | e2e | → `test_embedding_service_extended.py` (11) | 17 |
 
-**前置依赖**: **BL-T8**（Event loop 修复后合并更安全）
+**未合并**（跨层级或风格不同）:
+
+| 文件 | 原因 |
+|------|------|
+| `test_auth.py` (unit) | 与 `test_security.py` (e2e) 跨层级，保持独立 |
+| `test_integration.py` (e2e) | 标准 pytest 测试，与 `test_api_integration.py` 手动脚本风格不同 |
+| `test_api_integration.py` | 手动脚本（print_result），非标准 pytest |
+
+**前置依赖**: **BL-T11**（wrapper 文件已清理 ✅）
 
 **完成标准**:
 
-- [ ] 文件数从 27 减少到 ~17
-- [ ] 总用例数 299 不减少
-- [ ] 合并后所有测试通过
-- [ ] git history 可追溯（不 force push）
+- [x] 文件数从 27 减少到 21（删除 6 个文件）
+- [x] 总用例数 289（原 290 删除 1S）
+- [x] 合并后所有测试通过（0F）
+- [x] unit/integration 无回归
+- [x] 不修改业务代码，只修改测试文件
 
 **验证方式**:
 
 ```bash
-uv run pytest tests/ -v --tb=short
-uv run pytest tests/ --collect-only -q | tail -1  # 确认 299 collected
+uv run pytest tests/ --collect-only -q  # 289 collected
+uv run pytest tests/ -m "unit or integration" -q
 ```
 
-**状态**: 📋 待开始（依赖 BL-T3 + BL-T4）
+**状态**: ✅ 已完成（2026-04-04）— 27→21 文件，289 collected
 
 ---
 
@@ -710,17 +752,18 @@ v2.6.0 质量治理 — 全部完成 ✅
 ├── BL-CA-09 集成测试补充 ──────────────────► ✅ 已完成（2026-04-03）
 └── BL-CA-10 API 文档更新 ──────────────────► ✅ 已完成（2026-04-03）
 
- 当前阶段 — 测试架构优化
- ├── BL-T1 测试分层标记 ─────────────────────► ✅ 已完成（2026-04-04）
- ├── BL-T2 fixture scope 优化 ────────────────► ✅ 已完成（2026-04-04）
- ├── BL-T3 修复 Mixin mock 断言 ─────────────► ✅ 已完成（2026-04-04）
- ├── BL-T4 修复接口变更断言 ─────────────────► ✅ 已完成（2026-04-04）
- ├── BL-T8 conftest 端口 + Event loop 回归 ──► 📋 待开始（P0，影响 31F）
- ├── BL-T9 LLM/SERVICE_DOWN 条件跳过 ────────► 📋 待开始（P1，依赖 BL-T8，影响 22F）
- ├── BL-T5 清理无效文件 ─────────────────────► 📋 待开始（P2）
- ├── BL-T7 合并小型文件 ─────────────────────► 📋 待开始（P2，依赖 BL-T8）
- ├── BL-T6 pre-commit 配置 ──────────────────► ✅ 已完成（2026-04-04）
- └── BL-T10 语义去重阈值修复 ───────────────► 📋 待开始（P3）
+ 当前阶段 — 测试架构优化 ✅ 已完成
+ ├── BL-T1 测试分层标记 ─────────────────────► ✅
+ ├── BL-T2 fixture scope 优化 ────────────────► ✅
+ ├── BL-T3 修复 Mixin mock 断言 ─────────────► ✅
+ ├── BL-T4 修复接口变更断言 ─────────────────► ✅
+ ├── BL-T8 conftest 端口 + Event loop 回归 ──► ✅
+ ├── BL-T9 LLM/SERVICE_DOWN 条件跳过 ────────► ✅
+ ├── BL-T11 wrapper 接口变更修复 ───────────► ✅
+ ├── BL-T5 清理无效文件 ─────────────────────► ✅（27→26）
+ ├── BL-T7 合并小型文件 ─────────────────────► ✅（26→21）
+ ├── BL-T6 pre-commit 配置 ──────────────────► ✅
+ └── BL-T10 语义去重阈值修复 ───────────────► 📋 P3（可选）
 
 下一阶段 — 多设备同步 v2.7.0（P2，约 4-6 小时）
 ├── BL-29 指纹查询 ─────────────────────────► 📋 待开始
@@ -734,4 +777,4 @@ v2.6.0 质量治理 — 全部完成 ✅
 
 ---
 
-*最后更新: 2026-04-04（更新场景 4: BL-T1~T4/T6 已完成，新增 BL-T8~T10）*
+*最后更新: 2026-04-04（场景 4 测试架构优化全部完成 ✅）*

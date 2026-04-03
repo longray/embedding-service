@@ -40,12 +40,9 @@ class TestIntegration:
 
     async def test_service_dependency(self, wrapper_client: httpx.AsyncClient, sample_text: str):
         """测试服务依赖关系"""
-        # 包装层依赖后端服务
         response = await wrapper_client.get("/health")
         assert response.status_code == 200
         data = response.json()
 
-        # 检查熔断器状态
-        assert "circuit_breakers" in data
-        # 如果后端服务正常，熔断器应该是closed
-        # 注意：这个测试假设后端服务正在运行
+        assert data["status"] == "healthy"
+        assert "embedding_service" in data

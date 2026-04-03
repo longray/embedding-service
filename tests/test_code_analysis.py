@@ -1,6 +1,6 @@
 """代码分析功能单元测试
 
-覆盖 BL-CA-01 (CodeAnalysisResult dataclass) 和 BL-CA-03 (build_code_symbols)。
+覆盖 BL-CA-01 (CodeAnalysisResult dataclass)、BL-CA-03 (build_code_symbols)、BL-CA-05 (code_filter max_complexity)。
 
 运行方式：
     uv run pytest tests/test_code_analysis.py -v
@@ -14,6 +14,7 @@ from wrapper.src.utils.code_analyzer import (
     CodeAnalysisResult,
     build_code_symbols,
 )
+from unittest.mock import AsyncMock, patch
 
 
 # ==================== BL-CA-01: CodeAnalysisResult dataclass ====================
@@ -149,3 +150,95 @@ class TestBuildCodeSymbols:
             "functions": [{"name": ""}, {"name": "valid"}, {"name": None}],
         }
         assert build_code_symbols(code_analysis) == "valid"
+
+
+# ==================== BL-CA-05: code_filter max_complexity ====================
+
+
+class TestCodeFilterMaxComplexity:
+    @pytest.fixture
+    def mock_request(self):
+        class MockRequest:
+            def __init__(self, code_filter=None):
+                self.query = "test"
+                self.mode = "hybrid"
+                self.limit = 10
+                self.threshold = 0.7
+                self.level = 2
+                self.tenant_id = "default"
+                self.code_filter = code_filter
+
+        return MockRequest
+
+    @pytest.mark.asyncio
+    async def test_max_complexity_filter_generation(self, mock_request):
+        from wrapper.src.routers.search import search_memories
+
+        mock_mm = AsyncMock()
+        mock_mm.search_memories.return_value = {"results": [], "total": 0}
+
+        with patch("wrapper.src.routers.search.state") as mock_state:
+            mock_state.memory_manager = mock_mm
+
+            request = mock_request(code_filter={"max_complexity": 30})
+            await search_memories(request)
+
+            call_kwargs = mock_mm.search_memories.call_args[1]
+            assert call_kwargs["filters"] == "code_complexity <= 30"
+
+    @pytest.mark.asyncio
+    async def test_min_max_complexity_combined(self, mock_request):
+        from wrapper.src.routers.search import search_memories
+
+        mock_mm = AsyncMock()
+        mock_mm.search_memories.return_value = {"results": [], "total": 0}
+
+        with patch("wrapper.src.routers.search.state") as mock_state:
+            mock_state.memory_manager = mock_mm
+
+            request = mock_request(code_filter={"min_complexity": 5, "max_complexity": 30})
+            await search_memories(request)
+
+            call_kwargs = mock_mm.search_memories.call_args[1]
+            assert "code_complexity >= 5" in call_kwargs["filters"]
+            assert "code_complexity <= 30" in call_kwargs["filters"]
+            assert " AND " in call_kwargs["filters"]
+
+    @pytest.mark.asyncio
+    async def test_all_code_filter_params_combined(self, mock_request):
+        from wrapper.src.routers.search import search_memories
+
+        mock_mm = AsyncMock()
+        mock_mm.search_memories.return_value = {"results": [], "total": 0}
+
+        with patch("wrapper.src.routers.search.state") as mock_state:
+            mock_state.memory_manager = mock_mm
+
+            request = mock_request(code_filter={"language": "python", "min_complexity": 5, "max_complexity": 30})
+            await search_memories(request)
+
+            call_kwargs = mock_mm.search_memories.call_args[1]
+            filters = call_kwargs["filters"]
+            assert 'code_language = "python"' in filters
+            assert "code_complexity >= 5" in filters
+            assert "code_complexity <= 30" in filters
+            assert filters.count(" AND ") == 2
+
+    @pytest.mark.asyncio
+    async def test_backward_compatibility_without_max_complexity(self, mock_request):
+        from wrapper.src.routers.search import search_memories
+
+        mock_mm = AsyncMock()
+        mock_mm.search_memories.return_value = {"results": [], "total": 0}
+
+        with patch("wrapper.src.routers.search.state") as mock_state:
+            mock_state.memory_manager = mock_mm
+
+            request = mock_request(code_filter={"language": "typescript", "min_complexity": 10})
+            await search_memories(request)
+
+            call_kwargs = mock_mm.search_memories.call_args[1]
+            filters = call_kwargs["filters"]
+            assert 'code_language = "typescript"' in filters
+            assert "code_complexity >= 10" in filters
+            assert "code_complexity <=" not in filters
