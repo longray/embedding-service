@@ -30,15 +30,28 @@ embedding_service/
 │       └── llm_service.py       # LLM API (端口 18001)
 ├── wrapper/                     # 包装层服务 (端口 17999)
 │   └── src/
-│       ├── main.py             # FastAPI 主程序 (v2.4.2)
+│       ├── main.py             # FastAPI app + lifespan (v2.6.0, ~300行)
+│       ├── models.py           # 17 个 Pydantic 模型
+│       ├── state.py            # 共享单例（避免循环导入）
 │       ├── config.py           # 配置管理 (含 MeilisearchConfig)
+│       ├── routers/            # API 路由模块
+│       │   ├── health.py       # /health
+│       │   ├── embeddings.py   # /v1/embeddings
+│       │   ├── memories.py     # /memories CRUD + clear + summary + enrich
+│       │   ├── search.py       # /memories/search
+│       │   ├── relations.py    # 图关系 CRUD + 遍历
+│       │   ├── sync.py         # 同步预览/全量/指纹/冲突
+│       │   ├── websocket.py    # WebSocket 实时推送
+│       │   └── stubs.py        # 11 个 stub 端点
 │       └── utils/
-│           ├── memory_manager.py # 记忆管理（双写 + 搜索路由）
-│           ├── meili_client.py   # Meilisearch 异步客户端
+│           ├── memory_manager/ # 记忆管理 Mixin 模式 (10 子模块)
+│           ├── meili_client.py # Meilisearch 异步客户端
 │           ├── surrealdb_client.py # SurrealDB 客户端
-│           ├── cache.py         # LRU 缓存
-│           ├── auth.py          # API 认证
-│           └── http_pool.py     # HTTP 连接池
+│           ├── code_analyzer.py # 代码分析器
+│           ├── cache.py        # LRU 缓存
+│           ├── auth.py         # WebSocket 认证
+│           ├── exceptions.py   # 统一异常层级
+│           └── http_pool.py    # HTTP 连接池
 ├── scripts/                     # 运维脚本
 │   ├── migrate_to_meilisearch.py # SurrealDB → Meilisearch 迁移
 │   ├── init_surrealdb.surql     # SurrealDB Schema 初始化

@@ -1,14 +1,9 @@
 # Embedding Service (OpenCode Memory Stack)
 
-版本与路线图
-
-- 当前版本: v2.6.0
-- 实施阶段: P0 + P1 + P2 + Phase 3 + Polyglot 搜索架构 + 同步冲突解决 + SQL 注入修复 已完成
-- 详细路线见 ROADMAP.md
+**当前版本**: v2.6.0
 
 ## 开发状态
 
-**当前版本**: v2.4.2
 **实施阶段**: P0 + P1 + P2 + Phase 3 + Polyglot 搜索架构 + 同步冲突解决 + SQL 注入修复 已完成
 
 ### 已完成 ✅
@@ -50,8 +45,15 @@
 | `/v1/embeddings` | POST | 文本嵌入 + 缓存 | 🌍 公开 |
 | `/api/v1/memories` | POST | 批量上传记忆 | 🌍 公开 |
 | `/api/v1/memories/search` | POST | 搜索记忆 | 🌍 公开 |
+| `/api/v1/memories/{id}/summary` | GET | 获取记忆摘要 | 🌍 公开 |
+| `/api/v1/memories/{id}/enrich/llm` | POST | LLM 摘要增强 | 🌍 公开 |
+| `/api/v1/memories/relations` | POST | 创建图关系 | 🌍 公开 |
+| `/api/v1/memories/{id}/relations` | POST | 查询记忆关系 | 🌍 公开 |
+| `/api/v1/memories/relations/{id}` | DELETE | 删除图关系 | 🌍 公开 |
+| `/api/v1/memories/{id}/graph` | POST | 图遍历 | 🌍 公开 |
+| `/api/v1/memories/clear` | DELETE | 清空所有记忆（调试专用） | 🔐 API Key |
+| `/api/v1/access-log` | POST | 上报访问日志 | 🌍 公开 |
 | `/ws/memories/live` | WebSocket | 实时推送记忆变更 | 🔓 可选 |
-| `/api/v1/memories/clear` | DELETE | **NEW** 清空所有记忆（调试专用） | 🔐 API Key |
 | `/api/v1/hnsw/stats` | GET | HNSW 索引统计 ⏳ 计划中 | 🌍 公开 |
 | `/api/v1/hnsw/optimize` | POST | 优化 HNSW 参数 ⏳ 计划中 | 🌍 公开 |
 | `/api/v1/hnsw/rebuild` | POST | 重建 HNSW 索引 ⏳ 计划中 | 🌍 公开 |
@@ -60,6 +62,8 @@
 | `/api/v1/cache/warmup` | POST | 预热缓存 ⏳ 计划中 | 🌍 公开 |
 | `/api/v1/prefetch/related` | POST | 预取关联记忆 ⏳ 计划中 | 🌍 公开 |
 | `/api/v1/prefetch/popular` | POST | 预取热门记忆 ⏳ 计划中 | 🌍 公开 |
+| `/api/v1/memories/{id}/analyze/code` | POST | 代码分析 ⏳ 计划中 | 🌍 公开 |
+| `/api/v1/memories/cluster/leiden` | POST | Leiden 聚类 ⏳ 计划中 | 🌍 公开 |
 | `/api/v1/sync/preview` | POST | 同步预览（差异分析） | 🌍 公开 |
 | `/api/v1/sync/incremental` | POST | 同步预览（兼容别名） | 🌍 公开 |
 | `/api/v1/sync/full` | POST | 全量同步 | 🌍 公开 |

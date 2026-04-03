@@ -279,7 +279,7 @@ async def lifespan(app: FastAPI):
 
 # ==================== FastAPI App ====================
 
-app = FastAPI(title="Minimal Wrapper Service", version="2.4.1", lifespan=lifespan)
+app = FastAPI(title="Minimal Wrapper Service", version="2.6.0", lifespan=lifespan)
 
 app.include_router(health.router)
 app.include_router(embeddings.router)
