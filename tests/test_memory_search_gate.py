@@ -4,6 +4,8 @@ import sys
 
 import pytest
 
+pytestmark = pytest.mark.unit
+
 
 @pytest.mark.integration
 @pytest.mark.slow

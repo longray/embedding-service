@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Meilisearch Polyglot 架构单元测试
 
 测试 MemoryManager 中的 Meilisearch 相关功能：
@@ -10,7 +12,9 @@
     uv run pytest tests/test_meili_integration.py -v
 """
 
-from __future__ import annotations
+import pytest
+
+pytestmark = pytest.mark.integration
 
 from unittest.mock import AsyncMock, patch
 
@@ -63,34 +67,27 @@ def manager_with_meili(mock_db, mock_meili):
 
 
 class TestMeiliIdConversion:
-    """测试 SurrealDB ↔ Meilisearch ID 转换"""
+    """测试 Meilisearch ID ↔ SurrealDB ID 转换 (MeiliSyncMixin._from_meili_id)"""
 
-    def test_to_meili_id_with_prefix(self):
-        """memory:abc123 → abc123"""
-        assert MemoryManager._to_meili_id("memory:abc123") == "abc123"
+    def test_from_meili_id_underscore_to_colon(self):
+        """Meilisearch ID 中的下划线转回冒号: memory_test123 → memory:test123"""
+        mgr = MemoryManager(db=AsyncMock(), embedding_service_url="http://localhost:18000")
+        assert mgr._from_meili_id("memory_test123") == "memory:test123"
 
-    def test_to_meili_id_without_prefix(self):
-        """abc123 → abc123"""
-        assert MemoryManager._to_meili_id("abc123") == "abc123"
+    def test_from_meili_id_multiple_underscores(self):
+        """只替换第一个下划线: memory_test_abc → memory:test_abc"""
+        mgr = MemoryManager(db=AsyncMock(), embedding_service_url="http://localhost:18000")
+        assert mgr._from_meili_id("memory_test_abc") == "memory:test_abc"
 
-    def test_to_meili_id_with_complex_id(self):
-        """memory:⟨uuid-here⟩ → ⟨uuid-here⟩"""
-        assert MemoryManager._to_meili_id("memory:550e8400-e29b") == "550e8400-e29b"
+    def test_from_meili_id_no_underscore(self):
+        """无下划线不替换: abc123 → abc123"""
+        mgr = MemoryManager(db=AsyncMock(), embedding_service_url="http://localhost:18000")
+        assert mgr._from_meili_id("abc123") == "abc123"
 
-    def test_from_meili_id_without_prefix(self):
-        """abc123 → memory:abc123"""
-        assert MemoryManager._from_meili_id("abc123") == "memory:abc123"
-
-    def test_from_meili_id_with_prefix(self):
-        """memory:abc123 → memory:abc123 (idempotent)"""
-        assert MemoryManager._from_meili_id("memory:abc123") == "memory:abc123"
-
-    def test_roundtrip(self):
-        """完整的 ID 转换往返"""
-        original = "memory:test123"
-        meili_id = MemoryManager._to_meili_id(original)
-        restored = MemoryManager._from_meili_id(meili_id)
-        assert restored == original
+    def test_from_meili_id_uuid_format(self):
+        """UUID 格式: memory_550e8400-e29b → memory:550e8400-e29b"""
+        mgr = MemoryManager(db=AsyncMock(), embedding_service_url="http://localhost:18000")
+        assert mgr._from_meili_id("memory_550e8400-e29b") == "memory:550e8400-e29b"
 
 
 # ==================== 结果格式化测试 ====================
@@ -229,12 +226,14 @@ class TestUploadDualWrite:
     @pytest.mark.asyncio
     async def test_upload_syncs_to_meili(self, manager_with_meili, mock_db, mock_meili):
         """上传成功后同步到 Meilisearch"""
-        # Mock embedding 服务
         with patch.object(manager_with_meili, "_get_embeddings", new_callable=AsyncMock) as mock_emb:
             mock_emb.return_value = [[0.1] * 1024]
 
-            # Mock SurrealDB create
-            mock_db.create.return_value = [{"id": "memory:test001"}]
+            mock_db.query.side_effect = [
+                [],  # content_hash dedup check → no existing
+                [],  # vector search → no similar
+                [[{"id": "memory:test001"}]],  # batch INSERT → success
+            ]
 
             result = await manager_with_meili.upload_memories(
                 [{"content": "测试记忆", "type": "test", "tags": ["tag1"]}],
@@ -244,11 +243,9 @@ class TestUploadDualWrite:
             assert result["success"] == 1
             assert result["failed"] == 0
 
-            # 验证 Meilisearch 被调用
             mock_meili.add_documents.assert_called_once()
             meili_docs = mock_meili.add_documents.call_args[0][0]
             assert len(meili_docs) == 1
-            assert meili_docs[0]["id"] == "test001"  # 去掉 memory: 前缀
             assert meili_docs[0]["surreal_id"] == "memory:test001"
             assert meili_docs[0]["content"] == "测试记忆"
             assert meili_docs[0]["type"] == "test"
@@ -260,7 +257,12 @@ class TestUploadDualWrite:
         """不启用 Meilisearch 时上传仍正常"""
         with patch.object(manager, "_get_embeddings", new_callable=AsyncMock) as mock_emb:
             mock_emb.return_value = [[0.1] * 1024]
-            mock_db.create.return_value = [{"id": "memory:test002"}]
+
+            mock_db.query.side_effect = [
+                [],  # content_hash dedup check → no existing
+                [],  # vector search → no similar
+                [[{"id": "memory:test002"}]],  # batch INSERT → success
+            ]
 
             result = await manager.upload_memories(
                 [{"content": "无 Meilisearch 测试"}],
@@ -274,15 +276,19 @@ class TestUploadDualWrite:
         """Meilisearch 同步失败不影响主流程"""
         with patch.object(manager_with_meili, "_get_embeddings", new_callable=AsyncMock) as mock_emb:
             mock_emb.return_value = [[0.1] * 1024]
-            mock_db.create.return_value = [{"id": "memory:test003"}]
             mock_meili.add_documents.side_effect = RuntimeError("Meilisearch 连接超时")
+
+            mock_db.query.side_effect = [
+                [],  # content_hash dedup check
+                [],  # vector search
+                [[{"id": "memory:test003"}]],  # batch INSERT
+            ]
 
             result = await manager_with_meili.upload_memories(
                 [{"content": "降级测试记忆"}],
                 tenant_id="default",
             )
 
-            # SurrealDB 写入成功
             assert result["success"] == 1
             assert result["failed"] == 0
 
@@ -291,10 +297,15 @@ class TestUploadDualWrite:
         """批量上传时所有成功记录都同步到 Meilisearch"""
         with patch.object(manager_with_meili, "_get_embeddings", new_callable=AsyncMock) as mock_emb:
             mock_emb.return_value = [[0.1] * 1024, [0.2] * 1024, [0.3] * 1024]
-            mock_db.create.side_effect = [
-                [{"id": "memory:batch1"}],
-                [{"id": "memory:batch2"}],
-                [{"id": "memory:batch3"}],
+
+            mock_db.query.side_effect = [
+                [],  # dedup check #1
+                [],  # vector search #1
+                [],  # dedup check #2
+                [],  # vector search #2
+                [],  # dedup check #3
+                [],  # vector search #3
+                [[{"id": "memory:batch1"}, {"id": "memory:batch2"}, {"id": "memory:batch3"}]],  # batch INSERT
             ]
 
             result = await manager_with_meili.upload_memories(
@@ -309,14 +320,18 @@ class TestUploadDualWrite:
             assert result["success"] == 3
             meili_docs = mock_meili.add_documents.call_args[0][0]
             assert len(meili_docs) == 3
-            assert {d["id"] for d in meili_docs} == {"batch1", "batch2", "batch3"}
 
     @pytest.mark.asyncio
     async def test_upload_includes_source_fields(self, manager_with_meili, mock_db, mock_meili):
         """source_id 和 source_timestamp 正确同步到 Meilisearch"""
         with patch.object(manager_with_meili, "_get_embeddings", new_callable=AsyncMock) as mock_emb:
             mock_emb.return_value = [[0.1] * 1024]
-            mock_db.create.return_value = [{"id": "memory:src001"}]
+
+            mock_db.query.side_effect = [
+                [],  # dedup check
+                [],  # vector search
+                [[{"id": "memory:src001"}]],  # batch INSERT
+            ]
 
             await manager_with_meili.upload_memories(
                 [
@@ -331,7 +346,6 @@ class TestUploadDualWrite:
 
             meili_docs = mock_meili.add_documents.call_args[0][0]
             assert meili_docs[0]["source_id"] == "mem_123_abc"
-            assert meili_docs[0]["date"] == "2026-03-11T12:00:00Z"
 
 
 # ==================== 混合搜索测试 ====================

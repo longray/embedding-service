@@ -26,35 +26,35 @@ DEFAULT_TIMEOUT = 30.0
 HEALTH_CHECK_TIMEOUT = 5.0
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(scope="session")
 async def http_client() -> AsyncGenerator[httpx.AsyncClient, None]:
     """HTTP客户端fixture"""
     async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
         yield client
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(scope="session")
 async def embedding_client() -> AsyncGenerator[httpx.AsyncClient, None]:
     """Embedding服务客户端"""
     async with httpx.AsyncClient(base_url=EMBEDDING_SERVICE_URL, timeout=DEFAULT_TIMEOUT) as client:
         yield client
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(scope="session")
 async def llm_client() -> AsyncGenerator[httpx.AsyncClient, None]:
     """LLM服务客户端"""
     async with httpx.AsyncClient(base_url=LLM_SERVICE_URL, timeout=DEFAULT_TIMEOUT) as client:
         yield client
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(scope="session")
 async def wrapper_client() -> AsyncGenerator[httpx.AsyncClient, None]:
     """包装层服务客户端"""
     async with httpx.AsyncClient(base_url=WRAPPER_SERVICE_URL, timeout=DEFAULT_TIMEOUT) as client:
         yield client
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(scope="session")
 async def wrapper_minimal_client() -> AsyncGenerator[httpx.AsyncClient, None]:
     """最小化包装服务客户端（端口17999）"""
     async with httpx.AsyncClient(base_url=WRAPPER_MINIMAL_URL, timeout=DEFAULT_TIMEOUT) as client:

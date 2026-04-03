@@ -23,8 +23,9 @@ import httpx
 import pytest
 import pytest_asyncio
 
+pytestmark = pytest.mark.e2e
+
 WRAPER_MINIMAL_URL = "http://localhost:17999"
-EMBEDDING_SERVICE_URL = "http://localhost:18000"
 DEFAULT_TIMEOUT = 60.0
 
 

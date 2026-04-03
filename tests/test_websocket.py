@@ -14,6 +14,8 @@ import pytest
 from websockets import connect
 from websockets.exceptions import InvalidStatusCode
 
+pytestmark = pytest.mark.e2e
+
 
 WRAPPER_WS_URL = "ws://localhost:17999/ws/memories/live"
 

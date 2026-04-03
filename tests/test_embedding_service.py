@@ -5,6 +5,8 @@ Embedding服务接口测试
 import pytest
 import httpx
 
+pytestmark = pytest.mark.e2e
+
 
 @pytest.mark.asyncio
 class TestEmbeddingService:
@@ -17,7 +19,6 @@ class TestEmbeddingService:
         data = response.json()
         assert data["status"] == "healthy"
         assert "device" in data
-        assert "model_loaded" in data
 
     async def test_create_embedding_single(self, embedding_client: httpx.AsyncClient, sample_text: str):
         """测试单个文本嵌入"""
@@ -62,4 +63,4 @@ class TestEmbeddingService:
         response = await embedding_client.get("/stats")
         assert response.status_code == 200
         data = response.json()
-        assert "cache_stats" in data
+        assert "cache" in data

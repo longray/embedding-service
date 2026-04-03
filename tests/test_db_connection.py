@@ -4,6 +4,9 @@
 
 import asyncio
 from surrealdb import Surreal
+import pytest
+
+pytestmark = pytest.mark.e2e
 
 
 async def test_database_connection():

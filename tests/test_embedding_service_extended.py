@@ -5,6 +5,8 @@ Embedding服务扩展测试 - 边界条件和错误处理
 import pytest
 import httpx
 
+pytestmark = pytest.mark.e2e
+
 
 @pytest.mark.asyncio
 class TestEmbeddingServiceBoundary:
@@ -81,12 +83,11 @@ class TestEmbeddingServiceErrors:
         assert response.status_code == 422  # FastAPI validation error
 
     async def test_missing_model_field(self, embedding_client: httpx.AsyncClient):
-        """测试缺失model字段"""
-        response = await embedding_client.post(
-            "/v1/embeddings",
-            json={"input": "test"},
-        )
-        assert response.status_code == 422
+        """测试缺失 model 字段 — 服务使用默认模型"""
+        response = await embedding_client.post("/v1/embeddings", json={"input": "测试"})
+        assert response.status_code == 200
+        data = response.json()
+        assert "data" in data
 
     async def test_invalid_input_type(self, embedding_client: httpx.AsyncClient):
         """测试无效的input类型（数字而非字符串）"""

@@ -97,7 +97,9 @@ python_files = "test_*.py"
 python_classes = "Test*"
 addopts = "-v --strict-markers --tb=short"
 markers = [
-    "integration: marks tests as integration tests",
+    "unit: pure logic or mock tests, no real service required",
+    "integration: tests with partial mocking (e.g. MemoryManager with mocked HTTP)",
+    "e2e: tests calling real services via HTTP (localhost)",
     "slow: marks tests as slow",
 ]
 [tool.coverage.run]

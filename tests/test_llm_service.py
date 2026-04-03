@@ -5,6 +5,8 @@ LLM服务接口测试
 import pytest
 import httpx
 
+pytestmark = pytest.mark.e2e
+
 
 @pytest.mark.asyncio
 class TestLLMService:

@@ -5,6 +5,8 @@
 import pytest
 import httpx
 
+pytestmark = pytest.mark.e2e
+
 
 @pytest.mark.asyncio
 class TestWrapperService:

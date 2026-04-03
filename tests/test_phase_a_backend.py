@@ -9,6 +9,8 @@ import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
+pytestmark = pytest.mark.integration
+
 
 class TestBatchInsert:
     """Tests for A-B2: Batch Insert Transactions"""

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """代码分析功能集成测试
 
 验证代码分析端到端流程：
@@ -11,7 +13,9 @@
     uv run pytest tests/test_code_analysis_integration.py -v
 """
 
-from __future__ import annotations
+import pytest
+
+pytestmark = pytest.mark.integration
 
 from unittest.mock import AsyncMock, MagicMock, patch
 

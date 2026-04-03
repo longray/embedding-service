@@ -3,6 +3,8 @@
 import os
 import pytest
 from unittest.mock import patch
+
+pytestmark = pytest.mark.unit
 from wrapper.src.utils.auth import verify_websocket_token, get_websocket_token
 
 

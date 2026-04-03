@@ -9,6 +9,8 @@ from wrapper.src.utils.exceptions import (
     DatabaseError,
 )
 
+pytestmark = pytest.mark.unit
+
 
 class TestWrapperServiceError:
     def test_default_status_code(self):

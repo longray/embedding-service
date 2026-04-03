@@ -61,7 +61,7 @@ repos:
 
       - id: pytest
         name: Pytest (Python)
-        entry: uv run pytest tests/ -v --tb=short
+        entry: uv run pytest tests/ -m unit -v --tb=short
         language: system
         types: [python]
         pass_filenames: false

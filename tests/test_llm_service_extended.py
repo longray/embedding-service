@@ -5,6 +5,8 @@ LLM服务扩展测试 - 边界条件和错误处理
 import pytest
 import httpx
 
+pytestmark = pytest.mark.e2e
+
 
 @pytest.mark.asyncio
 class TestLLMServiceBoundary:

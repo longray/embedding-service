@@ -9,6 +9,8 @@
 """
 
 import pytest
+
+pytestmark = pytest.mark.integration
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 

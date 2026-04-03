@@ -3,6 +3,8 @@
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 import httpx
+
+pytestmark = pytest.mark.unit
 from wrapper.src.utils.http_pool import HTTPClientPool
 
 

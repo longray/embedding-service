@@ -4,6 +4,8 @@ import time
 import pytest
 from wrapper.src.utils.cache import ThreadSafeLRUCache, hash_text
 
+pytestmark = pytest.mark.unit
+
 
 class TestHashText:
     def test_same_input_same_hash(self):

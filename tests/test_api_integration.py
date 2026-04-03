@@ -22,6 +22,9 @@ import json
 from datetime import datetime
 from typing import Any
 import sys
+import pytest
+
+pytestmark = pytest.mark.e2e
 
 # 服务配置
 BASE_URLS = {

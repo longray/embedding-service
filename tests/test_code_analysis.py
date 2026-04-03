@@ -8,6 +8,8 @@
 
 import pytest
 
+pytestmark = pytest.mark.unit
+
 from wrapper.src.utils.code_analyzer import (
     CodeAnalysisResult,
     build_code_symbols,
