@@ -23,6 +23,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `__init__.py`: 重导出 `MemoryManager`，保持向后兼容
   - 导入路径 `from wrapper.src.utils.memory_manager import MemoryManager` 不变
 
+- **BL-36: main.py 路由拆分**
+  - 将 1063 行拆分为 12 个模块
+  - `models.py` (150行): 17 个 Pydantic 模型集中管理
+  - `state.py` (18行): 共享单例，避免循环导入
+  - `routers/`: 8 个路由模块（health/embeddings/memories/search/relations/sync/websocket/stubs）
+  - `main.py` (303行): app + lifespan + SurrealDBManager + 路由注册
+  - 导入路径 `from wrapper.src.main import app` 不变
+
+- **FastAPI 版本号**: `version="2.4.1"` → `version="2.6.0"`
+
 ### Fixed
 
 - **BL-33: pyproject.toml 过时配置**
@@ -40,12 +50,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BL-39: scripts/ 裸 except 清理**
   - 5 处 `except:` → `except Exception:`
 
+- **测试修复**: 4 个 pre-existing 测试失败
+  - `test_memory_with_empty_content`: content `min_length=1` → 期望 422
+  - `test_memory_with_special_characters`: 添加 UUID 避免去重跳过
+  - `test_source_id_deduplication`: 当前不强制 UNIQUE → 断言 `total==1`
+  - `test_memory_without_content`: BL-36 重构时已移除（语义合并到其他测试）
+  - 测试结果: 61/61 passed（0 failed）
+
 ### Added
 
 - **BL-28: analyze_memory_code 实现**
   - 上传 `type="code"` 记忆时自动调用 `CodeAnalyzer.analyze()`
   - 分析结果写入 `metadata.code_analysis`
   - 分析失败不影响上传（记录 warning）
+
+- **BL-37: utils 单元测试**
+  - `test_cache.py` (11 tests): ThreadSafeLRUCache — 命中/未命中/TTL/淘汰/LRU 顺序/统计
+  - `test_http_pool.py` (5 tests): HTTPClientPool — 创建/复用/关闭/请求
+  - `test_auth.py` (6 tests): WebSocket 认证 — 无 token/正确/错误/None
+  - `test_exceptions.py` (13 tests): 异常层级 — 基类/子类/状态码/消息/继承关系
 
 - **BL-D1: 文档归档**
   - 归档 14 个过时设计文档到 `archive/docs/`

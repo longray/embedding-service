@@ -51,3 +51,6 @@ test_*.json
 
 # Docker 数据（本地运行时生成）
 docker-data/
+
+# Playwright MCP 临时文件
+.playwright-mcp/
