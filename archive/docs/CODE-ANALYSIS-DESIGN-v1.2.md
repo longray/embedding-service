@@ -301,7 +301,7 @@ interface CodeMemoryItem {
               ├── Yes → 尝试 Oxc 解析
               │         │
               │         ▼
-              │    解析耗时 > 200ms 或 内存 < 100MB？
+               │    解析耗时 > 200ms 或 system available memory < 100MB？
               │         ├── Yes → 降级到 Tree-sitter
               │         │         warnings: [{ type: "degraded", from: "oxc", to: "tree-sitter", reason: "timeout" }]
               │         │
@@ -620,7 +620,7 @@ Request:
     max_complexity: 10
 
 Response (200):
-  hits: [...]
+  results: [...]
   total: 10
 ```
 

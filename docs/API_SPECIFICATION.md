@@ -758,7 +758,7 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
 
 **端点**：`POST /api/v1/memories`
 
-**请求示例**：
+**请求示例（普通记忆）**：
 
 ```json
 {
@@ -785,18 +785,58 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
     }
   ]
 }
+```
 
-```text
+**请求示例（代码记忆）**：
+
+```json
+{
+  "memories": [
+    {
+      "content": "def analyze_code(content: str) -> dict:\n    pass",
+      "abstract": "Python analyze_code function",
+      "overview": "代码分析函数，接收字符串返回字典",
+      "type": "code",
+      "tags": ["python", "function"],
+      "project_id": "github.com/user/repo",
+      "metadata": {
+        "file_path": "src/analyzer.py",
+        "file_name": "analyzer.py",
+        "code_analysis": {
+          "language": "python",
+          "analyzer": "tree-sitter",
+          "functions": [{"name": "analyze_code", "start_line": 1}],
+          "classes": [],
+          "complexity": {
+            "cyclomatic_complexity": 3,
+            "function_count": 1,
+            "class_count": 0
+          }
+        },
+        "code_symbols": "analyze_code"
+      }
+    }
+  ],
+  "tenant_id": "default"
+}
+```
 
 **请求参数**：
 
 | 参数 | 类型 | 必需 | 说明 |
 |------|------|------|------|
 | memories | array | ✅ | 记忆列表 |
-| memories[].content | string | ✅ | 记忆内容 |
+| memories[].content | string | ✅ | 记忆内容（代码记忆的完整代码） |
+| memories[].abstract | string | ❌ | 摘要（L0，≤100字符） |
+| memories[].overview | string | ❌ | 概览（L1，≤500字符） |
+| memories[].type | string | ❌ | 记忆类型："general" \| "code" \| "preference" |
+| memories[].tags | array | ❌ | 标签列表 |
+| memories[].project_id | string | ❌ | 项目标识（代码记忆必需） |
 | memories[].metadata | object | ❌ | 元数据 |
-| memories[].entities | array | ❌ | 实体列表 |
-| memories[].relations | array | ❌ | 关系列表 |
+| memories[].metadata.file_path | string | ❌ | 文件路径（代码记忆用于Upsert） |
+| memories[].metadata.code_analysis | object | ❌ | 代码分析结果 |
+| memories[].metadata.code_symbols | string | ❌ | 符号名空格分隔字符串 |
+| tenant_id | string | ❌ | 租户ID（默认："default"） |
 
 **响应示例**：
 
@@ -834,6 +874,24 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
 | mode | string | ❌ | 搜索模式：vector \| keyword \| hybrid |
 | limit | int | ❌ | 结果数量限制（默认：10） |
 | threshold | float | ❌ | 相似度阈值（0.0-1.0） |
+| code_filter | object | ❌ | 代码过滤条件（仅搜索代码记忆时使用） |
+| code_filter.language | string | ❌ | 编程语言过滤，如 "python", "typescript" |
+| code_filter.min_complexity | int | ❌ | 最小圈复杂度（>=） |
+| code_filter.max_complexity | int | ❌ | 最大圈复杂度（<=） |
+
+**code_filter 示例**：
+
+```json
+{
+  "query": "authentication",
+  "mode": "hybrid",
+  "code_filter": {
+    "language": "typescript",
+    "min_complexity": 5,
+    "max_complexity": 30
+  }
+}
+```
 
 **响应示例**：
 

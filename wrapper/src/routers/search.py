@@ -22,6 +22,8 @@ async def search_memories(request: MemorySearchRequest):
                 filter_parts.append(f'code_language = "{request.code_filter["language"]}"')
             if "min_complexity" in request.code_filter:
                 filter_parts.append(f"code_complexity >= {request.code_filter['min_complexity']}")
+            if "max_complexity" in request.code_filter:
+                filter_parts.append(f"code_complexity <= {request.code_filter['max_complexity']}")
             if filter_parts:
                 filter_expr = " AND ".join(filter_parts)
 

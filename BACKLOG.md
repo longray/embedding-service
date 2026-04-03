@@ -42,6 +42,144 @@
 | BL-CA-07 | 代码文件指纹同步 API | ✅ |
 | BL-CA-08 | 代码文件 Upsert | ✅ |
 
+### 待修复
+
+#### BL-CA-05 [P1] code_filter 添加 max_complexity 支持
+
+**目标**: 搜索 API 的 code_filter 参数新增 max_complexity 过滤，转换为 `code_complexity <= N` Meilisearch 过滤条件。
+
+**涉及范围**:
+
+- `wrapper/src/routers/search.py`:
+  - `search_memories()` 函数（当前第 19-26 行）
+  - 在现有 filter_parts 逻辑中添加 `max_complexity` 分支
+
+**前置依赖**: 无
+
+**完成标准**:
+
+- [ ] code_filter 含 max_complexity 时生成 `code_complexity <= N` 过滤条件
+- [ ] 与 language / min_complexity 组合使用时用 AND 连接
+- [ ] 不含 max_complexity 时行为不变（向后兼容）
+- [ ] 编写 pytest 用例验证过滤字符串生成正确
+
+**验证方式**:
+
+```bash
+# 运行代码分析测试
+uv run pytest tests/test_code_analysis.py -v
+
+# 手动验证搜索过滤
+curl -X POST http://localhost:17999/api/v1/memories/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "authentication",
+    "code_filter": {
+      "language": "python",
+      "min_complexity": 5,
+      "max_complexity": 30
+    }
+  }'
+```
+
+**状态**: 📋 待开始（1 行代码，高价值）
+
+---
+
+#### BL-CA-06 [P1] 修复 v1.2 设计文档 4 个小问题
+
+**目标**: 修正 CODE-ANALYSIS-DESIGN-v1.2.md 中发现的 4 个文档错误，确保文档与实现一致。
+
+**涉及范围**:
+
+- `archive/docs/CODE-ANALYSIS-DESIGN-v1.2.md`（4 处修改）
+
+**前置依赖**: 无
+
+**完成标准**:
+
+- [ ] 第 304 行 "内存 < 100MB" → "system available memory < 100MB"
+- [ ] Section 4.3 batch upload 示例补充 `tenant_id: "default"`
+- [ ] Section 9.2 search 响应 `hits` → `results`（与后端实际返回一致）
+- [ ] 通过 markdownlint 检查
+
+**验证方式**:
+
+```bash
+# Markdown 格式检查
+uv run task lint-md
+
+# 人工 review 4 处修改
+```
+
+**状态**: 📋 待开始（文档债务）
+
+---
+
+#### BL-CA-09 [P2] 代码分析集成测试补充
+
+**目标**: 补充代码分析功能的端到端集成测试，验证上传→字段提取→搜索过滤完整流程。
+
+**涉及范围**:
+
+- `tests/test_code_analysis_integration.py`（新建测试文件）
+- 测试覆盖：上传代码记忆、Meilisearch字段提取、code_filter搜索、Upsert逻辑
+
+**前置依赖**: BL-CA-05（max_complexity 支持）
+
+**完成标准**:
+
+- [ ] 测试上传代码记忆时 Meilisearch 正确接收 code_language/code_complexity/code_symbols 等字段
+- [ ] 测试 code_filter 所有参数（language, min_complexity, max_complexity）组合过滤
+- [ ] 测试 Upsert 逻辑：同一 file_path + project_id 更新而非新建
+- [ ] 测试搜索返回结果包含 code_analysis 元数据
+- [ ] 测试 code_symbols 可被全文搜索匹配
+
+**验证方式**:
+
+```bash
+# 运行集成测试
+uv run pytest tests/test_code_analysis_integration.py -v
+
+# 测试覆盖率检查
+uv run pytest tests/test_code_analysis_integration.py --cov=wrapper.src.utils.code_analyzer --cov-report=term-missing
+```
+
+**状态**: 📋 待开始（技术债务，建议与 BL-CA-05 同步进行）
+
+---
+
+#### BL-CA-10 [P2] 代码分析 API 文档更新
+
+**目标**: 更新 API_SPECIFICATION.md，添加代码分析相关端点的完整文档。
+
+**涉及范围**:
+
+- `docs/API_SPECIFICATION.md`:
+  - 添加 `POST /api/v1/memories` code 类型请求示例
+  - 添加 `code_filter` 参数详细说明（language, min_complexity, max_complexity）
+  - 添加代码分析响应字段说明
+
+**前置依赖**: BL-CA-05, BL-CA-06
+
+**完成标准**:
+
+- [ ] 添加代码记忆上传的完整请求/响应示例
+- [ ] 添加 code_filter 参数表格（字段、类型、必填、说明）
+- [ ] 添加 CodeAnalysisResult 字段说明
+- [ ] 文档通过 markdownlint 检查
+
+**验证方式**:
+
+```bash
+# Markdown 格式检查
+uv run task lint-md
+
+# 人工 review 确保示例可运行
+```
+
+**状态**: 📋 待开始（文档债务）
+
 ---
 
 ## 场景 3: 多设备同步
@@ -203,6 +341,12 @@ v2.6.0 质量治理 — 全部完成 ✅
 ├── BL-D1 归档 ─────────────────────────────► ✅
 └── BL-D2 文档对齐 ─────────────────────────► ✅
 
+当前阶段 — 代码分析完善（P1，约 2-3 小时）
+├── BL-CA-05 max_complexity 支持 ────────────► ✅ 已完成（2026-04-03）
+├── BL-CA-06 v1.2 文档修复 ─────────────────► ✅ 已完成（2026-04-03）
+├── BL-CA-09 集成测试补充 ──────────────────► ✅ 已完成（2026-04-03）
+└── BL-CA-10 API 文档更新 ──────────────────► ✅ 已完成（2026-04-03）
+
 下一阶段 — 多设备同步 v2.7.0（P2，约 4-6 小时）
 ├── BL-29 指纹查询 ─────────────────────────► 📋 待开始
 ├── BL-30 同步预览 ─────────────────────────► 📋 待开始（依赖 BL-29）
@@ -215,4 +359,4 @@ v2.6.0 质量治理 — 全部完成 ✅
 
 ---
 
-*最后更新: 2026-04-03*
+*最后更新: 2026-04-03（已添加 BL-CA-05/06/09/10 代码分析任务）*
