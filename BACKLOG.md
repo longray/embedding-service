@@ -48,7 +48,10 @@
 
 > **用户流程**: 插件端有本地记忆文件 → `GET /api/v1/sync/fingerprints` 获取服务端指纹 → `POST /api/v1/sync/preview` 比对差异 → 用户确认 → `POST /api/v1/sync/full` 执行同步 → 冲突时解决
 >
-> **当前状态**: 端点已注册，但 sync_preview/sync_full 仍是 stub（返回空结果）。19 个 sync 测试失败。
+> **当前状态**: 端点已注册，API 模型已定义，测试已编写（32 个 mock 测试）。但 sync_preview/sync_full 仍是 stub，19 个测试失败。
+>
+> **产品文档**: `docs/product-sync-v2.7.md`
+> **开发文档**: `docs/dev-sync-v2.7.md`
 
 ### 待修复
 
@@ -59,15 +62,16 @@
 **涉及范围**:
 
 - `wrapper/src/utils/memory_manager/sync.py`:
-  - `get_fingerprints()` (当前返回空列表 `[]`)
+  - `get_fingerprints()` (当前第 12-17 行，返回空列表)
 
 **前置依赖**: 无
 
 **完成标准**:
 
-- [ ] 查询 SurrealDB `SELECT id, content_hash, local_id, source_id, mtime FROM memory WHERE tenant_id = $tenant_id`
+- [ ] 查询 SurrealDB `SELECT source_id, content_hash, updated_at FROM memory WHERE source_id != NONE AND tenant_id = $tenant_id`
+- [ ] 字段映射: `content_hash` → `hash`, `updated_at` → `mtime`
+- [ ] `tests/test_phase_b_sync.py::TestSyncFingerprints` 3 个测试通过
 - [ ] 数据库有数据时返回非空列表
-- [ ] `tests/test_phase_b_sync.py::TestSyncFingerprints` 相关测试通过
 
 **验证方式**:
 
@@ -81,19 +85,60 @@ uv run pytest tests/test_phase_b_sync.py::TestSyncFingerprints -v --tb=short
 
 #### BL-30 [P2] 实现同步预览 #scene3
 
-**目标**: `POST /api/v1/sync/preview` 比对本地与服务端指纹，返回 to_upload/to_delete/conflicts。
+**目标**: `POST /api/v1/sync/preview` 比对本地与服务端指纹，返回 to_upload/to_delete/conflicts 三分类。
+
+**涉及范围**:
+
+- `wrapper/src/utils/memory_manager/sync.py`:
+  - `sync_preview()` (当前第 19-33 行，返回空结果)
+  - 新增 `_record_conflict()` 辅助方法（写入 conflict 表）
+- `wrapper/src/utils/memory_manager/sync.py` 或新文件:
+  - 新增 `get_conflicts()`, `get_conflict_detail()` 查询方法
 
 **前置依赖**: BL-29
 
-**状态**: 📋 待开始
+**完成标准**:
+
+- [ ] 新记录 → `to_upload`（reason: "new"）
+- [ ] 服务端有但本地无 → `to_delete`
+- [ ] hash 不同 → `conflicts`（含 local_hash/server_hash）
+- [ ] hash 相同 → 不出现在任何列表
+- [ ] 冲突记录写入 `conflict` 表（status="pending"）
+- [ ] `tests/test_phase_b_sync.py::TestSyncPreview` 4 个测试通过
+
+**验证方式**:
+
+```bash
+uv run pytest tests/test_phase_b_sync.py::TestSyncPreview -v --tb=short
+```
+
+**状态**: 📋 待开始（依赖 BL-29）
 
 ---
 
 #### BL-31 [P2] 实现全量同步 #scene3
 
-**目标**: `POST /api/v1/sync/full` 批量上传/更新/删除记忆。
+**目标**: `POST /api/v1/sync/full` 批量上传/更新记忆。
 
-**前置依赖**: BL-29
+**涉及范围**:
+
+- `wrapper/src/utils/memory_manager/sync.py`:
+  - `sync_full()` (当前第 35-51 行，返回 success=0)
+
+**前置依赖**: 无（与 BL-29 并行，直接调用 `upload_memories`）
+
+**完成标准**:
+
+- [ ] 透传调用 `self.upload_memories(memories, tenant_id=tenant_id)`
+- [ ] 去重跳过 → `skipped` 列表
+- [ ] 部分失败不中断 → `errors` 列表
+- [ ] `tests/test_phase_b_sync.py::TestSyncFull` 3 个测试通过
+
+**验证方式**:
+
+```bash
+uv run pytest tests/test_phase_b_sync.py::TestSyncFull -v --tb=short
+```
 
 **状态**: 📋 待开始
 
@@ -101,49 +146,32 @@ uv run pytest tests/test_phase_b_sync.py::TestSyncFingerprints -v --tb=short
 
 #### BL-32 [P2] 实现冲突解决 #scene3
 
-**目标**: `POST /api/v1/sync/conflicts/{id}/resolve` 支持 USE_LOCAL/USE_BACKEND/KEEP_BOTH。
+**目标**: `POST /api/v1/sync/conflicts/{id}/resolve` 支持 use_local/use_remote/keep_both 三种策略。
 
-**前置依赖**: BL-30
+**涉及范围**:
 
-**状态**: 📋 待开始
+- `wrapper/src/utils/memory_manager/sync.py`:
+  - `resolve_conflict()` (当前第 53-63 行，返回 not implemented)
+- SurrealDB `conflict` 表（需创建 schema）
 
----
+**前置依赖**: BL-30（需要 conflict 表有数据）
 
-## 场景 4: 开发者体验（v2.6.0 质量治理）
+**完成标准**:
 
-> **目标**: 代码质量、模块化、文档一致性。
->
-> **当前状态**: 全部完成。
+- [ ] `use_local`: UPDATE memory 内容为本地版本，重新生成 embedding
+- [ ] `use_remote`: 保留服务端，仅标记 conflict 为 resolved
+- [ ] `keep_both`: CREATE 新记忆（复制服务端 + 修改 source_id 加后缀），重新生成 embedding
+- [ ] 不存在的 conflict_id → 返回错误
+- [ ] `tests/test_phase_b_sync.py::TestResolveConflict` 3 个测试通过
+- [ ] `tests/test_phase_b_sync.py::TestConflictPersistence` 3 个测试通过
 
-### 已完成
+**验证方式**:
 
-| 编号 | 目标 | Commit |
-|------|------|--------|
-| BL-28 | analyze_memory_code 实现 | afdf896 |
-| BL-33 | pyproject.toml 修复 | afdf896 |
-| BL-34 | meilisearch_code/ Pyright 类型修复 | afdf896 |
-| BL-35 | memory_manager.py 1715行 → Mixin 10 子模块 | 44423c6 |
-| BL-36 | main.py 1063行 → routers/ 12 模块 | 2fec8ff |
-| BL-37 | utils 单元测试 (35 cases) | 214567c |
-| BL-38 | 移除硬编码 API Key | afdf896 |
-| BL-39 | scripts/ 裸 except 清理 | afdf896 |
-| BL-D1 | 归档 29 个过时文档 + 23 个 JSON 报告 | 9b15585 |
-| BL-D2 | CHANGELOG/README/AGENTS.md 对齐 | 2b5c69d |
+```bash
+uv run pytest tests/test_phase_b_sync.py::TestResolveConflict tests/test_phase_b_sync.py::TestConflictPersistence -v --tb=short
+```
 
----
-
-## 暂缓任务
-
-| 编号 | 目标 | 原因 |
-|------|------|------|
-| BL-5 [P2] Meilisearch 代码分析字段索引 | 依赖 BL-28（已完成，可启动） |
-| BL-7 [P3] 跨文件关系解析 | 记忆级输入顺序不确定 |
-| BL-8 [P3] 插件端代码分析工具 | 需插件端配合 |
-| BL-1 [P2] Tenant ID 不匹配 | 需插件端配合 |
-
-## 可无限期推迟（无用户场景）
-
-以下 11 个端点已注册但无调用方，当前返回 500（NotImplementedError 被 exception handler 统一处理）：
+**状态**: 📋 待开始（依赖 BL-30）
 
 | 端点 | 说明 |
 |------|------|
@@ -175,12 +203,15 @@ v2.6.0 质量治理 — 全部完成 ✅
 ├── BL-D1 归档 ─────────────────────────────► ✅
 └── BL-D2 文档对齐 ─────────────────────────► ✅
 
-下一阶段 — 多设备同步（P2，约 4-6 小时）
+下一阶段 — 多设备同步 v2.7.0（P2，约 4-6 小时）
 ├── BL-29 指纹查询 ─────────────────────────► 📋 待开始
 ├── BL-30 同步预览 ─────────────────────────► 📋 待开始（依赖 BL-29）
-├── BL-31 全量同步 ─────────────────────────► 📋 待开始（依赖 BL-29）
+├── BL-31 全量同步 ─────────────────────────► 📋 待开始（可与 BL-29 并行）
 └── BL-32 冲突解决 ─────────────────────────► 📋 待开始（依赖 BL-30）
 ```
+
+> **产品文档**: `docs/product-sync-v2.7.md`
+> **开发文档**: `docs/dev-sync-v2.7.md`
 
 ---
 
