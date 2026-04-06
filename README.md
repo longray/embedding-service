@@ -1,6 +1,6 @@
 # Embedding Service (OpenCode Memory Stack)
 
-**当前版本**: v2.6.0
+**当前版本**: v2.7.0
 
 ## 开发状态
 
@@ -23,6 +23,7 @@
 - ✅ **v2.4.2** SQL 注入修复（B-024 LIMIT/relationship_type 参数化, B-025 record_id type::record()）
 - ✅ **v2.4.2** Bandit 安全扫描标记完成
 - ✅ **v2.6.0** 质量治理（memory_manager Mixin 拆分 + main.py 路由模块化 + 35 个单元测试 + 文档归档对齐）
+- ✅ **v2.7.0** 多设备同步（指纹查询/同步预览/全量同步/冲突解决）+ 测试架构优化
 
 ### P3 优化路线图 🚀
 

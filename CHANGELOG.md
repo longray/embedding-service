@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-04-04
+
+### Added
+
+- **BL-29: get_fingerprints 实现**
+  - 查询 SurrealDB `SELECT source_id, content_hash, updated_at FROM memory`
+  - 字段映射: `content_hash` → `hash`, `updated_at` → `mtime`
+  - 按 `tenant_id` 隔离，过滤无 `source_id` 记录
+
+- **BL-30: sync_preview 实现**
+  - 比对本地与服务端指纹，三分类输出: `to_upload` / `to_delete` / `conflicts`
+  - 检测到冲突时自动写入 `conflict` 表（status=pending）
+
+- **BL-31: sync_full 实现**
+  - 透传 `upload_memories()`，复用已有的 embedding + 去重 + Meilisearch 双写逻辑
+
+- **BL-32: resolve_conflict 实现**
+  - 三种冲突解决策略: `use_local` / `use_remote` / `keep_both`
+  - `use_local`: UPDATE memory 内容 + Meilisearch 同步
+  - `use_remote`: 仅标记 conflict 为 resolved
+  - `keep_both`: CREATE 新 memory（source_id 加 `-local` 后缀）+ Meilisearch 同步
+  - 新增辅助方法: `_record_conflict`, `get_conflicts`, `get_conflict_detail`
+
+- **测试架构优化 (BL-T1~T11)**
+  - pytest 分层标记: unit (50P) / integration (128P) / e2e
+  - pre-commit 仅跑 unit 测试 (9.52s)
+  - LLM 服务条件跳过: 未启动时自动 skip
+  - 文件合并: 27 → 21 文件
+  - wrapper 接口适配: 删除 8 个已移除功能测试
+
+- **代码分析完善 (BL-CA-05/06/09/10)**
+  - code_filter 新增 `max_complexity` 支持
+  - 代码分析集成测试补充
+  - API 文档更新
+
+### Changed
+
+- **sync.py**: 从 206 行扩展到 347 行（+141 行），4 个 stub → 实际实现
+- **test_phase_b_sync.py**: 移除 14 个 skip 装饰器，32/32 测试通过
+
+---
+
 ## [2.6.0] - 2026-04-02
 
 ### Changed

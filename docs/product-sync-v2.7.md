@@ -145,7 +145,7 @@ POST /api/v1/sync/preview → conflicts=1
 
 ```bash
 uv run pytest tests/test_phase_b_sync.py -v
-# 期望: 全部通过（当前 13 passed, 19 failed）
+# 期望: 全部通过（当前 32 passed, 0 failed）
 ```
 
 ### AC-3: 向后兼容

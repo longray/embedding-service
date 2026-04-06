@@ -32,7 +32,7 @@ uv run python start_services.py --with-llm --no-wrapper
    └── 等待就绪（约10-30秒）
 
 3. 启动包装层服务（推荐）
-   ├── 端口：3001
+   ├── 端口：17999
    └── 等待就绪（<5秒）
 
 ```text
@@ -55,7 +55,7 @@ uv run python start_services.py --with-llm --no-wrapper
 
 ### 依赖关系
 
-```
+```text
 
 包装层服务 (17999)
     ├── 必须依赖：Embedding 服务 (18000)
@@ -63,7 +63,7 @@ uv run python start_services.py --with-llm --no-wrapper
     ├── 可选依赖：LLM 服务 (18001)
     └── 可选依赖：Meilisearch (7700) — 全文搜索（不可用时回退到 SurrealDB BM25）
 
-```text
+```
 
 ### 故障排查
 
@@ -84,6 +84,29 @@ uv run python start_services.py --with-llm --no-wrapper
 - 确保后端服务已启动
 - 检查端口 17999 是否被占用
 - 检查环境变量配置（SurrealDB、Meilisearch 地址等）
+
+## ✅ 验证 v2.7.0 功能（多设备同步）
+
+服务启动后，验证同步端点是否正常工作：
+
+```bash
+# 1. 健康检查
+curl http://localhost:17999/health
+
+# 2. 获取服务端指纹（空数据库返回空列表）
+curl "http://localhost:17999/api/v1/sync/fingerprints?tenant_id=default"
+
+# 3. 同步预览（空指纹列表）
+curl -X POST http://localhost:17999/api/v1/sync/preview \
+  -H "Content-Type: application/json" \
+  -d '{"fingerprints": [], "tenant_id": "default"}'
+```
+
+预期响应：
+
+- `/health`: `{"status": "healthy", ...}`
+- `/sync/fingerprints`: `{"fingerprints": [], "count": 0}`
+- `/sync/preview`: `{"synced": 0, "to_upload": [], "to_delete": [], "conflicts": []}`
 
 ## 📝 手动启动（不推荐）
 
@@ -115,8 +138,7 @@ uv run python start_services.py
 
 ```bash
 uv run python start_services.py --with-llm
-
-```text
+```
 
 - 启动所有服务
 - 提供完整功能
@@ -164,7 +186,6 @@ export SURREAL_DB=memory_db
 
 # 运行迁移脚本（幂等，可重复运行）
 uv run python scripts/migrate_to_meilisearch.py --batch-size 200
-
-```text
+```
 
 详细配置说明见 `README.md`。

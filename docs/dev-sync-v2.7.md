@@ -13,26 +13,21 @@
 |------|------|------|
 | API 端点（5 个） | ✅ 已注册 | `wrapper/src/routers/sync.py` |
 | Pydantic 模型（6 个） | ✅ 已定义 | `wrapper/src/models.py` |
-| `sync_code_fingerprints()` | ✅ 已实现（代码文件专用） | `wrapper/src/utils/memory_manager/sync.py:65-168` |
-| 测试用例（32 个） | ✅ 已编写（全部 mock） | `tests/test_phase_b_sync.py` |
+| `sync_code_fingerprints()` | ✅ 已实现（代码文件专用） | `wrapper/src/utils/memory_manager/sync.py` |
+| 测试用例（32 个） | ✅ 已编写（含基本测试 + 真实策略测试 + 冲突持久化测试） | `tests/test_phase_b_sync.py` |
 | `upload_memories()` | ✅ 已实现（含 embedding + 去重 + Meilisearch 双写） | `wrapper/src/utils/memory_manager/crud.py` |
 
-### 待实现（Stub）
+### 已实现
 
-| 方法 | 位置 | 当前行为 |
-|------|------|----------|
-| `get_fingerprints()` | sync.py:12-17 | 返回 `[]` |
-| `sync_preview()` | sync.py:19-33 | 返回空结果 |
-| `sync_full()` | sync.py:35-51 | 返回 `success=0` |
-| `resolve_conflict()` | sync.py:53-63 | 返回 `{"resolved": False}` |
-
-### 待新增（测试需要）
-
-| 方法 | 说明 |
-|------|------|
-| `_record_conflict()` | 创建 conflict 记录（SurrealDB INSERT） |
-| `get_conflicts()` | 查询 conflict 列表 |
-| `get_conflict_detail()` | 查询单条 conflict 详情 |
+| 方法 | 位置 | 说明 |
+|------|------|------|
+| `get_fingerprints()` | sync.py | 查询 SurrealDB 指纹，字段映射 content_hash→hash, updated_at→mtime |
+| `sync_preview()` | sync.py | 三分类比对 (to_upload/to_delete/conflicts) + conflict 表写入 |
+| `sync_full()` | sync.py | 透传 `upload_memories()`，含 embedding + 去重 + 双写 |
+| `resolve_conflict()` | sync.py | 三种策略 (use_local/use_remote/keep_both) + Meilisearch 同步 |
+| `_record_conflict()` | sync.py | 创建 conflict 记录 |
+| `get_conflicts()` | sync.py | 查询 conflict 列表（支持 status 过滤） |
+| `get_conflict_detail()` | sync.py | 查询单条 conflict 详情（自动补全 conflict: 前缀） |
 
 ---
 
