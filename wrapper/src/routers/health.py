@@ -29,11 +29,9 @@ async def check_embedding_service_health():
 
 async def check_surrealdb_health():
     try:
-        from ..main import SurrealDBManager
-
-        db_manager = await SurrealDBManager.get_instance()
-        await db_manager.db.query("SELECT * FROM $version")
-        return {"status": "healthy"}
+        if state.memory_manager and state.memory_manager._db:
+            return {"status": "connected"}
+        return {"status": "unhealthy", "error": "数据库未初始化"}
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}
 

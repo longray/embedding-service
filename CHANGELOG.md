@@ -45,6 +45,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **sync.py**: 从 206 行扩展到 347 行（+141 行），4 个 stub → 实际实现
 - **test_phase_b_sync.py**: 移除 14 个 skip 装饰器，32/32 测试通过
 
+### Fixed
+
+- **场景 7 修复** (2026-04-06)
+  - 修复 HNSW stats 返回结构双重嵌套问题
+  - 修复 cache stats 返回结构双重嵌套问题
+  - 修复 SurrealDB 健康检查逻辑（使用 `state.memory_manager` 替代单例模式）
+  - 修复 HNSW 查询语法（添加 `ON memory`）
+  - diagnose.py 现在显示：✅ SurrealDB 连接正常，✅ 缓存系统已启用
+
 ---
 
 ## [2.6.0] - 2026-04-02

@@ -17,11 +17,8 @@ async def get_hnsw_stats(tenant_id: str = "default"):
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
 
     try:
-        stats = await state.memory_manager.get_memory_stats(tenant_id)
-        return {
-            "status": "success",
-            "stats": stats,
-        }
+        result = await state.memory_manager.get_memory_stats(tenant_id)
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取统计失败: {e}") from e
 
@@ -65,8 +62,8 @@ async def get_cache_stats():
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
 
     try:
-        stats = await state.memory_manager.get_cache_stats()
-        return {"status": "success", "stats": stats}
+        result = await state.memory_manager.get_cache_stats()
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取缓存统计失败: {e}") from e
 
