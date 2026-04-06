@@ -56,10 +56,10 @@
 | `/api/v1/memories/clear` | DELETE | 清空所有记忆（调试专用） | 🔐 API Key |
 | `/api/v1/access-log` | POST | 上报访问日志 | 🌍 公开 |
 | `/ws/memories/live` | WebSocket | 实时推送记忆变更 | 🔓 可选 |
-| `/api/v1/hnsw/stats` | GET | HNSW 索引统计 ⏳ 计划中 | 🌍 公开 |
+| `/api/v1/hnsw/stats` | GET | HNSW 索引统计 ✅ 已实现 | 🌍 公开 |
 | `/api/v1/hnsw/optimize` | POST | 优化 HNSW 参数 ⏳ 计划中 | 🌍 公开 |
 | `/api/v1/hnsw/rebuild` | POST | 重建 HNSW 索引 ⏳ 计划中 | 🌍 公开 |
-| `/api/v1/cache/stats` | GET | 缓存统计 ⏳ 计划中 | 🌍 公开 |
+| `/api/v1/cache/stats` | GET | 缓存统计 ✅ 已实现 | 🌍 公开 |
 | `/api/v1/cache/clear` | POST | 清空缓存 ⏳ 计划中 | 🌍 公开 |
 | `/api/v1/cache/warmup` | POST | 预热缓存 ⏳ 计划中 | 🌍 公开 |
 | `/api/v1/prefetch/related` | POST | 预取关联记忆 ⏳ 计划中 | 🌍 公开 |

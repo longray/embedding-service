@@ -13,7 +13,7 @@ class StubsMixin:
         """获取 HNSW 索引统计信息"""
         try:
             # 查询 HNSW 索引信息
-            query = "INFO FOR INDEX memory_embedding_hnsw"
+            query = "INFO FOR INDEX memory_embedding_hnsw ON memory"
             result = await self._db_query(query, {})
 
             # 检查是否有结果
