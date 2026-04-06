@@ -380,13 +380,10 @@ if response.json()["conflicts"]:
     )
 ```
 
-## 文件位置
+## 贡献指南
 
-D:\embedding_service\README.md
+欢迎贡献！请查看 [CONTRIBUTING.md](CONTRIBUTING.md) 了解如何参与。
 
-## 验证
+## 许可证
 
-- Markdown 语法正确性检查
-- 通过浏览器打开或在 CI 中渲染 README.md
-
-<!-- OMO_INTERNAL_INITIATOR -->
+[MIT](LICENSE)

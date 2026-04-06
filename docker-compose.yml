@@ -23,7 +23,7 @@ services:
     image: getmeili/meilisearch:v1.13
     container_name: embedding-meilisearch
     ports:
-      - "7700:7700"
+      - "18003:7700"
     environment:
       - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-masterKey_change_in_production}
       - MEILI_ENV=development
@@ -87,9 +87,9 @@ services:
       dockerfile: Dockerfile
     container_name: wrapper-service
     ports:
-      - "3001:3001"
+      - "17999:17999"
     environment:
-      - WRAPPER_PORT=3001
+      - WRAPPER_PORT=17999
       - WRAPPER_EMBEDDING_SERVICE_URL=http://embedding:18000
       - WRAPPER_LLM_SERVICE_URL=http://llm:18001
       - WRAPPER_SURREALDB_URL=ws://surrealdb:18002/rpc
@@ -117,7 +117,7 @@ services:
     networks:
       - embedding-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:17999/health"]
       interval: 10s
       timeout: 5s
       retries: 3
