@@ -553,11 +553,65 @@ v2.6.0 质量治理 — 全部完成 ✅
 - BL-PROD-03: 添加 Prometheus 指标导出
 - BL-PROD-04: 创建备份恢复脚本
 - BL-PROD-05: 编写生产部署指南
-```
-
-> **产品文档**: `docs/product-sync-v2.7.md`
-> **开发文档**: `docs/dev-sync-v2.7.md`
 
 ---
 
-*最后更新: 2026-04-04（v2.7.0 发布准备进行中）*
+## 场景 9: 代码分析增强（v1.4 实施中）
+
+> **用户场景**: 开发者需要深度代码理解、跨文件引用追踪、项目级代码地图。
+>
+> **设计文档**: `docs/CODE-ANALYSIS-DESIGN-v1.4.md`
+> **产品文档**: `docs/product/CODE_ANALYSIS_FEATURES.md`
+> **API 文档**: `docs/dev/CODE_ANALYSIS_API.md`
+
+### Phase 1: 数据模型补齐（2-3 周）— P0
+
+| 编号 | 目标 | 状态 | 说明 |
+|------|------|------|------|
+| BL-CA-11 | 函数完整字段 | 📋 | `return_type`, `is_exported`, `is_async` |
+| BL-CA-12 | 类成员提取 | 📋 | `methods`, `properties` |
+| BL-CA-13 | 接口定义提取 | 📋 | 新增 `_extract_interfaces` |
+| BL-CA-14 | 导入结构化 | 📋 | `source`, `imported_names` |
+| BL-CA-15 | 导出结构化 | 📋 | `name`, `type`, `is_default` |
+| BL-CA-16 | 依赖分类 | 📋 | `internal/external/builtin` |
+| BL-CA-17 | 复杂度指标完整 | 📋 | `max_function_complexity`, `average_function_complexity` |
+| BL-CA-18 | code_filter 扩展 | 📋 | 支持 `function_count`, `class_count` 等 |
+
+### Phase 2: 调用关系与引用追踪（3-4 周）— P1
+
+| 编号 | 目标 | 状态 | 说明 |
+|------|------|------|------|
+| BL-CA-19 | 函数调用提取 | 📋 | 新增 `_extract_calls` |
+| BL-CA-20 | 调用关系存储 | 📋 | `memory_relation` 新增 `calls` 类型 |
+| BL-CA-21 | 引用查询 API | 📋 | `GET /memories/{id}/references` |
+| BL-CA-22 | 依赖查询 API | 📋 | `GET /memories/{id}/dependencies` |
+
+### Phase 3: 项目级代码地图（2-3 周）— P1
+
+| 编号 | 目标 | 状态 | 说明 |
+|------|------|------|------|
+| BL-CA-23 | 项目统计聚合 | 📋 | 按 `project_id` 聚合 |
+| BL-CA-24 | 代码地图 API | 📋 | `GET /projects/{id}/map` |
+| BL-CA-25 | 热点文件标记 | 📋 | 基于复杂度统计 |
+
+### Phase 4: 语义代码搜索（3-4 周）— P2
+
+| 编号 | 目标 | 状态 | 说明 |
+|------|------|------|------|
+| BL-CA-26 | 代码预处理 | 📋 | 去除注释/空行，提取关键结构 |
+| BL-CA-27 | 代码专用 embedding | 📋 | 函数签名单独 embed |
+| BL-CA-28 | 语义搜索 API | 📋 | `semantic_query` 参数 |
+| BL-CA-29 | 混合搜索优化 | 📋 | 关键词 + 语义 RRF 融合 |
+
+### Phase 5: opencode 工具集成（2-3 周）— P3
+
+| 编号 | 目标 | 状态 | 说明 |
+|------|------|------|------|
+| BL-CA-30 | 工具定义 | 📋 | `.opencode/tools/code-analyzer.json` |
+| BL-CA-31 | code_search 工具 | 📋 | 代码搜索接口 |
+| BL-CA-32 | code_context 工具 | 📋 | 获取代码上下文 |
+| BL-CA-33 | code_impact 工具 | 📋 | 变更影响分析 |
+
+---
+
+*最后更新: 2026-04-07（代码分析 v1.4 实施中）*
