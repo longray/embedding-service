@@ -2,7 +2,7 @@
 
 > 已完成任务归档，采用 Agent 手册规范格式
 
-**归档时间**: 2026-03-30
+**归档时间**: 2026-04-07
 
 ---
 
@@ -54,6 +54,60 @@
 
 ---
 
+## 2026-04-07 归档批次
+
+### 场景 1: 记忆上传与搜索
+
+- [x] BL-18 [P0] 修复测试用例适配 abstract/overview 必填 #quality (完成于 2026-04-04)
+- [x] BL-19 [P0] 修复双写测试验证上传→Meilisearch 流程 #quality (完成于 2026-04-04)
+- [x] BL-20 [P0] 端到端验证上传→搜索全链路（87/87）#e2e (完成于 2026-04-04)
+- [x] BL-24 [P1] 修复 get_memory_summary 连接泄露 #bug (完成于 2026-04-04)
+- [x] BL-25 [P2] 清理调试日志 #cleanup (完成于 2026-04-04)
+- [x] BL-26 [P1] 实现智能去重决策（替代硬编码 KEEP_BOTH）#feature (完成于 2026-04-04)
+- [x] BL-27 [P1] 实现 _update_memory（SurrealDB UPDATE + Meilisearch 同步）#feature (完成于 2026-04-04)
+
+### 场景 2: 代码分析
+
+- [x] BL-4 [P0] 代码分析结果持久化（Phase A）#feature (完成于 2026-04-03)
+- [x] BL-6 [P0] LLM 代码摘要生成（Phase C）#feature (完成于 2026-04-03)
+- [x] BL-28 [P0] analyze_memory_code 实现（CodeAnalyzer 集成）#feature (完成于 2026-04-04)
+- [x] BL-CA-05 [P1] code_filter 添加 max_complexity 支持 #feature (完成于 2026-04-03)
+- [x] BL-CA-06 [P1] 修复 v1.2 设计文档 4 个小问题 #docs (完成于 2026-04-03)
+- [x] BL-CA-07 [P1] 代码文件指纹同步 API #feature (完成于 2026-04-03)
+- [x] BL-CA-08 [P1] 代码文件 Upsert #feature (完成于 2026-04-03)
+- [x] BL-CA-09 [P1] 代码分析集成测试补充 #quality (完成于 2026-04-03)
+- [x] BL-CA-10 [P1] 代码分析 API 文档更新 #docs (完成于 2026-04-03)
+
+### 场景 3: 多设备同步
+
+- [x] BL-29 [P0] get_fingerprints 查询 SurrealDB 指纹 #sync (完成于 2026-04-04)
+- [x] BL-30 [P0] sync_preview 三分类比对 + conflict 表写入 #sync (完成于 2026-04-04)
+- [x] BL-31 [P0] sync_full 透传 upload_memories #sync (完成于 2026-04-04)
+- [x] BL-32 [P0] resolve_conflict 三种策略 + 辅助方法 #sync (完成于 2026-04-04)
+
+### 场景 4: 测试架构优化
+
+- [x] BL-T1 [P0] 定义测试分层标记 (pytest.mark) #quality (完成于 2026-04-04)
+- [x] BL-T2 [P1] 优化 conftest fixture scope #quality (完成于 2026-04-04)
+- [x] BL-T3 [P0] 修复 Mixin 模式导致的 mock 断言失败 #bug (完成于 2026-04-04)
+- [x] BL-T4 [P1] 修复接口变更导致的测试失败 #bug (完成于 2026-04-04)
+- [x] BL-T5 [P2] 清理无效测试文件 #cleanup (完成于 2026-04-04)
+- [x] BL-T6 [P0] pre-commit 配置调整 #quality (完成于 2026-04-04)
+- [x] BL-T7 [P2] 合并小型测试文件 #cleanup (完成于 2026-04-04)
+- [x] BL-T8 [P0] 修复 conftest 配置错误和 session scope 回归 #bug (完成于 2026-04-04)
+- [x] BL-T9 [P1] LLM 服务和 SDK 变更测试条件跳过 #quality (完成于 2026-04-04)
+- [x] BL-T11 [P1] 修复 wrapper 接口变更测试 #bug (完成于 2026-04-04)
+
+### 场景 7: 系统可观测性与开发者工具
+
+- [x] BL-OBS-00 [P0] 修复 docker-compose.yml 端口映射 #bug (完成于 2026-04-04)
+- [x] BL-OBS-01 [P1] 实现 HNSW 统计端点 #feature (完成于 2026-04-04)
+- [x] BL-OBS-02 [P1] 实现缓存统计端点 #feature (完成于 2026-04-04)
+- [x] BL-OBS-03 [P2] 创建 CLI 诊断工具 #feature (完成于 2026-04-04)
+- [x] BL-OBS-04 [P2] 创建 CONTRIBUTING.md #docs (完成于 2026-04-04)
+
+---
+
 ## 归档规范
 
 **格式**: `- [x] {ID} [{Priority}] {描述} #{标签} (完成于 YYYY-MM-DD)`
@@ -64,4 +118,4 @@
 
 ---
 
-*最后更新: 2026-03-30*
+*最后更新: 2026-04-07*

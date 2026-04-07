@@ -1,7 +1,7 @@
 # 代码分析功能
 
 > **版本**: v1.4  
-> **状态**: 实施中  
+> **状态**: Phase 3 已完成，Phase 2 开发中
 > **适用**: OpenCode Memory 插件用户
 
 ---
@@ -141,34 +141,114 @@ curl -X POST http://localhost:17999/api/v1/memories/search \
 
 ---
 
+## v1.4 新特性
+
+### 调用关系追踪 🔄 开发中
+
+追踪函数间的调用关系，支持代码依赖分析。
+
+**功能**:
+
+- 存储函数调用关系 (CallSymbol)
+- 查询函数的调用者 (references)
+- 查询函数的依赖 (dependencies)
+- 支持跨文件调用追踪
+
+**使用场景**:
+
+- 重构前影响分析
+- 理解代码依赖关系
+- 查找未使用代码
+
+### 代码地图 ✅ 已实现
+
+项目级代码可视化，帮助理解项目结构。
+
+**功能**:
+
+- 文件树结构
+- 模块依赖图
+- 热点文件标记
+- 项目统计信息
+
+**使用场景**:
+
+- 新成员快速了解项目
+- 架构审查
+- 代码健康度评估
+
+### 代码统计 ✅ 已实现
+
+项目级代码指标聚合，提供代码健康度快照。
+
+**功能**:
+
+- 函数/类/接口总数
+- 平均圈复杂度
+- 语言分布统计
+- 文件规模分布
+
+**使用场景**:
+
+- 项目健康度评估
+- 技术债务追踪
+- 团队代码质量报告
+
+### 分析结果缓存 ✅ 已实现
+
+缓存代码分析结果，避免重复解析。
+
+**功能**:
+
+- 基于文件指纹的缓存命中
+- 自动失效（文件修改后重新分析）
+- 减少分析延迟
+
+### 增强的代码指标
+
+**新增指标**:
+
+- 返回类型分析
+- 导出/异步标记
+- 类属性提取
+- 接口定义提取
+- 依赖分类 (internal/external/builtin)
+
+---
+
+## API 状态
+
+| API | 状态 | 说明 |
+|-----|------|------|
+| 代码搜索 | ✅ 可用 | 基础搜索 + 过滤 |
+| 代码地图 | ✅ 可用 | GET /projects/{id}/map |
+| 代码统计 | ✅ 可用 | GET /projects/{id}/stats |
+| 调用关系存储 | 🔄 开发中 | POST /calls/batch |
+| 引用查询 | 🔄 开发中 | GET /memories/{id}/references |
+| 依赖查询 | 🔄 开发中 | GET /memories/{id}/dependencies |
+
+---
+
 ## 使用场景
 
-### 场景 1: 快速定位代码
-
-**问题**: 忘记某个函数定义在哪里
-
-**解决**:
-```bash
-curl -X POST http://localhost:17999/api/v1/memories/search \
-  -d '{"query": "validateUser", "type": "code"}'
-```
-
-### 场景 2: 理解代码影响
+### 场景 1: 重构影响分析 🔄 开发中
 
 **问题**: 修改 `auth.ts` 会影响哪些文件？
 
 **解决**:
+
 ```bash
 # 1. 找到 auth.ts 的记忆 ID
-# 2. 查询引用
+# 2. 查询引用关系（开发中）
 curl http://localhost:17999/api/v1/memories/mem_auth/references
 ```
 
-### 场景 3: 发现复杂代码
+### 场景 2: PR 代码审查 ✅ 已实现
 
-**问题**: 找出项目中圈复杂度最高的函数
+**问题**: 找出 PR 中圈复杂度最高的函数
 
 **解决**:
+
 ```bash
 curl -X POST http://localhost:17999/api/v1/memories/search \
   -d '{
@@ -180,12 +260,14 @@ curl -X POST http://localhost:17999/api/v1/memories/search \
   }'
 ```
 
-### 场景 4: 项目概览
+### 场景 3: 项目架构概览 ✅ 已实现
 
 **问题**: 新接手项目，快速了解结构
 
 **解决**:
+
 ```bash
+# 获取项目代码地图
 curl http://localhost:17999/api/v1/projects/github.com/user/repo/map
 ```
 
@@ -256,6 +338,19 @@ curl http://localhost:17999/api/v1/projects/github.com/user/repo/map
 
 ---
 
+## API 实施状态
+
+| API | 方法 | 状态 | 计划 |
+|-----|------|------|------|
+| 代码上传 | POST /api/v1/memories | ✅ 已支持 | - |
+| 调用关系存储 | POST /api/v1/calls/batch | 🔄 Phase 2 | 2026-04-21 |
+| 引用查询 | GET /api/v1/memories/{id}/references | 🔄 Phase 2 | 2026-04-21 |
+| 依赖查询 | GET /api/v1/memories/{id}/dependencies | 🔄 Phase 2 | 2026-04-21 |
+| 代码地图 | GET /api/v1/projects/{id}/map | 🔄 Phase 3 | 2026-05-05 |
+| 项目统计 | GET /api/v1/projects/{id}/stats | 🔄 Phase 3 | 2026-05-05 |
+
+---
+
 ## 相关文档
 
 - **设计文档**: `docs/CODE-ANALYSIS-DESIGN-v1.4.md`
@@ -264,4 +359,4 @@ curl http://localhost:17999/api/v1/projects/github.com/user/repo/map
 
 ---
 
-*最后更新: 2026-04-07*
+*最后更新: 2026-04-07 | v1.4 新特性和 API 实施状态已更新*

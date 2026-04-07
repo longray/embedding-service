@@ -24,6 +24,19 @@ async def search_memories(request: MemorySearchRequest):
                 filter_parts.append(f"code_complexity >= {request.code_filter['min_complexity']}")
             if "max_complexity" in request.code_filter:
                 filter_parts.append(f"code_complexity <= {request.code_filter['max_complexity']}")
+            # BL-CA-24: 新增代码过滤字段
+            if "min_function_count" in request.code_filter:
+                filter_parts.append(f"code_function_count >= {request.code_filter['min_function_count']}")
+            if "max_function_count" in request.code_filter:
+                filter_parts.append(f"code_function_count <= {request.code_filter['max_function_count']}")
+            if "min_class_count" in request.code_filter:
+                filter_parts.append(f"code_class_count >= {request.code_filter['min_class_count']}")
+            if "max_class_count" in request.code_filter:
+                filter_parts.append(f"code_class_count <= {request.code_filter['max_class_count']}")
+            if "has_exports" in request.code_filter:
+                filter_parts.append(f"code_has_exports = {request.code_filter['has_exports']}")
+            if "analyzer" in request.code_filter:
+                filter_parts.append(f'code_analyzer = "{request.code_filter["analyzer"]}"')
             if filter_parts:
                 filter_expr = " AND ".join(filter_parts)
 

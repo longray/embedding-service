@@ -76,6 +76,7 @@ def sample_code_memory():
                 "analyzer": "tree-sitter",
                 "functions": [{"name": "analyze_code", "start_line": 1}],
                 "classes": [],
+                "exports": [{"name": "analyze_code", "type": "function"}],
                 "complexity": {
                     "cyclomatic_complexity": 3,
                     "function_count": 1,
@@ -109,6 +110,7 @@ class TestCodeAnalysisMeiliFields:
         assert doc["code_class_count"] == 0
         assert doc["code_analyzer"] == "tree-sitter"
         assert doc["code_symbols"] == "analyze_code"
+        assert doc["code_has_exports"] is True  # BL-CA-18: 验证新字段
         assert doc["type"] == "code"
         assert doc["project_id"] == "github.com/test/repo"
 
@@ -233,6 +235,46 @@ class TestCodeFilterParameters:
             assert "code_complexity >= 5" in filters
             assert "code_complexity <= 30" in filters
             assert filters.count(" AND ") == 2
+
+    @pytest.mark.asyncio
+    async def test_code_filter_v14_new_fields(self, manager_with_meili):
+        """测试 BL-CA-24 新增的 code_filter 字段"""
+        from wrapper.src.routers.search import search_memories
+
+        mock_mm = AsyncMock()
+        mock_mm.search_memories.return_value = {"results": [], "total": 0}
+
+        with patch("wrapper.src.routers.search.state") as mock_state:
+            mock_state.memory_manager = mock_mm
+
+            class MockRequest:
+                def __init__(self):
+                    self.query = "auth"
+                    self.mode = "hybrid"
+                    self.limit = 10
+                    self.threshold = 0.7
+                    self.level = 2
+                    self.tenant_id = "default"
+                    self.code_filter = {
+                        "min_function_count": 5,
+                        "max_function_count": 20,
+                        "min_class_count": 1,
+                        "max_class_count": 10,
+                        "has_exports": True,
+                        "analyzer": "oxc",
+                    }
+
+            await search_memories(MockRequest())
+
+            call_kwargs = mock_mm.search_memories.call_args[1]
+            filters = call_kwargs["filters"]
+            assert "code_function_count >= 5" in filters
+            assert "code_function_count <= 20" in filters
+            assert "code_class_count >= 1" in filters
+            assert "code_class_count <= 10" in filters
+            assert "code_has_exports = True" in filters
+            assert 'code_analyzer = "oxc"' in filters
+            assert filters.count(" AND ") == 5
 
 
 # ==================== 测试 3: Upsert 逻辑 ====================
@@ -362,3 +404,141 @@ class TestSearchReturnsMetadata:
         assert len(result["results"]) == 1
         assert result["results"][0]["metadata"]["code_analysis"]["language"] == "python"
         assert result["results"][0]["metadata"]["code_analysis"]["functions"][0]["name"] == "foo"
+
+
+# ==================== 测试 6: 项目统计 API (BL-CA-25) ====================
+
+
+class TestProjectStats:
+    """测试项目代码统计 API"""
+
+    @pytest.mark.asyncio
+    async def test_get_project_stats_returns_correct_structure(self, manager_with_meili):
+        """测试项目统计返回正确的数据结构"""
+        from wrapper.src.routers.memories import get_project_stats
+
+        mock_mm = AsyncMock()
+        mock_mm.get_project_stats.return_value = {
+            "status": "success",
+            "project_id": "github.com/test/repo",
+            "total_files": 10,
+            "total_functions": 50,
+            "total_classes": 5,
+            "avg_complexity": 4.5,
+            "max_complexity": 15,
+        }
+
+        with patch("wrapper.src.routers.memories.state") as mock_state:
+            mock_state.memory_manager = mock_mm
+
+            result = await get_project_stats("github.com/test/repo", "default")
+
+            assert result["status"] == "success"
+            assert result["project_id"] == "github.com/test/repo"
+            assert "total_files" in result
+            assert "total_functions" in result
+            assert "total_classes" in result
+            assert "avg_complexity" in result
+            assert "max_complexity" in result
+
+
+# ==================== 测试 7: 代码分析缓存 (BL-CA-28) ====================
+
+
+class TestCodeAnalysisCache:
+    """测试代码分析结果缓存"""
+
+    def test_code_analyzer_has_cache(self):
+        """测试 CodeAnalyzer 有缓存实例"""
+        from wrapper.src.utils.code_analyzer import CodeAnalyzer
+
+        analyzer = CodeAnalyzer(cache_size=50, cache_ttl=1800)
+        stats = analyzer.get_cache_stats()
+
+        assert stats["max_size"] == 50
+        assert stats["ttl_seconds"] == 1800
+        assert stats["current_size"] == 0
+        assert stats["hits"] == 0
+        assert stats["misses"] == 0
+
+    def test_code_analyzer_cache_stats(self):
+        """测试缓存统计功能"""
+        from wrapper.src.utils.code_analyzer import CodeAnalyzer
+
+        analyzer = CodeAnalyzer(cache_size=10, cache_ttl=3600)
+
+        # 初始状态
+        stats = analyzer.get_cache_stats()
+        assert stats["current_size"] == 0
+        assert stats["hit_rate"] == 0
+
+    def test_code_analyzer_clear_cache(self):
+        """测试清空缓存功能"""
+        from wrapper.src.utils.code_analyzer import CodeAnalyzer
+
+        analyzer = CodeAnalyzer(cache_size=10, cache_ttl=3600)
+
+        # 清空缓存
+        analyzer.clear_cache()
+        stats = analyzer.get_cache_stats()
+
+        assert stats["current_size"] == 0
+        assert stats["hits"] == 0
+        assert stats["misses"] == 0
+
+
+# ==================== 测试 8: 项目代码地图 (BL-CA-23) ====================
+
+
+class TestProjectMap:
+    """测试项目代码地图 API"""
+
+    @pytest.mark.asyncio
+    async def test_get_project_map_returns_correct_structure(self, manager_with_meili):
+        """测试项目地图返回正确的数据结构"""
+        from wrapper.src.routers.memories import get_project_map
+
+        mock_mm = AsyncMock()
+        mock_mm.get_project_map.return_value = {
+            "status": "success",
+            "project_id": "github.com/test/repo",
+            "file_tree": [
+                {
+                    "name": "src",
+                    "type": "directory",
+                    "path": "src",
+                    "children": [
+                        {
+                            "name": "auth.ts",
+                            "type": "file",
+                            "path": "src/auth.ts",
+                            "complexity": 8.5,
+                            "function_count": 5,
+                            "class_count": 1,
+                        }
+                    ],
+                }
+            ],
+            "module_dependencies": [{"from": "src/auth.ts", "to": "src/utils/crypto.ts", "type": "import"}],
+            "hot_files": ["src/auth.ts", "src/utils/api.ts"],
+            "statistics": {
+                "total_files": 10,
+                "total_functions": 50,
+                "total_classes": 5,
+                "avg_complexity": 4.5,
+                "max_complexity": 15,
+            },
+        }
+
+        with patch("wrapper.src.routers.memories.state") as mock_state:
+            mock_state.memory_manager = mock_mm
+
+            result = await get_project_map("github.com/test/repo", "default")
+
+            assert result["status"] == "success"
+            assert result["project_id"] == "github.com/test/repo"
+            assert "file_tree" in result
+            assert "module_dependencies" in result
+            assert "hot_files" in result
+            assert "statistics" in result
+            assert result["statistics"]["total_files"] == 10

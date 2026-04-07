@@ -67,6 +67,7 @@ class MeilisearchClient:
             "code_function_count",
             "code_class_count",
             "code_analyzer",
+            "code_has_exports",
         ],
         "sortableAttributes": ["date", "created_at", "code_complexity", "code_function_count"],
         # 让日期格式 2026-03-11 在全文搜索时保持整体，不被 - 分割

@@ -35,7 +35,7 @@ class MeiliSyncMixin:
         doc["abstract"] = memory_data.get("abstract", "")
         doc["overview"] = memory_data.get("overview", "")
 
-        # 代码分析字段 (BL-CA-01~04)
+        # 代码分析字段 (BL-CA-01~04, BL-CA-18)
         metadata = memory_data.get("metadata", {})
         code_analysis = metadata.get("code_analysis", {})
         if code_analysis:
@@ -45,6 +45,9 @@ class MeiliSyncMixin:
             doc["code_function_count"] = complexity.get("function_count", 0)
             doc["code_class_count"] = complexity.get("class_count", 0)
             doc["code_analyzer"] = code_analysis.get("analyzer", "")
+            # BL-CA-18: 添加 code_has_exports 字段
+            exports = code_analysis.get("exports", [])
+            doc["code_has_exports"] = len(exports) > 0
             # code_symbols 在 upload_memories 中单独处理
             if "code_symbols" in metadata:
                 doc["code_symbols"] = metadata["code_symbols"]

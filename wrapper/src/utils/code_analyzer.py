@@ -5,10 +5,13 @@
 """
 
 import asyncio
+import hashlib
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
+
+from .cache import ThreadSafeLRUCache
 
 logger = logging.getLogger(__name__)
 
@@ -71,15 +74,36 @@ class CodeAnalysisResult:
 class CodeAnalyzer:
     """代码分析器，用于提取代码注释、解析代码结构等"""
 
-    def __init__(self):
+    def __init__(self, cache_size: int = 100, cache_ttl: int = 3600):
         self.parser_cache = {}
+        # BL-CA-28: 添加代码分析结果缓存
+        self._analysis_cache = ThreadSafeLRUCache(max_size=cache_size, ttl_seconds=cache_ttl)
+
+    def _get_cache_key(self, content: str, language: str) -> str:
+        """生成缓存键 (content_hash + language)"""
+        content_hash = hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()[:16]
+        return f"{language}:{content_hash}"
 
     async def analyze_code(self, content: str, language: str = "python") -> CodeAnalysisResult:
-        """分析代码内容并返回结构化信息"""
+        """分析代码内容并返回结构化信息（带缓存）"""
+        cache_key = self._get_cache_key(content, language)
+
+        # 尝试从缓存获取
+        cached_result = self._analysis_cache.get(cache_key)
+        if cached_result is not None:
+            logger.debug("[CodeAnalyzer] 缓存命中: %s", cache_key)
+            return cached_result
+
+        # 缓存未命中，执行分析
+        logger.debug("[CodeAnalyzer] 缓存未命中，执行分析: %s", cache_key)
         if HAS_TREE_SITTER:
-            return await self._analyze_with_tree_sitter(content, language)
+            result = await self._analyze_with_tree_sitter(content, language)
         else:
-            return await self._analyze_with_regex(content, language)
+            result = await self._analyze_with_regex(content, language)
+
+        # 存入缓存
+        self._analysis_cache.set(cache_key, result)
+        return result
 
     async def _analyze_with_tree_sitter(self, content: str, language: str) -> CodeAnalysisResult:
         """使用Tree-sitter分析代码"""
@@ -455,6 +479,14 @@ class CodeAnalyzer:
 
         all_comment_content = "\n".join(comment_texts + docstring_texts)
         return all_comment_content
+
+    def get_cache_stats(self) -> dict[str, Any]:
+        """获取代码分析缓存统计 (BL-CA-28)"""
+        return self._analysis_cache.get_stats()
+
+    def clear_cache(self) -> None:
+        """清空代码分析缓存 (BL-CA-28)"""
+        self._analysis_cache.clear()
 
 
 # 全局代码分析器实例

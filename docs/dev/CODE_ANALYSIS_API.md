@@ -155,23 +155,74 @@ POST /api/v1/memories/{id}/analyze/code
 
 ---
 
-### 4. 查询代码引用（v1.4 Phase 2）
+## 调用关系 API（Phase 2）
 
-查询某函数/类被哪些代码引用。
+### 4. 批量创建调用关系 (BL-CA-20)
 
 ```http
-GET /api/v1/memories/{id}/references
+POST /api/v1/calls/batch
+Content-Type: application/json
+```
+
+**请求体**:
+
+```json
+{
+  "calls": [
+    {
+      "caller_memory_id": "memory:def456",
+      "callee_memory_id": "memory:abc123",
+      "line": 42,
+      "column": 10,
+      "file_path": "src/auth.ts"
+    }
+  ],
+  "tenant_id": "default"
+}
+```
+
+**约束**:
+
+- 最大批量: 100 条/批次
+- `callee_memory_id` 不存在时返回错误列表，跳过不存在的调用
+
+**响应**:
+
+```json
+{
+  "created": 5,
+  "errors": []
+}
+```
+
+**实现说明**:
+
+- 批量写入 `memory_relation` 表，`relationship_type = "calls"`
+- 返回成功创建数和失败条目列表
+
+---
+
+### 4.1 引用查询 (BL-CA-21)
+
+查询某函数/类被哪些代码引用（谁调用了我）。
+
+```http
+GET /api/v1/memories/{id}/references?tenant_id=default&limit=50
 ```
 
 **响应**:
+
 ```json
 {
+  "status": "success",
+  "memory_id": "memory:abc123",
   "references": [
     {
-      "memory_id": "mem_def456",
-      "file_path": "src/api.ts",
+      "memory_id": "memory:def456",
+      "file_path": "src/auth.ts",
       "line": 42,
-      "caller_function": "login",
+      "column": 10,
+      "caller_function": "validateUser",
       "confidence": 0.95
     }
   ],
@@ -180,25 +231,29 @@ GET /api/v1/memories/{id}/references
 ```
 
 **实现说明**:
-- 查询 `memory_relation` 表中 `relationship_type = "calls"`
-- 返回调用该符号的所有位置
+
+- 查询 `memory_relation` 表中 `relationship_type = "calls"` 且目标为指定 ID
+- 支持分页（`limit` 参数）
 
 ---
 
-### 5. 查询代码依赖（v1.4 Phase 2）
+### 4.2 依赖查询 (BL-CA-22)
 
-查询某文件依赖哪些其他文件。
+查询某文件依赖哪些其他文件（我调用了谁）。
 
 ```http
-GET /api/v1/memories/{id}/dependencies
+GET /api/v1/memories/{id}/dependencies?tenant_id=default&limit=50
 ```
 
 **响应**:
+
 ```json
 {
+  "status": "success",
+  "memory_id": "memory:def456",
   "dependencies": [
     {
-      "memory_id": "mem_ghi789",
+      "memory_id": "memory:ghi789",
       "file_path": "src/utils/crypto.ts",
       "line": 15,
       "callee_function": "hashPassword",
@@ -210,67 +265,113 @@ GET /api/v1/memories/{id}/dependencies
 ```
 
 **依赖类型**:
-- `internal`: 项目内部文件
-- `external`: 外部依赖（npm/pip/cargo）
-- `builtin`: 内置模块
+
+| 类型 | 说明 |
+|------|------|
+| `internal` | 同一项目内的文件 |
+| `external` | 外部包（npm/pip/cargo） |
+| `builtin` | 内置模块 |
 
 ---
 
-### 6. 获取项目代码地图（v1.4 Phase 3）
+## 代码地图与统计 API（Phase 3）
+
+### 5. 代码地图 API (BL-CA-23)
 
 ```http
-GET /api/v1/projects/{project_id}/map
+GET /api/v1/projects/{id}/map?tenant_id=default
 ```
 
+**响应字段**:
+
+| 字段 | 说明 |
+|------|------|
+| `file_tree` | 文件树结构 |
+| `module_dependencies` | 模块依赖关系 |
+| `hot_files` | 热点文件（复杂度最高） |
+| `statistics` | 统计信息 |
+
 **响应**:
+
 ```json
 {
   "project_id": "github.com/user/repo",
-  "file_tree": {
-    "path": "src/",
-    "type": "directory",
-    "children": [
-      {
-        "path": "src/core/",
-        "type": "directory",
-        "children": [
-          {
-            "path": "src/core/auth.ts",
-            "type": "file",
-            "size": 2048,
-            "lines": 150,
-            "functions": 5,
-            "classes": 1,
-            "complexity": 8.5
-          }
-        ]
-      }
-    ]
-  },
+  "file_tree": [
+    {
+      "path": "src/services",
+      "type": "directory",
+      "children": [
+        {
+          "path": "src/services/auth.ts",
+          "type": "file",
+          "function_count": 5,
+          "class_count": 1
+        }
+      ]
+    }
+  ],
   "module_dependencies": [
     {
-      "from": "src/core/auth.ts",
+      "from": "src/services/auth.ts",
       "to": "src/utils/crypto.ts",
-      "type": "import"
+      "type": "internal"
     }
   ],
   "hot_files": [
-    "src/core/auth.ts",
-    "src/utils/api.ts"
+    {
+      "path": "src/services/auth.ts",
+      "complexity": 25,
+      "function_count": 8
+    }
   ],
   "statistics": {
-    "total_files": 45,
-    "total_functions": 150,
-    "total_classes": 30,
-    "avg_complexity": 5.2,
-    "max_complexity": 15
+    "total_files": 42,
+    "total_functions": 156,
+    "total_classes": 12,
+    "avg_complexity": 4.5,
+    "max_complexity": 18
   }
 }
 ```
 
 ---
 
-### 7. 语义代码搜索（v1.4 Phase 4）
+### 6. 代码统计 API (BL-CA-25)
+
+```http
+GET /api/v1/projects/{id}/stats?tenant_id=default
+```
+
+**响应**:
+
+```json
+{
+  "project_id": "github.com/user/repo",
+  "languages": {
+    "typescript": { "files": 25, "lines": 3200, "percentage": 60 },
+    "python": { "files": 15, "lines": 1800, "percentage": 34 },
+    "json": { "files": 5, "lines": 300, "percentage": 6 }
+  },
+  "summary": {
+    "total_files": 45,
+    "total_lines": 5300,
+    "total_functions": 156,
+    "total_classes": 12,
+    "avg_complexity": 4.5,
+    "max_complexity": 18
+  },
+  "top_complex_files": [
+    { "path": "src/services/auth.ts", "complexity": 25, "functions": 8 },
+    { "path": "src/utils/api.ts", "complexity": 18, "functions": 6 }
+  ]
+}
+```
+
+---
+
+## 语义代码搜索（Phase 4）
+
+### 7. 语义代码搜索
 
 ```http
 POST /api/v1/memories/search
@@ -278,6 +379,7 @@ Content-Type: application/json
 ```
 
 **请求体**:
+
 ```json
 {
   "semantic_query": "用户认证逻辑",
@@ -287,6 +389,7 @@ Content-Type: application/json
 ```
 
 **说明**:
+
 - 使用代码语义向量进行搜索
 - 支持自然语言描述
 - 与关键词搜索使用 RRF 融合
@@ -336,6 +439,7 @@ interface FunctionSymbol {
   return_type?: string;        // v1.4 新增
   is_exported: boolean;        // v1.4 新增
   is_async: boolean;           // v1.4 新增
+  calls?: CallSymbol[];        // v1.4 新增：函数内部调用关系
 }
 ```
 
@@ -351,13 +455,16 @@ interface ClassSymbol {
 }
 ```
 
-### CallSymbol（v1.4 新增）
+### CallSymbol（v1.4 完整版）
 
 ```typescript
 interface CallSymbol {
   target: string;              // 被调用函数名
+  callee_memory_id?: string;   // 被调用函数对应的记忆 ID
   line: number;
   column?: number;
+  file_path?: string;          // 调用发生的文件路径
+  confidence?: number;         // 置信度 (0-1)
 }
 ```
 
@@ -424,6 +531,22 @@ code_doc["code_new_field"] = analysis.get("new_field")
 ```python
 DEFAULT_INDEX_SETTINGS["filterableAttributes"].append("code_new_field")
 ```
+
+---
+
+## API 状态总览
+
+| API | 端点 | 阶段 | 状态 |
+|-----|------|------|------|
+| 上传代码记忆 | `POST /api/v1/memories` | 基础 | ✅ 已实现 |
+| 搜索代码记忆 | `POST /api/v1/memories/search` | 基础 | ✅ 已实现 |
+| 手动触发代码分析 | `POST /api/v1/memories/{id}/analyze/code` | Phase 1 | ⏳ 开发中 |
+| 批量创建调用关系 | `POST /api/v1/calls/batch` | Phase 2 (BL-CA-20) | ⏳ 开发中 |
+| 引用查询 | `GET /api/v1/memories/{id}/references` | Phase 2 (BL-CA-21) | ⏳ 开发中 |
+| 依赖查询 | `GET /api/v1/memories/{id}/dependencies` | Phase 2 (BL-CA-22) | ⏳ 开发中 |
+| 代码地图 | `GET /api/v1/projects/{id}/map` | Phase 3 (BL-CA-23) | ⏳ 开发中 |
+| 代码统计 | `GET /api/v1/projects/{id}/stats` | Phase 3 (BL-CA-25) | ⏳ 开发中 |
+| 语义代码搜索 | `POST /api/v1/memories/search` (semantic) | Phase 4 | 📋 计划中 |
 
 ---
 

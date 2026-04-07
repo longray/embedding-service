@@ -156,3 +156,54 @@ async def report_access_log(request: AccessLogRequest):
         return {"status": "success", "result": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"记录访问日志失败: {e!s}") from e
+
+
+@router.get("/projects/{project_id}/stats")
+async def get_project_stats(project_id: str, tenant_id: str = "default"):
+    """获取项目代码统计信息 (BL-CA-25)
+
+    返回项目中的代码文件统计：
+    - total_files: 代码文件总数
+    - total_functions: 函数总数
+    - total_classes: 类总数
+    - avg_complexity: 平均圈复杂度
+    - max_complexity: 最大圈复杂度
+    """
+    if not state.memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        result = await state.memory_manager.get_project_stats(
+            project_id=project_id,
+            tenant_id=tenant_id,
+        )
+        if result.get("status") == "error":
+            raise HTTPException(status_code=500, detail=result.get("message", "获取项目统计失败"))
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取项目统计失败: {e!s}") from e
+
+
+@router.get("/projects/{project_id}/map")
+async def get_project_map(project_id: str, tenant_id: str = "default"):
+    """获取项目代码地图 (BL-CA-23)
+
+    返回项目的完整代码地图：
+    - file_tree: 文件树结构
+    - module_dependencies: 模块依赖关系
+    - hot_files: 热点文件（复杂度最高）
+    - statistics: 统计信息
+    """
+    if not state.memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        result = await state.memory_manager.get_project_map(
+            project_id=project_id,
+            tenant_id=tenant_id,
+        )
+        if result.get("status") == "error":
+            raise HTTPException(status_code=500, detail=result.get("message", "获取项目地图失败"))
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取项目地图失败: {e!s}") from e

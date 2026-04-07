@@ -111,3 +111,247 @@ class StubsMixin:
     ) -> dict[str, Any]:
         logger.warning("[MemoryManager] cluster_memories_leiden 被调用但功能尚未实现")
         raise NotImplementedError("功能尚未实现: cluster_memories_leiden")
+
+    async def get_project_stats(self, project_id: str, tenant_id: str = "default") -> dict[str, Any]:
+        """获取项目代码统计信息 (BL-CA-25)
+
+        按 project_id 聚合统计代码文件信息。
+        """
+        try:
+            # 查询项目中的代码文件数量
+            count_query = """
+                SELECT count() AS total_files
+                FROM memory
+                WHERE type = 'code'
+                    AND project_id = $project_id
+                    AND tenant_id = $tenant_id
+                GROUP ALL
+            """
+            count_result = await self._db_query(
+                count_query,
+                {
+                    "project_id": project_id,
+                    "tenant_id": tenant_id,
+                },
+            )
+            count_records = self._extract_records(count_result)
+            total_files = count_records[0].get("total_files", 0) if count_records else 0
+
+            # 查询代码分析字段的聚合统计
+            stats_query = """
+                SELECT
+                    math::sum(metadata.code_analysis.complexity.function_count) AS total_functions,
+                    math::sum(metadata.code_analysis.complexity.class_count) AS total_classes,
+                    math::mean(metadata.code_analysis.complexity.cyclomatic_complexity) AS avg_complexity,
+                    math::max(metadata.code_analysis.complexity.cyclomatic_complexity) AS max_complexity
+                FROM memory
+                WHERE type = 'code'
+                    AND project_id = $project_id
+                    AND tenant_id = $tenant_id
+                    AND metadata.code_analysis IS NOT NONE
+                GROUP ALL
+            """
+            stats_result = await self._db_query(
+                stats_query,
+                {
+                    "project_id": project_id,
+                    "tenant_id": tenant_id,
+                },
+            )
+            stats_records = self._extract_records(stats_result)
+
+            if stats_records:
+                stats = stats_records[0]
+                return {
+                    "status": "success",
+                    "project_id": project_id,
+                    "total_files": total_files,
+                    "total_functions": stats.get("total_functions", 0),
+                    "total_classes": stats.get("total_classes", 0),
+                    "avg_complexity": round(stats.get("avg_complexity", 0), 2),
+                    "max_complexity": stats.get("max_complexity", 0),
+                }
+            else:
+                return {
+                    "status": "success",
+                    "project_id": project_id,
+                    "total_files": total_files,
+                    "total_functions": 0,
+                    "total_classes": 0,
+                    "avg_complexity": 0,
+                    "max_complexity": 0,
+                }
+        except Exception as e:
+            logger.error("[MemoryManager] 获取项目统计失败: %s", e)
+            return {
+                "status": "error",
+                "message": str(e),
+                "project_id": project_id,
+            }
+
+    async def get_project_map(self, project_id: str, tenant_id: str = "default") -> dict[str, Any]:
+        """获取项目代码地图 (BL-CA-23)
+
+        返回项目文件树、模块依赖、热点文件和统计信息。
+        """
+        try:
+            # 1. 获取项目中的所有代码文件
+            files_query = """
+                SELECT
+                    id,
+                    metadata.file_path AS file_path,
+                    metadata.code_analysis.complexity.cyclomatic_complexity AS complexity,
+                    metadata.code_analysis.complexity.function_count AS function_count,
+                    metadata.code_analysis.complexity.class_count AS class_count,
+                    metadata.code_analysis.imports AS imports
+                FROM memory
+                WHERE type = 'code'
+                    AND project_id = $project_id
+                    AND tenant_id = $tenant_id
+                    AND metadata.file_path IS NOT NONE
+            """
+            files_result = await self._db_query(
+                files_query,
+                {
+                    "project_id": project_id,
+                    "tenant_id": tenant_id,
+                },
+            )
+            files_records = self._extract_records(files_result)
+
+            if not files_records:
+                return {
+                    "status": "success",
+                    "project_id": project_id,
+                    "file_tree": [],
+                    "module_dependencies": [],
+                    "hot_files": [],
+                    "statistics": {
+                        "total_files": 0,
+                        "total_functions": 0,
+                        "total_classes": 0,
+                        "avg_complexity": 0,
+                        "max_complexity": 0,
+                    },
+                }
+
+            # 2. 构建文件树
+            file_tree = self._build_file_tree(files_records)
+
+            # 3. 提取模块依赖
+            module_dependencies = self._extract_module_dependencies(files_records)
+
+            # 4. 识别热点文件（复杂度最高的前 10 个文件）
+            hot_files = self._identify_hot_files(files_records)
+
+            # 5. 计算统计信息
+            total_files = len(files_records)
+            total_functions = sum(r.get("function_count", 0) or 0 for r in files_records)
+            total_classes = sum(r.get("class_count", 0) or 0 for r in files_records)
+            complexities = [r.get("complexity", 0) or 0 for r in files_records]
+            avg_complexity = round(sum(complexities) / len(complexities), 2) if complexities else 0
+            max_complexity = max(complexities) if complexities else 0
+
+            return {
+                "status": "success",
+                "project_id": project_id,
+                "file_tree": file_tree,
+                "module_dependencies": module_dependencies,
+                "hot_files": hot_files,
+                "statistics": {
+                    "total_files": total_files,
+                    "total_functions": total_functions,
+                    "total_classes": total_classes,
+                    "avg_complexity": avg_complexity,
+                    "max_complexity": max_complexity,
+                },
+            }
+        except Exception as e:
+            logger.error("[MemoryManager] 获取项目地图失败: %s", e)
+            return {
+                "status": "error",
+                "message": str(e),
+                "project_id": project_id,
+            }
+
+    def _build_file_tree(self, files: list[dict]) -> list[dict]:
+        """从文件路径列表构建树形结构"""
+        root = {"name": "", "type": "directory", "children": {}}
+
+        for file_info in files:
+            file_path = file_info.get("file_path", "")
+            if not file_path:
+                continue
+
+            parts = file_path.split("/")
+            current = root
+
+            for i, part in enumerate(parts):
+                if i == len(parts) - 1:
+                    # 文件节点
+                    current["children"][part] = {
+                        "name": part,
+                        "type": "file",
+                        "path": file_path,
+                        "complexity": file_info.get("complexity", 0),
+                        "function_count": file_info.get("function_count", 0),
+                        "class_count": file_info.get("class_count", 0),
+                    }
+                else:
+                    # 目录节点
+                    if part not in current["children"]:
+                        current["children"][part] = {
+                            "name": part,
+                            "type": "directory",
+                            "path": "/".join(parts[: i + 1]),
+                            "children": {},
+                        }
+                    current = current["children"][part]
+
+        # 转换为列表格式
+        def convert_to_list(node: dict) -> list[dict]:
+            result = []
+            for name, child in node.get("children", {}).items():
+                item = {
+                    "name": name,
+                    "type": child["type"],
+                    "path": child.get("path", name),
+                }
+                if child["type"] == "directory":
+                    item["children"] = convert_to_list(child)
+                else:
+                    item["complexity"] = child.get("complexity", 0)
+                    item["function_count"] = child.get("function_count", 0)
+                    item["class_count"] = child.get("class_count", 0)
+                result.append(item)
+            return sorted(result, key=lambda x: (x["type"] != "directory", x["name"]))
+
+        return convert_to_list(root)
+
+    def _extract_module_dependencies(self, files: list[dict]) -> list[dict]:
+        """从 imports 提取模块依赖关系"""
+        dependencies = []
+        file_paths = {f.get("file_path", ""): f for f in files}
+
+        for file_info in files:
+            file_path = file_info.get("file_path", "")
+            imports = file_info.get("imports", []) or []
+
+            for imp in imports:
+                # 简化处理：假设 import 路径可以映射到文件路径
+                # 实际项目中可能需要更复杂的解析
+                if isinstance(imp, str):
+                    dependencies.append(
+                        {
+                            "from": file_path,
+                            "to": imp,
+                            "type": "import",
+                        }
+                    )
+
+        return dependencies[:100]  # 限制数量
+
+    def _identify_hot_files(self, files: list[dict], limit: int = 10) -> list[str]:
+        """识别热点文件（复杂度最高的文件）"""
+        sorted_files = sorted(files, key=lambda x: x.get("complexity", 0) or 0, reverse=True)
+        return [f.get("file_path", "") for f in sorted_files[:limit] if f.get("file_path")]
