@@ -3,7 +3,12 @@
 from fastapi import APIRouter, HTTPException
 
 from .. import state
-from ..models import GraphTraversalRequest, RelationCreateRequest, RelationQueryRequest
+from ..models import (
+    CallRelationBatchRequest,
+    GraphTraversalRequest,
+    RelationCreateRequest,
+    RelationQueryRequest,
+)
 from ..utils.exceptions import ValidationError
 
 router = APIRouter(prefix="/api/v1", tags=["relations"])
@@ -91,3 +96,89 @@ async def graph_traversal(memory_id: str, request: GraphTraversalRequest):
         raise HTTPException(status_code=400, detail=e.message) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"图遍历失败: {e!s}") from e
+
+
+@router.post("/calls/batch")
+async def create_call_relations_batch(request: CallRelationBatchRequest):
+    """批量创建调用关系 (BL-CA-20)
+
+    批量创建函数调用关系，用于代码分析 v1.4 调用关系追踪。
+
+    **约束条件**:
+    - 最大批量: 100 条/批次
+    - callee_memory_id 不存在时返回错误列表，跳过不存在的调用
+    """
+    if not state.memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        # 转换请求数据
+        calls_data = []
+        for call in request.calls:
+            calls_data.append(
+                {
+                    "caller_memory_id": call.caller_memory_id,
+                    "callee_memory_id": call.callee_memory_id,
+                    "line": call.line,
+                    "column": call.column,
+                    "file_path": call.file_path,
+                }
+            )
+
+        result = await state.memory_manager.create_call_relations_batch(
+            calls=calls_data,
+            tenant_id=request.tenant_id,
+        )
+
+        if result.get("status") == "error":
+            raise HTTPException(status_code=500, detail="批量创建调用关系失败")
+
+        return result
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.message) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"批量创建调用关系失败: {e!s}") from e
+
+
+@router.get("/memories/{memory_id}/references")
+async def get_call_references(memory_id: str, tenant_id: str = "default", limit: int = 50):
+    """查询谁调用了该符号 (BL-CA-21)
+
+    查询所有调用该函数的代码位置。
+    """
+    if not state.memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        result = await state.memory_manager.get_call_references(
+            memory_id=memory_id,
+            tenant_id=tenant_id,
+            limit=limit,
+        )
+        return result
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.message) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"查询引用失败: {e!s}") from e
+
+
+@router.get("/memories/{memory_id}/dependencies")
+async def get_call_dependencies(memory_id: str, tenant_id: str = "default", limit: int = 50):
+    """查询该符号依赖了谁 (BL-CA-22)
+
+    查询该函数调用了哪些其他函数。
+    """
+    if not state.memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        result = await state.memory_manager.get_call_dependencies(
+            memory_id=memory_id,
+            tenant_id=tenant_id,
+            limit=limit,
+        )
+        return result
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.message) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"查询依赖失败: {e!s}") from e

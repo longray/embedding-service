@@ -69,6 +69,26 @@ class GraphTraversalRequest(BaseModel):
     limit: int = Field(default=20, ge=1, le=100)
 
 
+# ==================== Code Analysis Models (v1.4) ====================
+
+
+class CallRelationItem(BaseModel):
+    """单个调用关系项"""
+
+    caller_memory_id: str = Field(..., description="调用者记忆 ID")
+    callee_memory_id: str = Field(..., description="被调用者记忆 ID")
+    line: int | None = Field(default=None, description="调用位置行号")
+    column: int | None = Field(default=None, description="调用位置列号")
+    file_path: str | None = Field(default=None, description="调用所在文件路径")
+
+
+class CallRelationBatchRequest(BaseModel):
+    """批量创建调用关系请求 (BL-CA-20)"""
+
+    calls: list[CallRelationItem] = Field(..., description="调用关系列表", max_length=100)
+    tenant_id: str = Field(default="default", description="租户ID")
+
+
 # ==================== Sync Data Models (Phase B) ====================
 
 

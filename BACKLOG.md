@@ -172,9 +172,9 @@ v2.7.0 发布准备
 
 | 编号 | 目标 | 状态 | 依赖 | 说明 |
 |------|------|------|------|------|
-| BL-CA-20 | 实现调用关系存储 API | 📋 | BL-CA-18 | `POST /api/v1/memories/relations` 扩展 `relationship_type="calls"`，metadata 含 `line`, `column`, `file_path`（v1.4 §4.1 CallRelation） |
-| BL-CA-21 | 实现引用查询 API | 📋 | BL-CA-20 | `GET /api/v1/memories/{id}/references` — 查询谁调用了该符号，返回 `memory_id`, `file_path`, `line`, `caller_function`, `confidence`（v1.4 §4.2） |
-| BL-CA-22 | 实现依赖分析 API | 📋 | BL-CA-20 | `GET /api/v1/memories/{id}/dependencies` — 查询该符号依赖了谁，返回 `memory_id`, `file_path`, `line`, `callee_function`, `type` (internal/external/builtin)（v1.4 §4.2） |
+| BL-CA-20 | 实现调用关系存储 API | 🔄 | BL-CA-18 | `POST /api/v1/calls/batch` — 批量创建调用关系，最大 100 条/批次，支持错误列表返回 |
+| BL-CA-21 | 实现引用查询 API | 🔄 | BL-CA-20 | `GET /api/v1/memories/{id}/references` — 查询谁调用了该符号，返回 `memory_id`, `file_path`, `line`, `caller_function`, `confidence` |
+| BL-CA-22 | 实现依赖分析 API | 🔄 | BL-CA-20 | `GET /api/v1/memories/{id}/dependencies` — 查询该符号依赖了谁，返回 `memory_id`, `file_path`, `line`, `callee_function`, `type` (internal/external/builtin) |
 
 ### Phase 3: 代码地图与搜索增强（2-3 周）— P1
 

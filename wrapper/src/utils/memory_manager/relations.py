@@ -266,3 +266,315 @@ class RelationsMixin:
                 break
 
         return all_memories[:limit]
+
+    async def create_call_relations_batch(
+        self,
+        calls: list[dict[str, Any]],
+        tenant_id: str | None = None,
+    ) -> dict[str, Any]:
+        """批量创建调用关系 (BL-CA-20)
+
+        Args:
+            calls: 调用关系列表，每项包含 caller_memory_id, callee_memory_id, line, column, file_path
+            tenant_id: 租户 ID
+
+        Returns:
+            {"created": int, "errors": list[dict]}
+        """
+        effective_tenant_id = tenant_id or self._default_tenant_id
+
+        # 限制批量大小
+        if len(calls) > 100:
+            raise ValidationError(f"Batch size exceeds maximum of 100, got {len(calls)}")
+
+        created = 0
+        errors = []
+
+        tracer = get_tracer()
+        with tracer.start_as_current_span("graph.create_call_relations_batch") as span:
+            span.set_attribute("batch.size", len(calls))
+            span.set_attribute("tenant.id", effective_tenant_id)
+
+            for idx, call in enumerate(calls):
+                try:
+                    caller_id = call.get("caller_memory_id")
+                    callee_id = call.get("callee_memory_id")
+                    line = call.get("line")
+                    column = call.get("column")
+                    file_path = call.get("file_path")
+
+                    if not caller_id or not callee_id:
+                        errors.append(
+                            {
+                                "index": idx,
+                                "error": "Missing caller_memory_id or callee_memory_id",
+                                "call": call,
+                            }
+                        )
+                        continue
+
+                    # 验证 caller_memory_id 存在
+                    caller_ref = self._normalize_memory_id(caller_id)
+                    check_caller = await self._db_query(
+                        "SELECT id FROM memory WHERE id = type::record($caller_ref)",
+                        {"caller_ref": caller_ref},
+                    )
+                    if not self._extract_records(check_caller):
+                        errors.append(
+                            {
+                                "index": idx,
+                                "caller_memory_id": caller_id,
+                                "error": "Caller memory not found",
+                            }
+                        )
+                        continue
+
+                    # 验证 callee_memory_id 存在
+                    callee_ref = self._normalize_memory_id(callee_id)
+                    check_callee = await self._db_query(
+                        "SELECT id FROM memory WHERE id = type::record($callee_ref)",
+                        {"callee_ref": callee_ref},
+                    )
+                    if not self._extract_records(check_callee):
+                        errors.append(
+                            {
+                                "index": idx,
+                                "callee_memory_id": callee_id,
+                                "error": "Callee memory not found",
+                            }
+                        )
+                        continue
+
+                    # 构建 metadata
+                    metadata = {}
+                    if line is not None:
+                        metadata["line"] = line
+                    if column is not None:
+                        metadata["column"] = column
+                    if file_path:
+                        metadata["file_path"] = file_path
+
+                    # 创建调用关系
+                    await self.create_relation(
+                        from_id=caller_id,
+                        to_id=callee_id,
+                        relationship_type="calls",
+                        weight=0.8,  # 调用关系权重较高
+                        tenant_id=effective_tenant_id,
+                        description=f"Call from {caller_id} to {callee_id}",
+                        metadata=metadata if metadata else None,
+                    )
+                    created += 1
+
+                except Exception as e:
+                    errors.append(
+                        {
+                            "index": idx,
+                            "call": call,
+                            "error": str(e),
+                        }
+                    )
+
+            span.set_attribute("batch.created", created)
+            span.set_attribute("batch.errors", len(errors))
+
+        return {
+            "status": "success" if created > 0 else "partial_success" if errors else "error",
+            "created": created,
+            "total": len(calls),
+            "errors": errors,
+        }
+
+    async def get_call_references(
+        self,
+        memory_id: str,
+        tenant_id: str | None = None,
+        limit: int = 50,
+    ) -> dict[str, Any]:
+        """查询谁调用了该符号 (BL-CA-21)
+
+        查询所有调用该函数的代码位置。
+
+        Args:
+            memory_id: 被调用的函数记忆 ID
+            tenant_id: 租户 ID
+            limit: 最大返回数量
+
+        Returns:
+            {"references": list[dict], "total": int}
+        """
+        effective_tenant_id = tenant_id or self._default_tenant_id
+        mem_ref = self._normalize_memory_id(memory_id)
+
+        tracer = get_tracer()
+        with tracer.start_as_current_span("graph.get_call_references") as span:
+            span.set_attribute("graph.memory_id", mem_ref)
+            span.set_attribute("tenant.id", effective_tenant_id)
+
+            try:
+                # 查询 incoming 关系（谁调用了我）
+                relations = await self.get_relations(
+                    memory_id=memory_id,
+                    direction="incoming",
+                    relationship_type="calls",
+                    tenant_id=tenant_id,
+                    limit=limit,
+                )
+
+                references = []
+                for rel in relations:
+                    # 获取调用者的详细信息
+                    caller_id = rel.get("from_id")
+                    if not caller_id:
+                        continue
+
+                    caller_ref = self._normalize_memory_id(caller_id)
+                    caller_info = await self._db_query(
+                        "SELECT id, metadata.file_path AS file_path, metadata.code_analysis.functions AS functions "
+                        "FROM memory WHERE id = type::record($caller_ref)",
+                        {"caller_ref": caller_ref},
+                    )
+                    caller_records = self._extract_records(caller_info)
+
+                    if caller_records:
+                        caller = caller_records[0]
+                        metadata = rel.get("metadata", {}) or {}
+
+                        # 提取调用者函数名
+                        caller_function = ""
+                        functions = caller.get("functions", []) or []
+                        if functions and len(functions) > 0:
+                            caller_function = functions[0].get("name", "")
+
+                        references.append(
+                            {
+                                "memory_id": caller_id,
+                                "file_path": caller.get("file_path", ""),
+                                "line": metadata.get("line"),
+                                "column": metadata.get("column"),
+                                "caller_function": caller_function,
+                                "confidence": 0.95,  # 预留字段
+                            }
+                        )
+
+                span.set_attribute("graph.reference_count", len(references))
+
+                return {
+                    "status": "success",
+                    "memory_id": memory_id,
+                    "references": references,
+                    "total": len(references),
+                }
+            except Exception as e:
+                span.record_exception(e)
+                raise DatabaseError(f"Failed to get call references: {e!s}") from e
+
+    async def get_call_dependencies(
+        self,
+        memory_id: str,
+        tenant_id: str | None = None,
+        limit: int = 50,
+    ) -> dict[str, Any]:
+        """查询该符号依赖了谁 (BL-CA-22)
+
+        查询该函数调用了哪些其他函数。
+
+        Args:
+            memory_id: 调用者的函数记忆 ID
+            tenant_id: 租户 ID
+            limit: 最大返回数量
+
+        Returns:
+            {"dependencies": list[dict], "total": int}
+        """
+        effective_tenant_id = tenant_id or self._default_tenant_id
+        mem_ref = self._normalize_memory_id(memory_id)
+
+        tracer = get_tracer()
+        with tracer.start_as_current_span("graph.get_call_dependencies") as span:
+            span.set_attribute("graph.memory_id", mem_ref)
+            span.set_attribute("tenant.id", effective_tenant_id)
+
+            try:
+                # 查询 outgoing 关系（我调用了谁）
+                relations = await self.get_relations(
+                    memory_id=memory_id,
+                    direction="outgoing",
+                    relationship_type="calls",
+                    tenant_id=tenant_id,
+                    limit=limit,
+                )
+
+                dependencies = []
+                for rel in relations:
+                    # 获取被调用者的详细信息
+                    callee_id = rel.get("to_id")
+                    if not callee_id:
+                        continue
+
+                    callee_ref = self._normalize_memory_id(callee_id)
+                    callee_info = await self._db_query(
+                        "SELECT id, metadata.file_path AS file_path, metadata.code_analysis.functions AS functions, "
+                        "metadata.code_analysis.imports AS imports "
+                        "FROM memory WHERE id = type::record($callee_ref)",
+                        {"callee_ref": callee_ref},
+                    )
+                    callee_records = self._extract_records(callee_info)
+
+                    if callee_records:
+                        callee = callee_records[0]
+                        metadata = rel.get("metadata", {}) or {}
+
+                        # 提取被调用者函数名
+                        callee_function = ""
+                        functions = callee.get("functions", []) or []
+                        if functions and len(functions) > 0:
+                            callee_function = functions[0].get("name", "")
+
+                        # 判断依赖类型
+                        file_path = callee.get("file_path", "")
+                        dep_type = self._classify_dependency(file_path, callee.get("imports", []))
+
+                        dependencies.append(
+                            {
+                                "memory_id": callee_id,
+                                "file_path": file_path,
+                                "line": metadata.get("line"),
+                                "column": metadata.get("column"),
+                                "callee_function": callee_function,
+                                "type": dep_type,
+                            }
+                        )
+
+                span.set_attribute("graph.dependency_count", len(dependencies))
+
+                return {
+                    "status": "success",
+                    "memory_id": memory_id,
+                    "dependencies": dependencies,
+                    "total": len(dependencies),
+                }
+            except Exception as e:
+                span.record_exception(e)
+                raise DatabaseError(f"Failed to get call dependencies: {e!s}") from e
+
+    def _classify_dependency(self, file_path: str, imports: list) -> str:
+        """分类依赖类型"""
+        if not file_path:
+            return "unknown"
+
+        # 内置模块判断
+        builtin_patterns = ["node:", "os", "sys", "fs", "path", "util"]
+        for pattern in builtin_patterns:
+            if pattern in file_path.lower():
+                return "builtin"
+
+        # 相对导入判断
+        if file_path.startswith(".") or file_path.startswith("/"):
+            return "internal"
+
+        # 外部包判断（简化逻辑）
+        if "/node_modules/" in file_path or "/site-packages/" in file_path:
+            return "external"
+
+        return "internal"

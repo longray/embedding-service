@@ -542,3 +542,197 @@ class TestProjectMap:
             assert "hot_files" in result
             assert "statistics" in result
             assert result["statistics"]["total_files"] == 10
+
+
+# ==================== 测试 9: 调用关系批量创建 (BL-CA-20) ====================
+
+
+class TestCallRelationsBatch:
+    """测试调用关系批量创建 API"""
+
+    @pytest.mark.asyncio
+    async def test_create_call_relations_batch(self, manager_with_meili):
+        """测试批量创建调用关系"""
+        from wrapper.src.routers.relations import create_call_relations_batch
+
+        mock_mm = AsyncMock()
+        mock_mm.create_call_relations_batch.return_value = {
+            "status": "success",
+            "created": 2,
+            "total": 2,
+            "errors": [],
+        }
+
+        with patch("wrapper.src.routers.relations.state") as mock_state:
+            mock_state.memory_manager = mock_mm
+
+            class MockCall:
+                def __init__(self, **kwargs):
+                    self.caller_memory_id = kwargs.get("caller_memory_id")
+                    self.callee_memory_id = kwargs.get("callee_memory_id")
+                    self.line = kwargs.get("line")
+                    self.column = kwargs.get("column")
+                    self.file_path = kwargs.get("file_path")
+
+            class MockRequest:
+                def __init__(self):
+                    self.calls = [
+                        MockCall(
+                            caller_memory_id="memory:def456",
+                            callee_memory_id="memory:abc123",
+                            line=42,
+                            column=10,
+                            file_path="src/auth.ts",
+                        ),
+                        MockCall(
+                            caller_memory_id="memory:ghi789",
+                            callee_memory_id="memory:def456",
+                            line=15,
+                            column=8,
+                            file_path="src/api.ts",
+                        ),
+                    ]
+                    self.tenant_id = "default"
+
+            result = await create_call_relations_batch(MockRequest())
+
+            assert result["status"] == "success"
+            assert result["created"] == 2
+            assert result["total"] == 2
+            assert len(result["errors"]) == 0
+
+    @pytest.mark.asyncio
+    async def test_create_call_relations_batch_with_errors(self, manager_with_meili):
+        """测试批量创建调用关系（部分失败）"""
+        from wrapper.src.routers.relations import create_call_relations_batch
+
+        mock_mm = AsyncMock()
+        mock_mm.create_call_relations_batch.return_value = {
+            "status": "partial_success",
+            "created": 1,
+            "total": 2,
+            "errors": [
+                {
+                    "index": 1,
+                    "callee_memory_id": "memory:nonexistent",
+                    "error": "Callee memory not found",
+                }
+            ],
+        }
+
+        with patch("wrapper.src.routers.relations.state") as mock_state:
+            mock_state.memory_manager = mock_mm
+
+            class MockCall:
+                def __init__(self, **kwargs):
+                    self.caller_memory_id = kwargs.get("caller_memory_id")
+                    self.callee_memory_id = kwargs.get("callee_memory_id")
+                    self.line = kwargs.get("line")
+                    self.column = kwargs.get("column")
+                    self.file_path = kwargs.get("file_path")
+
+            class MockRequest:
+                def __init__(self):
+                    self.calls = [
+                        MockCall(
+                            caller_memory_id="memory:def456",
+                            callee_memory_id="memory:abc123",
+                            line=42,
+                            column=10,
+                        ),
+                        MockCall(
+                            caller_memory_id="memory:def456",
+                            callee_memory_id="memory:nonexistent",
+                            line=50,
+                            column=12,
+                        ),
+                    ]
+                    self.tenant_id = "default"
+
+            result = await create_call_relations_batch(MockRequest())
+
+            assert result["status"] == "partial_success"
+            assert result["created"] == 1
+            assert result["total"] == 2
+            assert len(result["errors"]) == 1
+
+
+# ==================== 测试 10: 引用查询 (BL-CA-21) ====================
+
+
+class TestCallReferences:
+    """测试引用查询 API"""
+
+    @pytest.mark.asyncio
+    async def test_get_call_references(self, manager_with_meili):
+        """测试查询谁调用了该函数"""
+        from wrapper.src.routers.relations import get_call_references
+
+        mock_mm = AsyncMock()
+        mock_mm.get_call_references.return_value = {
+            "status": "success",
+            "memory_id": "memory:abc123",
+            "references": [
+                {
+                    "memory_id": "memory:def456",
+                    "file_path": "src/auth.ts",
+                    "line": 42,
+                    "column": 10,
+                    "caller_function": "validateUser",
+                    "confidence": 0.95,
+                }
+            ],
+            "total": 1,
+        }
+
+        with patch("wrapper.src.routers.relations.state") as mock_state:
+            mock_state.memory_manager = mock_mm
+
+            result = await get_call_references("memory:abc123", "default", 50)
+
+            assert result["status"] == "success"
+            assert result["memory_id"] == "memory:abc123"
+            assert len(result["references"]) == 1
+            assert result["references"][0]["caller_function"] == "validateUser"
+            assert result["total"] == 1
+
+
+# ==================== 测试 11: 依赖查询 (BL-CA-22) ====================
+
+
+class TestCallDependencies:
+    """测试依赖查询 API"""
+
+    @pytest.mark.asyncio
+    async def test_get_call_dependencies(self, manager_with_meili):
+        """测试查询该函数调用了谁"""
+        from wrapper.src.routers.relations import get_call_dependencies
+
+        mock_mm = AsyncMock()
+        mock_mm.get_call_dependencies.return_value = {
+            "status": "success",
+            "memory_id": "memory:def456",
+            "dependencies": [
+                {
+                    "memory_id": "memory:abc123",
+                    "file_path": "src/utils/crypto.ts",
+                    "line": 42,
+                    "column": 10,
+                    "callee_function": "hashPassword",
+                    "type": "internal",
+                }
+            ],
+            "total": 1,
+        }
+
+        with patch("wrapper.src.routers.relations.state") as mock_state:
+            mock_state.memory_manager = mock_mm
+
+            result = await get_call_dependencies("memory:def456", "default", 50)
+
+            assert result["status"] == "success"
+            assert result["memory_id"] == "memory:def456"
+            assert len(result["dependencies"]) == 1
+            assert result["dependencies"][0]["callee_function"] == "hashPassword"
+            assert result["dependencies"][0]["type"] == "internal"
+            assert result["total"] == 1
