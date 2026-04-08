@@ -203,9 +203,29 @@ v2.7.0 发布准备
 
 | 编号 | 目标 | 状态 | 依赖 | 说明 |
 |------|------|------|------|------|
-| BL-CA-28 | 实现分析结果缓存 | 🔄 | BL-CA-18 | `CodeAnalyzer` 添加 LRU 缓存（默认 100 条，TTL 3600s），避免重复解析相同代码 |
+| BL-CA-28 | 实现分析结果缓存 | ✅ | BL-CA-18 | `CodeAnalyzer` 添加 LRU 缓存（默认 100 条，TTL 3600s），避免重复解析相同代码 |
 | BL-CA-29 | 实现分析任务队列 | 📋 | BL-CA-26 | 内存队列（max=10），并发控制（max=2），防抖 300ms，避免大项目批量分析压垮服务（v1.4 §1.1 AnalysisManager） |
 | BL-CA-30 | 实现分析进度查询 | 📋 | BL-CA-29 | `GET /api/v1/memories/analyze/progress` — 返回队列状态：pending/running/done/failed，支持按 `project_id` 过滤 |
+
+#### BL-CA-28: 分析结果缓存
+
+| 属性 | 内容 |
+|------|------|
+| **目标** | 避免重复解析相同代码内容，提升批量分析性能，减少 CPU 和内存开销 |
+| **涉及范围** | `wrapper/src/utils/code_analyzer.py`：<br>- `CodeAnalyzer.__init__()` 初始化缓存<br>- `analyze_code()` 添加缓存读写逻辑<br>- `_get_cache_key()` 生成缓存键（content_hash + language）<br>- `get_cache_stats()` 获取缓存统计<br>- `clear_cache()` 清空缓存 |
+| **前置依赖** | BL-CA-18 ✅ 已完成（代码分析 schema 已定义） |
+| **完成标准** | 1. `CodeAnalyzer` 初始化时创建 LRU 缓存（默认 100 条，TTL 3600s）<br>2. `analyze_code()` 先检查缓存，命中则直接返回<br>3. 缓存键使用 MD5(content) + language<br>4. 提供 `get_cache_stats()` 获取命中率、大小等统计<br>5. 提供 `clear_cache()` 手动清空缓存<br>6. 缓存未命中时执行分析并写入缓存 |
+| **验证方式** | ```bash
+# 运行缓存测试
+uv run pytest tests/test_code_analysis_integration.py::TestCodeAnalysisCache -v
+
+# 验证缓存统计
+python -c "from wrapper.src.utils.code_analyzer import CodeAnalyzer; a = CodeAnalyzer(); print(a.get_cache_stats())"
+``` |
+| **优先级** | P2 |
+| **预计工作量** | 1-2h |
+| **方案** | 使用现有的 `ThreadSafeLRUCache`，在 `CodeAnalyzer` 中集成 |
+| **状态** | ✅ 已完成 |
 
 ### Phase 6: 数据交换与验证（1-2 周）— P3
 
