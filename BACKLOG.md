@@ -189,7 +189,7 @@ v2.7.0 发布准备
 | 编号 | 目标 | 状态 | 依赖 | 说明 |
 |------|------|------|------|------|
 | BL-CA-23 | 实现代码地图 API | ✅ | BL-CA-18 | `GET /api/v1/projects/{id}/map` — 返回 `file_tree`, `module_dependencies`, `hot_files`, `statistics` |
-| BL-CA-24 | 实现代码搜索 API（增强） | 🔄 | BL-CA-18 | `code_filter` 扩展：新增 `min/max_function_count`, `min/max_class_count`, `has_exports`, `analyzer` 过滤条件 |
+| BL-CA-24 | 实现代码搜索 API（增强） | ✅ | BL-CA-18 | `code_filter` 扩展：新增 `min/max_function_count`, `min/max_class_count`, `has_exports`, `analyzer` 过滤条件 |
 | BL-CA-25 | 实现代码统计 API | ✅ | BL-CA-18 | `GET /api/v1/projects/{id}/stats` — 按 `project_id` 聚合 `total_files`, `total_functions`, `total_classes`, `avg_complexity`, `max_complexity` |
 
 ### Phase 4: 批量与增量分析（2-3 周）— P2

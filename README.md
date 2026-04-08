@@ -47,7 +47,7 @@
 | `/health` | GET | 健康检查 | 🌍 公开 |
 | `/v1/embeddings` | POST | 文本嵌入 + 缓存 | 🌍 公开 |
 | `/api/v1/memories` | POST | 批量上传记忆 | 🌍 公开 |
-| `/api/v1/memories/search` | POST | 搜索记忆 | 🌍 公开 |
+| `/api/v1/memories/search` | POST | 搜索记忆（支持 code_filter 代码过滤） | 🌍 公开 |
 | `/api/v1/memories/{id}` | GET | 获取记忆详情（默认不含 embedding） | 🌍 公开 |
 | `/api/v1/memories/{id}?include_embedding=true` | GET | 获取记忆详情（含 embedding） | 🌍 公开 |
 | `/api/v1/memories/{id}/summary` | GET | 获取记忆摘要 | 🌍 公开 |
