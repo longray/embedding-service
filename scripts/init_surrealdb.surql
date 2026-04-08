@@ -55,6 +55,15 @@ DEFINE FIELD IF NOT EXISTS source_timestamp ON memory TYPE option<datetime>;
 DEFINE FIELD IF NOT EXISTS classification_confidence ON memory TYPE option<float>;
     -- 自动分类的置信度 [0.0, 1.0]
 
+-- L0/L1/L2 分层内容字段 (v2.4.0)
+DEFINE FIELD IF NOT EXISTS abstract ON memory TYPE option<string>
+    ASSERT $value == NONE OR string::len($value) <= 200;
+    -- L0 摘要，≤200字符
+
+DEFINE FIELD IF NOT EXISTS overview ON memory TYPE option<string>
+    ASSERT $value == NONE OR string::len($value) <= 1000;
+    -- L1 概览，≤1000字符
+
 -- 服务端时间戳（不可变）
 DEFINE FIELD IF NOT EXISTS created_at  ON memory TYPE datetime
     DEFAULT time::now();
@@ -112,6 +121,7 @@ DEFINE INDEX IF NOT EXISTS memory_source_id ON memory FIELDS source_id UNIQUE;
 -- 复合索引（高频查询路径）
 DEFINE INDEX IF NOT EXISTS memory_tenant_type ON memory FIELDS tenant_id, type;
 DEFINE INDEX IF NOT EXISTS memory_tenant_project ON memory FIELDS tenant_id, project_id;
+DEFINE INDEX IF NOT EXISTS memory_tenant_type_project ON memory FIELDS tenant_id, type, project_id;
 
 -- ==================== memory_relation 边表 (图关系) ====================
 

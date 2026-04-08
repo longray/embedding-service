@@ -201,7 +201,7 @@ class CrudMixin:
                         file_path = metadata.get("file_path")
                         if file_path:
                             code_existing = await self._db_query(
-                                "SELECT id, metadata FROM memory WHERE type = 'code' AND project_id = $project_id AND metadata->file_path = $file_path AND tenant_id = $tenant_id LIMIT 1",
+                                "SELECT id, metadata FROM memory WHERE type = 'code' AND project_id = $project_id AND metadata.file_path = $file_path AND tenant_id = $tenant_id LIMIT 1",
                                 {
                                     "project_id": memory_data["project_id"],
                                     "file_path": file_path,
@@ -217,8 +217,17 @@ class CrudMixin:
                                 updated_count += 1
                                 success_count += 1
                                 continue
+                            # 新文件：继续到批量插入（不 continue）
 
-                    # 通用去重：检查 content_hash
+                    # 代码分析数据跳过去重（插件端建议方案1）
+                    # 原因：代码分析的本质是版本追踪，每次分析都是独立的
+                    # 同一文件多次分析应保留历史，不同项目相同代码应独立存储
+                    if mem_type == "code":
+                        # 代码数据直接进入批量插入队列，不检查 hash 去重
+                        batch_inserts.append(memory_data)
+                        continue
+
+                    # 通用去重：检查 content_hash（仅非代码类型）
                     existing = await self._db_query(
                         "SELECT id FROM memory WHERE tenant_id = $tenant_id AND content_hash = $hash LIMIT 1",
                         {"tenant_id": effective_tenant_id, "hash": memory_data["content_hash"]},
@@ -285,58 +294,83 @@ class CrudMixin:
                     failed_count += 1
                     errors.append(f"{type(e).__name__}: {e!s}")
 
-            # Phase A-B2: 批量插入（使用事务）
+            # Phase A-B2: 批量插入（分批处理，每批50条）
             if batch_inserts:
-                try:
-                    # 使用单个 INSERT 语句批量插入
-                    query = "INSERT INTO memory $data"
-                    result = await self._db_query(query, {"data": batch_inserts})
+                BATCH_SIZE = 50
+                total_batches = (len(batch_inserts) + BATCH_SIZE - 1) // BATCH_SIZE
 
-                    # 处理结果
-                    records = self._extract_records(result)
-                    if records:
-                        for i, record in enumerate(records):
-                            record_id = str(record.get("id", "")) if isinstance(record, dict) else None
-                            if record_id:
-                                memory_ids.append(record_id)
-                                success_count += 1
+                for batch_idx in range(total_batches):
+                    start_idx = batch_idx * BATCH_SIZE
+                    end_idx = min(start_idx + BATCH_SIZE, len(batch_inserts))
+                    current_batch = batch_inserts[start_idx:end_idx]
 
-                                # 构建 Meilisearch 文档
-                                if self._meili and i < len(batch_inserts):
-                                    mem = batch_inserts[i]
-                                    meili_doc = self._build_meili_doc(record_id, mem, effective_tenant_id)
-                                    meili_docs.append(meili_doc)
-                            else:
+                    try:
+                        query = "INSERT INTO memory $data"
+                        result = await self._db_query(query, {"data": current_batch})
+
+                        records = self._extract_records(result)
+                        if records:
+                            for i, record in enumerate(records):
+                                record_id = str(record.get("id", "")) if isinstance(record, dict) else None
+                                if record_id:
+                                    memory_ids.append(record_id)
+                                    success_count += 1
+
+                                    if self._meili:
+                                        mem = current_batch[i]
+                                        meili_doc = self._build_meili_doc(record_id, mem, effective_tenant_id)
+                                        meili_docs.append(meili_doc)
+                                else:
+                                    failed_count += 1
+                                    errors.append(f"Batch {batch_idx + 1}: No record ID returned")
+                    except Exception as e:
+                        logger.warning(
+                            f"Batch {batch_idx + 1}/{total_batches} insert failed, falling back to single insert: {e}"
+                        )
+                        for memory_data in current_batch:
+                            try:
+                                result = await self._db_create("memory", memory_data)
+                                record_id = self._extract_record_id(result)
+                                if record_id:
+                                    memory_ids.append(record_id)
+                                    success_count += 1
+                                    if self._meili:
+                                        meili_doc = self._build_meili_doc(record_id, memory_data, effective_tenant_id)
+                                        meili_docs.append(meili_doc)
+                                else:
+                                    failed_count += 1
+                            except Exception as inner_e:
                                 failed_count += 1
-                                errors.append("No record ID returned")
-                except Exception as e:
-                    # 批量插入失败，回退到单条插入
-                    logger.warning(f"Batch insert failed, falling back to single insert: {e}")
-                    for memory_data in batch_inserts:
-                        try:
-                            result = await self._db_create("memory", memory_data)
-                            record_id = self._extract_record_id(result)
-                            if record_id:
-                                memory_ids.append(record_id)
-                                success_count += 1
-                                # 单条插入也同步到 Meilisearch
-                                if self._meili:
-                                    meili_doc = self._build_meili_doc(record_id, memory_data, effective_tenant_id)
-                                    meili_docs.append(meili_doc)
-                            else:
-                                failed_count += 1
-                        except Exception as inner_e:
-                            failed_count += 1
-                            errors.append(f"{type(inner_e).__name__}: {inner_e!s}")
+                                errors.append(f"{type(inner_e).__name__}: {inner_e!s}")
 
-            # 同步到 Meilisearch
+            # 同步到 Meilisearch（分批处理，每批50条）
             if self._meili and meili_docs:
-                try:
-                    await self._meili.add_documents(meili_docs)
-                    span.set_attribute("memory.upload.meili_synced", len(meili_docs))
-                except Exception as meili_err:
-                    logger.error("[Meili sync] 同步失败: %s", meili_err)
-                    span.set_attribute("memory.upload.meili_error", str(meili_err))
+                MEILI_BATCH_SIZE = 50
+                total_meili_batches = (len(meili_docs) + MEILI_BATCH_SIZE - 1) // MEILI_BATCH_SIZE
+                meili_synced_count = 0
+                meili_failed_count = 0
+
+                for meili_batch_idx in range(total_meili_batches):
+                    start_idx = meili_batch_idx * MEILI_BATCH_SIZE
+                    end_idx = min(start_idx + MEILI_BATCH_SIZE, len(meili_docs))
+                    current_meili_batch = meili_docs[start_idx:end_idx]
+
+                    try:
+                        await self._meili.add_documents(current_meili_batch)
+                        meili_synced_count += len(current_meili_batch)
+                        logger.info(
+                            f"[Meili sync] Batch {meili_batch_idx + 1}/{total_meili_batches} synced: {len(current_meili_batch)} docs"
+                        )
+                    except Exception as meili_err:
+                        meili_failed_count += len(current_meili_batch)
+                        logger.error(
+                            f"[Meili sync] Batch {meili_batch_idx + 1}/{total_meili_batches} failed: {meili_err}"
+                        )
+
+                span.set_attribute("memory.upload.meili_synced", meili_synced_count)
+                span.set_attribute("memory.upload.meili_failed", meili_failed_count)
+                if meili_failed_count > 0:
+                    span.set_attribute("memory.upload.meili_error", f"{meili_failed_count} docs failed to sync")
 
         # BL-4: Phase A - 自动代码分析（异步触发，不阻塞上传）
         if memory_ids:

@@ -144,10 +144,12 @@ class MemoryManager(
         return re.sub(r"[^\w\s\u4e00-\u9fff\u3400-\u4dbf\uff00-\uffef-]", "", text).strip()[:500]
 
     def _normalize_memory_id(self, memory_id: str) -> str:
-        """规范化记忆 ID（Stub）"""
-        if ":" not in memory_id:
-            return f"memory:{memory_id}"
-        return memory_id
+        """规范化记忆 ID，确保统一格式"""
+        if not memory_id:
+            return memory_id
+        if ":" in memory_id:
+            return memory_id
+        return f"memory:{memory_id}"
 
     def _extract_records(self, db_result: Any) -> list[dict[str, Any]]:
         """从 SurrealDB query() 返回值中提取记录列表

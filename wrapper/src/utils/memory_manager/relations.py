@@ -51,7 +51,7 @@ class RelationsMixin:
         """创建两条记忆之间的图关系"""
         effective_tenant_id = tenant_id or self._default_tenant_id
 
-        valid_types = {"related", "follow_up", "elaboration", "contradiction", "reference", "derived_from"}
+        valid_types = {"related", "follow_up", "elaboration", "contradiction", "reference", "derived_from", "calls"}
         if relationship_type not in valid_types:
             raise ValidationError(f"Invalid relationship_type: {relationship_type}. Must be one of {valid_types}")
         if not 0.0 <= weight <= 1.0:
@@ -69,22 +69,26 @@ class RelationsMixin:
 
             try:
                 set_clauses = [
-                    f"relationship_type = '{relationship_type}'",
-                    f"weight = {float(weight)}",
+                    "relationship_type = $rel_type",
+                    "weight = $weight",
                     "tenant_id = $tenant_id",
                 ]
+                params = {
+                    "rel_type": relationship_type,
+                    "weight": float(weight),
+                    "tenant_id": effective_tenant_id,
+                }
+
                 if description:
-                    safe_desc = self._sanitize_query(description)
-                    set_clauses.append(f"description = '{safe_desc}'")
+                    set_clauses.append("description = $description")
+                    params["description"] = description
                 if metadata:
-                    set_clauses.append(f"metadata = {json.dumps(metadata)}")
+                    set_clauses.append("metadata = $metadata")
+                    params["metadata"] = metadata
 
                 set_str = ", ".join(set_clauses)
-                q = (  # nosec B608
-                    f"RELATE {from_ref}->memory_relation->{to_ref} "  # nosec B608
-                    f"SET {set_str}"  # nosec B608
-                )
-                result = await self._db_query(q, {"tenant_id": effective_tenant_id})
+                q = f"RELATE {from_ref}->memory_relation->{to_ref} SET {set_str}"
+                result = await self._db_query(q, params)
 
                 records = self._extract_records(result)
                 if records:
@@ -286,6 +290,16 @@ class RelationsMixin:
         # 限制批量大小
         if len(calls) > 100:
             raise ValidationError(f"Batch size exceeds maximum of 100, got {len(calls)}")
+
+        # 处理空列表情况
+        if not calls:
+            return {
+                "status": "success",
+                "created": 0,
+                "total": 0,
+                "errors": [],
+                "message": "No calls provided",
+            }
 
         created = 0
         errors = []

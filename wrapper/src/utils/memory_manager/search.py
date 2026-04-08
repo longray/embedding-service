@@ -315,8 +315,7 @@ class SearchMixin:
         results: list[dict[str, Any]] = []
         for hit in meili_result.get("hits", []):
             doc_id = hit.get("id", "")
-            if doc_id and not doc_id.startswith("memory:"):
-                doc_id = f"memory:{doc_id}"
+            doc_id = self._normalize_memory_id(doc_id)
             score = hit.get("_rankingScore", 0.0)
             results.append(
                 {

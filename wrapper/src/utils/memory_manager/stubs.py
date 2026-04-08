@@ -198,17 +198,18 @@ class StubsMixin:
             # 1. 获取项目中的所有代码文件
             files_query = """
                 SELECT
-                    id,
+                    id AS memory_id,
                     metadata.file_path AS file_path,
                     metadata.code_analysis.complexity.cyclomatic_complexity AS complexity,
                     metadata.code_analysis.complexity.function_count AS function_count,
                     metadata.code_analysis.complexity.class_count AS class_count,
                     metadata.code_analysis.imports AS imports
                 FROM memory
-                WHERE type = 'code'
+                WHERE tenant_id = $tenant_id
+                    AND type = 'code'
                     AND project_id = $project_id
-                    AND tenant_id = $tenant_id
                     AND metadata.file_path IS NOT NONE
+                    AND metadata.code_analysis IS NOT NONE
             """
             files_result = await self._db_query(
                 files_query,
@@ -238,8 +239,10 @@ class StubsMixin:
             # 2. 构建文件树
             file_tree = self._build_file_tree(files_records)
 
-            # 3. 提取模块依赖
-            module_dependencies = self._extract_module_dependencies(files_records)
+            # 3. 提取模块依赖（从 imports 和 calls 关系）
+            import_dependencies = self._extract_module_dependencies(files_records)
+            call_dependencies = await self._extract_call_dependencies(files_records, project_id, tenant_id)
+            module_dependencies = import_dependencies + call_dependencies
 
             # 4. 识别热点文件（复杂度最高的前 10 个文件）
             hot_files = self._identify_hot_files(files_records)
@@ -350,6 +353,85 @@ class StubsMixin:
                     )
 
         return dependencies[:100]  # 限制数量
+
+    async def _extract_call_dependencies(self, files: list[dict], project_id: str, tenant_id: str) -> list[dict]:
+        """从 memory_relation 表提取 calls 关系作为模块依赖"""
+        dependencies = []
+
+        # 获取所有文件的 memory_id
+        def get_id_str(f):
+            mid = f.get("memory_id", f.get("id", ""))
+            if hasattr(mid, "table_name") and hasattr(mid, "id"):
+                return f"{mid.table_name}:{mid.id}"
+            return str(mid)
+
+        file_ids = {get_id_str(f): f for f in files}
+        file_paths = {get_id_str(f): f.get("file_path", "") for f in files}
+
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.info(f"[_extract_call_dependencies] file_ids: {list(file_ids.keys())}")
+
+        if not file_ids:
+            logger.info("[_extract_call_dependencies] No file_ids found")
+            return dependencies
+
+        # 查询 calls 关系 - 只查询 in 在文件列表中的关系（避免双向匹配导致的重复）
+        file_id_records = [self._normalize_memory_id(fid) for fid in file_ids.keys()]
+        logger.info(f"[_extract_call_dependencies] Querying {len(file_id_records)} file IDs")
+
+        calls_query = """
+            SELECT
+                in AS from_id,
+                out AS to_id,
+                relationship_type,
+                metadata
+            FROM memory_relation
+            WHERE relationship_type = 'calls'
+                AND in IN array::map($file_ids, |$id| type::record($id))
+            LIMIT 100
+        """
+
+        try:
+            calls_result = await self._db_query(
+                calls_query,
+                {
+                    "file_ids": file_id_records,
+                },
+            )
+            calls_records = self._extract_records(calls_result)
+            logger.info(f"[_extract_call_dependencies] Found {len(calls_records)} call relations")
+
+            seen = set()
+            for call in calls_records:
+                from_id = str(call.get("from_id", ""))
+                to_id = str(call.get("to_id", ""))
+
+                from_path = file_paths.get(from_id, "")
+                to_path = file_paths.get(to_id, "")
+
+                if from_path and to_path:
+                    key = (from_path, to_path)
+                    if key not in seen:
+                        seen.add(key)
+                        dependencies.append(
+                            {
+                                "from": from_path,
+                                "to": to_path,
+                                "type": "call",
+                            }
+                        )
+                        logger.info(f"[_extract_call_dependencies] Added dependency: {from_path} -> {to_path}")
+                else:
+                    logger.info(f"[_extract_call_dependencies] Missing path: from_path={from_path}, to_path={to_path}")
+        except Exception as e:
+            logger.error(f"[_extract_call_dependencies] Error: {e}")
+            # 如果查询失败，返回空列表（降级处理）
+            pass
+
+        logger.info(f"[_extract_call_dependencies] Total dependencies: {len(dependencies)}")
+        return dependencies
 
     def _identify_hot_files(self, files: list[dict], limit: int = 10) -> list[str]:
         """识别热点文件（复杂度最高的文件）"""
