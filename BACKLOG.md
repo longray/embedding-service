@@ -387,6 +387,22 @@ uv run python test_plugin_format.py
 
 ---
 
+#### BL-CA-OPT-08: 查询接口 embedding 字段优化
+
+| 属性 | 内容 |
+|------|------|
+| **目标** | 减少查询响应体积，默认不返回 embedding 向量，需要时显式指定，提升查询性能和用户体验 |
+| **涉及范围** | `wrapper/src/routers/memories.py`：<br>- `GET /api/v1/memories/{id}` 接口<br>- 添加 `include_embedding` 查询参数<br><br>`wrapper/src/utils/memory_manager/memories.py`：<br>- `get_memory` 方法修改<br>- 根据参数决定是否查询 embedding 字段 |
+| **前置依赖** | 无（独立任务） |
+| **完成标准** | 1. 添加 `include_embedding` 查询参数（默认 false）<br>2. 默认不返回 embedding 字段<br>3. 显式设置 `include_embedding=true` 时返回完整 embedding<br>4. 向后兼容，不影响现有调用<br>5. 响应体积减少 90%+ |
+| **验证方式** | 1. 默认查询测试：`GET /api/v1/memories/{id}` 不返回 embedding<br>2. 显式查询测试：`GET /api/v1/memories/{id}?include_embedding=true` 返回 embedding<br>3. 响应体积测试：对比优化前后响应大小<br>4. 性能测试：查询耗时减少<br>5. 向后兼容测试：现有客户端调用正常 |
+| **优先级** | P1 |
+| **预计工作量** | 1h |
+| **方案** | 添加可选参数 `include_embedding`，默认 false，修改 SQL 查询语句 |
+| **状态** | 📋 待执行 |
+
+---
+
 ### 优化项执行状态汇总
 
 | 编号 | 名称 | 优先级 | 状态 | 实际工作量 |
@@ -398,10 +414,11 @@ uv run python test_plugin_format.py
 | BL-CA-OPT-05 | SQL 查询规范文档 | P2 | 📋 待执行 | 2h |
 | BL-CA-OPT-06 | Meilisearch 同步分批 | P1 | ✅ 已完成 | 2h |
 | BL-CA-OPT-07 | 大批量上传异步化 | P2 | 📋 规划中 | 16h+ |
+| BL-CA-OPT-08 | embedding 字段优化 | P1 | 📋 待执行 | 1h |
 
-**已完成**: 5/7 项（BL-CA-OPT-01~04, 06）  
-**待执行**: 1/7 项（BL-CA-OPT-05）  
-**规划中**: 1/7 项（BL-CA-OPT-07）
+**已完成**: 5/8 项（BL-CA-OPT-01~04, 06）  
+**待执行**: 2/8 项（BL-CA-OPT-05, 08）  
+**规划中**: 1/8 项（BL-CA-OPT-07）
 
 ---
 
@@ -413,10 +430,12 @@ uv run python test_plugin_format.py
 | Meilisearch 同步 | **50条** | `crud.py:MEILI_BATCH_SIZE` |
 
 **统一批次大小的好处**：
+
 1. 简化运维和调优
 2. 更均匀的负载分布
 3. 更好的内存管理
 4. 便于后续异步化改造
+
 |------|------|
 | **目标** | 优化大批量记忆上传的性能和稳定性，避免单次插入数据过大 |
 | **涉及范围** | `wrapper/src/utils/memory_manager/crud.py` 的 `upload_memories` 方法 |

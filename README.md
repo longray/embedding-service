@@ -1,10 +1,10 @@
 # Embedding Service (OpenCode Memory Stack)
 
-**当前版本**: v2.7.0
+**当前版本**: v2.7.1
 
 ## 开发状态
 
-**实施阶段**: P0 + P1 + P2 + Phase 3 + Polyglot 搜索架构 + 同步冲突解决 + SQL 注入修复 已完成
+**实施阶段**: P0 + P1 + P2 + Phase 3 + Polyglot 搜索架构 + 同步冲突解决 + SQL 优化 + embedding 优化 已完成
 
 ### 已完成 ✅
 
@@ -24,6 +24,7 @@
 - ✅ **v2.4.2** Bandit 安全扫描标记完成
 - ✅ **v2.6.0** 质量治理（memory_manager Mixin 拆分 + main.py 路由模块化 + 35 个单元测试 + 文档归档对齐）
 - ✅ **v2.7.0** 多设备同步（指纹查询/同步预览/全量同步/冲突解决）+ 测试架构优化
+- ✅ **v2.7.1** SQL 查询优化（RecordID 统一、分批处理、embedding 字段优化）+ 安全性修复
 
 ### P3 优化路线图 🚀
 
@@ -47,6 +48,8 @@
 | `/v1/embeddings` | POST | 文本嵌入 + 缓存 | 🌍 公开 |
 | `/api/v1/memories` | POST | 批量上传记忆 | 🌍 公开 |
 | `/api/v1/memories/search` | POST | 搜索记忆 | 🌍 公开 |
+| `/api/v1/memories/{id}` | GET | 获取记忆详情（默认不含 embedding） | 🌍 公开 |
+| `/api/v1/memories/{id}?include_embedding=true` | GET | 获取记忆详情（含 embedding） | 🌍 公开 |
 | `/api/v1/memories/{id}/summary` | GET | 获取记忆摘要 | 🌍 公开 |
 | `/api/v1/memories/{id}/enrich/llm` | POST | LLM 摘要增强 | 🌍 公开 |
 | `/api/v1/memories/relations` | POST | 创建图关系 | 🌍 公开 |

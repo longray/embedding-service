@@ -93,6 +93,45 @@ async def clear_memories(request: Request):
         raise HTTPException(status_code=500, detail=f"清空失败: {e!s}") from e
 
 
+@router.get("/memories/{memory_id}")
+async def get_memory(
+    memory_id: str,
+    tenant_id: str = "default",
+    include_embedding: bool = False,
+):
+    """获取单个记忆详情
+
+    Args:
+        memory_id: 记忆ID
+        tenant_id: 租户ID
+        include_embedding: 是否包含embedding向量（默认false，减少响应体积）
+    """
+    if not state.memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        # 根据参数选择查询字段
+        if include_embedding:
+            query = "SELECT * FROM type::record($memory_id) WHERE tenant_id = $tenant_id"
+        else:
+            query = "SELECT id, content, abstract, overview, type, metadata, project_id, tags, source, content_hash, local_id, created_at, mtime FROM type::record($memory_id) WHERE tenant_id = $tenant_id"
+
+        result = await state.memory_manager._db_query(
+            query,
+            {"memory_id": memory_id, "tenant_id": tenant_id},
+        )
+        records = state.memory_manager._extract_records(result)
+
+        if not records:
+            raise HTTPException(status_code=404, detail="记忆不存在")
+
+        return {"status": "success", "memory": records[0]}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"查询失败: {e!s}") from e
+
+
 @router.get("/memories/{memory_id}/summary")
 async def get_memory_summary(memory_id: str, tenant_id: str = "default"):
     """获取记忆的代码摘要"""

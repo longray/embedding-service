@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.1] - 2026-04-08
+
+### Added
+
+- **BL-CA-OPT-01~06: SQL 查询优化和安全性修复**
+  - RELATE 语句 SQL 注入防护（参数化 SET 子句）
+  - RecordID 格式统一（使用 `type::record()` 函数）
+  - 嵌套字段查询优化（添加复合索引 `memory_tenant_type_project`）
+  - 批量插入分批处理（50条/批，避免超时）
+  - Meilisearch 同步分批（50条/批，避免超时）
+  - SQL 查询规范文档（`docs/dev/SURREALDB_SQL_BEST_PRACTICES.md`）
+
+- **BL-CA-OPT-08: embedding 字段优化**
+  - `GET /api/v1/memories/{id}` 添加 `include_embedding` 查询参数
+  - 默认不返回 embedding 向量，减少响应体积 97.9%
+  - 向后兼容，需要时显式指定 `include_embedding=true`
+
+### Changed
+
+- **批次大小统一**: SurrealDB 插入和 Meilisearch 同步统一为 50条/批
+- **查询性能优化**: 项目地图查询使用复合索引，响应时间 < 500ms
+
+### Fixed
+
+- **代码分析数据上传**: 修复上传成功但数据未写入的问题
+- **hash 去重问题**: 代码数据（`type: "code"`）跳过 hash 去重检查
+- **项目地图边数据**: 修复 `module_dependencies` 为空的问题
+- **字段名不一致**: 统一使用 `abstract` 和 `overview`（非 `content_abstract`）
+
+---
+
 ## [2.7.0] - 2026-04-04
 
 ### Added
