@@ -264,3 +264,52 @@ UPSERT schema_version:current CONTENT {
     applied_at: time::now(),
     description: 'Phase B: 同步冲突解决 - conflict 表 + 冲突持久化与解决策略'
 };
+
+-- ==================== audit_log 表 (P3-5) ====================
+DEFINE TABLE IF NOT EXISTS audit_log TYPE NORMAL SCHEMAFULL;
+
+-- 核心字段
+DEFINE FIELD IF NOT EXISTS timestamp ON audit_log TYPE datetime DEFAULT time::now();
+    -- 审计时间戳
+
+DEFINE FIELD IF NOT EXISTS user_id ON audit_log TYPE option<string>;
+    -- 用户标识（可选，未认证请求为空）
+
+DEFINE FIELD IF NOT EXISTS action ON audit_log TYPE string;
+    -- 操作类型: memory_create | memory_read | memory_update | memory_delete |
+    --           relation_create | relation_delete | sync_preview | sync_full |
+    --           login | logout | admin_action | system_cleanup
+
+DEFINE FIELD IF NOT EXISTS resource_type ON audit_log TYPE option<string>;
+    -- 资源类型: memory | relation | project | user | system
+
+DEFINE FIELD IF NOT EXISTS resource_id ON audit_log TYPE option<string>;
+    -- 资源ID（如 memory:xxx）
+
+DEFINE FIELD IF NOT EXISTS details ON audit_log TYPE object FLEXIBLE;
+    -- 详细信息（JSON对象，包含请求参数、变更内容等）
+
+DEFINE FIELD IF NOT EXISTS ip_address ON audit_log TYPE option<string>;
+    -- 客户端IP地址
+
+DEFINE FIELD IF NOT EXISTS user_agent ON audit_log TYPE option<string>;
+    -- 客户端User-Agent
+
+DEFINE FIELD IF NOT EXISTS tenant_id ON audit_log TYPE string DEFAULT 'default';
+    -- 租户ID
+
+DEFINE FIELD IF NOT EXISTS created_at ON audit_log TYPE datetime DEFAULT time::now();
+    -- 创建时间
+
+-- 审计日志索引
+DEFINE INDEX IF NOT EXISTS audit_timestamp ON audit_log FIELDS timestamp;
+    -- 按时间查询
+
+DEFINE INDEX IF NOT EXISTS audit_user_action ON audit_log FIELDS user_id, action;
+    -- 按用户和操作查询
+
+DEFINE INDEX IF NOT EXISTS audit_resource ON audit_log FIELDS resource_type, resource_id;
+    -- 按资源查询
+
+DEFINE INDEX IF NOT EXISTS audit_tenant_timestamp ON audit_log FIELDS tenant_id, timestamp;
+    -- 按租户和时间范围查询（最常用的查询模式）

@@ -168,3 +168,22 @@ class AccessLogEntry(BaseModel):
 class AccessLogRequest(BaseModel):
     entries: list[AccessLogEntry] = Field(..., description="访问日志条目列表")
     tenant_id: str = Field(default="default", description="租户ID")
+
+
+# ==================== Audit Log Models (P3-5) ====================
+
+
+class AuditLogRequest(BaseModel):
+    """审计日志记录请求"""
+
+    action: str = Field(
+        ...,
+        description="操作类型: memory_create, memory_read, memory_update, memory_delete, relation_create, relation_delete, sync_preview, sync_full, login, logout, admin_action, system_cleanup",
+    )
+    resource_type: str | None = Field(default=None, description="资源类型: memory, relation, project, user, system")
+    resource_id: str | None = Field(default=None, description="资源ID")
+    details: dict[str, Any] | None = Field(default=None, description="详细信息")
+    user_id: str | None = Field(default=None, description="用户ID")
+    ip_address: str | None = Field(default=None, description="客户端IP地址")
+    user_agent: str | None = Field(default=None, description="客户端User-Agent")
+    tenant_id: str = Field(default="default", description="租户ID")
