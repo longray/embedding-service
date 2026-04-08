@@ -209,7 +209,6 @@ class StubsMixin:
                     AND type = 'code'
                     AND project_id = $project_id
                     AND metadata.file_path IS NOT NONE
-                    AND metadata.code_analysis IS NOT NONE
             """
             files_result = await self._db_query(
                 files_query,

@@ -254,6 +254,9 @@ BL-CA-25 ──► BL-CA-31 (导出) ──► BL-CA-32 (导入)
 | BL-CA-FIX-04 | 字段名不一致 | 统一使用 `abstract` 和 `overview`（代码、模型、数据库一致） | ✅ |
 | BL-CA-FIX-05 | Schema 未初始化 | 将 `abstract`/`overview` 字段定义合并到主 schema | ✅ |
 | BL-CA-FIX-06 | 验证脚本错误 | 修复 SurrealDB 3.0 兼容性（`INFO FOR DB` 替代 `SELECT name FROM tables`） | ✅ |
+| BL-CA-FIX-07 | 项目地图 module_dependencies 为空 | 添加 `_extract_call_dependencies` 方法，使用 `type::record()` 转换 | ✅ |
+| BL-CA-FIX-08 | 模块依赖重复 | 添加去重逻辑，使用 `(from_path, to_path)` 作为 key | ✅ |
+| BL-CA-FIX-09 | 项目地图查询返回空 | 移除 `metadata.code_analysis IS NOT NONE` 查询条件 | ✅ |
 
 ### 修复文件
 

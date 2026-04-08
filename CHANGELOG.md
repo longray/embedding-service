@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **hash 去重问题**: 代码数据（`type: "code"`）跳过 hash 去重检查
 - **项目地图边数据**: 修复 `module_dependencies` 为空的问题
 - **字段名不一致**: 统一使用 `abstract` 和 `overview`（非 `content_abstract`）
+- **项目地图查询返回空**: 移除 `metadata.code_analysis IS NOT NONE` 查询条件，支持无 code_analysis 的数据
 
 ---
 
