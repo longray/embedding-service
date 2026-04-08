@@ -2,7 +2,7 @@
 
 > 后端任务追踪文档，按真实场景驱动排序。已完成任务归档至 `backlog_archive.md`。
 
-**更新时间**: 2026-04-08
+**更新时间**: 2026-04-08（文档对齐：更新 BL-CA-20~22、BL-CA-OPT-05/08 状态，添加 API 健壮性修复记录）
 
 ---
 
@@ -180,17 +180,17 @@ v2.7.0 发布准备
 
 | 编号 | 目标 | 状态 | 依赖 | 说明 |
 |------|------|------|------|------|
-| BL-CA-20 | 实现调用关系存储 API | 🔄 | BL-CA-18 | `POST /api/v1/calls/batch` — 批量创建调用关系，最大 100 条/批次，支持错误列表返回。✅ 已修复：支持 `relationship_type: "calls"` |
-| BL-CA-21 | 实现引用查询 API | 🔄 | BL-CA-20 | `GET /api/v1/memories/{id}/references` — 查询谁调用了该符号，返回 `memory_id`, `file_path`, `line`, `caller_function`, `confidence` |
-| BL-CA-22 | 实现依赖分析 API | 🔄 | BL-CA-20 | `GET /api/v1/memories/{id}/dependencies` — 查询该符号依赖了谁，返回 `memory_id`, `file_path`, `line`, `callee_function`, `type` (internal/external/builtin) |
+| BL-CA-20 | 实现调用关系存储 API | ✅ | BL-CA-18 | `POST /api/v1/calls/batch` — 批量创建调用关系，最大 100 条/批次，支持错误列表返回。✅ 已修复：支持 `relationship_type: "calls"` |
+| BL-CA-21 | 实现引用查询 API | ✅ | BL-CA-20 | `GET /api/v1/memories/{id}/references` — 查询谁调用了该符号，返回 `memory_id`, `file_path`, `line`, `caller_function`, `confidence` |
+| BL-CA-22 | 实现依赖分析 API | ✅ | BL-CA-20 | `GET /api/v1/memories/{id}/dependencies` — 查询该符号依赖了谁，返回 `memory_id`, `file_path`, `line`, `callee_function`, `type` (internal/external/builtin) |
 
 ### Phase 3: 代码地图与搜索增强（2-3 周）— P1
 
 | 编号 | 目标 | 状态 | 依赖 | 说明 |
 |------|------|------|------|------|
-| BL-CA-23 | 实现代码地图 API | 🔄 | BL-CA-18 | `GET /api/v1/projects/{id}/map` — 返回 `file_tree`, `module_dependencies`, `hot_files`, `statistics` |
+| BL-CA-23 | 实现代码地图 API | ✅ | BL-CA-18 | `GET /api/v1/projects/{id}/map` — 返回 `file_tree`, `module_dependencies`, `hot_files`, `statistics` |
 | BL-CA-24 | 实现代码搜索 API（增强） | 🔄 | BL-CA-18 | `code_filter` 扩展：新增 `min/max_function_count`, `min/max_class_count`, `has_exports`, `analyzer` 过滤条件 |
-| BL-CA-25 | 实现代码统计 API | 🔄 | BL-CA-18 | `GET /api/v1/projects/{id}/stats` — 按 `project_id` 聚合 `total_files`, `total_functions`, `total_classes`, `avg_complexity`, `max_complexity` |
+| BL-CA-25 | 实现代码统计 API | ✅ | BL-CA-18 | `GET /api/v1/projects/{id}/stats` — 按 `project_id` 聚合 `total_files`, `total_functions`, `total_classes`, `avg_complexity`, `max_complexity` |
 
 ### Phase 4: 批量与增量分析（2-3 周）— P2
 
@@ -257,6 +257,15 @@ BL-CA-25 ──► BL-CA-31 (导出) ──► BL-CA-32 (导入)
 | BL-CA-FIX-07 | 项目地图 module_dependencies 为空 | 添加 `_extract_call_dependencies` 方法，使用 `type::record()` 转换 | ✅ |
 | BL-CA-FIX-08 | 模块依赖重复 | 添加去重逻辑，使用 `(from_path, to_path)` 作为 key | ✅ |
 | BL-CA-FIX-09 | 项目地图查询返回空 | 移除 `metadata.code_analysis IS NOT NONE` 查询条件 | ✅ |
+
+### API 健壮性修复（v2.7.1）
+
+| 编号 | 问题 | 修复内容 | 状态 |
+|------|------|---------|------|
+| BL-CA-FIX-API-01 | 字段缺失导致查询 404 | API 自动填充默认值：`abstract`→""、`overview`→""、`project_id`→"global" | ✅ |
+| BL-CA-FIX-API-02 | 可选字段校验过严 | Pydantic 模型所有字段设为 Optional，仅 `content` 为必填 | ✅ |
+
+**说明**: 上传接口现在对缺失字段具有容错能力，插件端无需强制提供所有字段。
 
 ### 修复文件
 
@@ -402,7 +411,7 @@ uv run python test_plugin_format.py
 | **优先级** | P1 |
 | **预计工作量** | 1h |
 | **方案** | 添加可选参数 `include_embedding`，默认 false，修改 SQL 查询语句 |
-| **状态** | 📋 待执行 |
+| **状态** | ✅ 已完成 |
 
 ---
 
@@ -414,13 +423,13 @@ uv run python test_plugin_format.py
 | BL-CA-OPT-02 | RecordID 格式统一 | P0 | ✅ 已完成 | 4h |
 | BL-CA-OPT-03 | 嵌套字段查询优化 | P2 | ✅ 已完成 | 2h |
 | BL-CA-OPT-04 | 批量插入分批处理 | P1 | ✅ 已完成 | 2h |
-| BL-CA-OPT-05 | SQL 查询规范文档 | P2 | 📋 待执行 | 2h |
+| BL-CA-OPT-05 | SQL 查询规范文档 | P2 | ✅ 已完成 | 2h |
 | BL-CA-OPT-06 | Meilisearch 同步分批 | P1 | ✅ 已完成 | 2h |
 | BL-CA-OPT-07 | 大批量上传异步化 | P2 | 📋 规划中 | 16h+ |
-| BL-CA-OPT-08 | embedding 字段优化 | P1 | 📋 待执行 | 1h |
+| BL-CA-OPT-08 | embedding 字段优化 | P1 | ✅ 已完成 | 1h |
 
-**已完成**: 5/8 项（BL-CA-OPT-01~04, 06）  
-**待执行**: 2/8 项（BL-CA-OPT-05, 08）  
+**已完成**: 7/8 项（BL-CA-OPT-01~06, 08）  
+**待执行**: 0/8 项  
 **规划中**: 1/8 项（BL-CA-OPT-07）
 
 ---
@@ -487,4 +496,4 @@ BL-CA-OPT-04 (批量插入) ───────┤
 
 ---
 
-*最后更新: 2026-04-08（Scene 10 更新：添加待优化项详细规范）*
+*最后更新: 2026-04-08（文档对齐代码实现：BL-CA-20~22、BL-CA-OPT-05/08 标记为已完成，添加 API 健壮性修复记录，BL-CA-23/25 标记为待添加路由）*

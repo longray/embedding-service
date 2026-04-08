@@ -137,19 +137,17 @@ class StubsMixin:
             count_records = self._extract_records(count_result)
             total_files = count_records[0].get("total_files", 0) if count_records else 0
 
-            # 查询代码分析字段的聚合统计
+            # 查询代码分析字段的聚合统计（简化版，避免复杂math函数）
             stats_query = """
                 SELECT
-                    math::sum(metadata.code_analysis.complexity.function_count) AS total_functions,
-                    math::sum(metadata.code_analysis.complexity.class_count) AS total_classes,
-                    math::mean(metadata.code_analysis.complexity.cyclomatic_complexity) AS avg_complexity,
-                    math::max(metadata.code_analysis.complexity.cyclomatic_complexity) AS max_complexity
+                    metadata.code_analysis.complexity.function_count AS function_count,
+                    metadata.code_analysis.complexity.class_count AS class_count,
+                    metadata.code_analysis.complexity.cyclomatic_complexity AS complexity
                 FROM memory
                 WHERE type = 'code'
                     AND project_id = $project_id
                     AND tenant_id = $tenant_id
                     AND metadata.code_analysis IS NOT NONE
-                GROUP ALL
             """
             stats_result = await self._db_query(
                 stats_query,
@@ -160,27 +158,31 @@ class StubsMixin:
             )
             stats_records = self._extract_records(stats_result)
 
-            if stats_records:
-                stats = stats_records[0]
-                return {
-                    "status": "success",
-                    "project_id": project_id,
-                    "total_files": total_files,
-                    "total_functions": stats.get("total_functions", 0),
-                    "total_classes": stats.get("total_classes", 0),
-                    "avg_complexity": round(stats.get("avg_complexity", 0), 2),
-                    "max_complexity": stats.get("max_complexity", 0),
-                }
-            else:
-                return {
-                    "status": "success",
-                    "project_id": project_id,
-                    "total_files": total_files,
-                    "total_functions": 0,
-                    "total_classes": 0,
-                    "avg_complexity": 0,
-                    "max_complexity": 0,
-                }
+            # 手动计算统计值
+            total_functions = 0
+            total_classes = 0
+            complexities = []
+
+            for record in stats_records:
+                if record:
+                    total_functions += record.get("function_count", 0) or 0
+                    total_classes += record.get("class_count", 0) or 0
+                    comp = record.get("complexity")
+                    if comp is not None:
+                        complexities.append(comp)
+
+            avg_complexity = round(sum(complexities) / len(complexities), 2) if complexities else 0
+            max_complexity = max(complexities) if complexities else 0
+
+            return {
+                "status": "success",
+                "project_id": project_id,
+                "total_files": total_files,
+                "total_functions": total_functions,
+                "total_classes": total_classes,
+                "avg_complexity": avg_complexity,
+                "max_complexity": max_complexity,
+            }
         except Exception as e:
             logger.error("[MemoryManager] 获取项目统计失败: %s", e)
             return {

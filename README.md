@@ -56,6 +56,11 @@
 | `/api/v1/memories/{id}/relations` | POST | 查询记忆关系 | 🌍 公开 |
 | `/api/v1/memories/relations/{id}` | DELETE | 删除图关系 | 🌍 公开 |
 | `/api/v1/memories/{id}/graph` | POST | 图遍历 | 🌍 公开 |
+| `/api/v1/calls/batch` | POST | 批量创建调用关系 (BL-CA-20) ✅ | 🌍 公开 |
+| `/api/v1/memories/{id}/references` | GET | 引用查询 - 谁调用了该符号 (BL-CA-21) ✅ | 🌍 公开 |
+| `/api/v1/memories/{id}/dependencies` | GET | 依赖查询 - 该符号依赖谁 (BL-CA-22) ✅ | 🌍 公开 |
+| `/api/v1/projects/{id}/map` | GET | 代码地图 (BL-CA-23) ✅ | 🌍 公开 |
+| `/api/v1/projects/{id}/stats` | GET | 代码统计 (BL-CA-25) ✅ | 🌍 公开 |
 | `/api/v1/memories/clear` | DELETE | 清空所有记忆（调试专用） | 🔐 API Key |
 | `/api/v1/access-log` | POST | 上报访问日志 | 🌍 公开 |
 | `/ws/memories/live` | WebSocket | 实时推送记忆变更 | 🔓 可选 |

@@ -541,11 +541,11 @@ DEFAULT_INDEX_SETTINGS["filterableAttributes"].append("code_new_field")
 | 上传代码记忆 | `POST /api/v1/memories` | 基础 | ✅ 已实现 |
 | 搜索代码记忆 | `POST /api/v1/memories/search` | 基础 | ✅ 已实现 |
 | 手动触发代码分析 | `POST /api/v1/memories/{id}/analyze/code` | Phase 1 | ⏳ 开发中 |
-| 批量创建调用关系 | `POST /api/v1/calls/batch` | Phase 2 (BL-CA-20) | ⏳ 开发中 |
-| 引用查询 | `GET /api/v1/memories/{id}/references` | Phase 2 (BL-CA-21) | ⏳ 开发中 |
-| 依赖查询 | `GET /api/v1/memories/{id}/dependencies` | Phase 2 (BL-CA-22) | ⏳ 开发中 |
-| 代码地图 | `GET /api/v1/projects/{id}/map` | Phase 3 (BL-CA-23) | ⏳ 开发中 |
-| 代码统计 | `GET /api/v1/projects/{id}/stats` | Phase 3 (BL-CA-25) | ⏳ 开发中 |
+| 批量创建调用关系 | `POST /api/v1/calls/batch` | Phase 2 (BL-CA-20) | ✅ 已实现 |
+| 引用查询 | `GET /api/v1/memories/{id}/references` | Phase 2 (BL-CA-21) | ✅ 已实现 |
+| 依赖查询 | `GET /api/v1/memories/{id}/dependencies` | Phase 2 (BL-CA-22) | ✅ 已实现 |
+| 代码地图 | `GET /api/v1/projects/{id}/map` | Phase 3 (BL-CA-23) | ✅ 已实现 |
+| 代码统计 | `GET /api/v1/projects/{id}/stats` | Phase 3 (BL-CA-25) | ✅ 已实现 |
 | 语义代码搜索 | `POST /api/v1/memories/search` (semantic) | Phase 4 | 📋 计划中 |
 
 ---
@@ -558,4 +558,4 @@ DEFAULT_INDEX_SETTINGS["filterableAttributes"].append("code_new_field")
 
 ---
 
-*最后更新: 2026-04-07*
+*最后更新: 2026-04-08（更新 API 状态：BL-CA-20~25 标记为已实现）*
