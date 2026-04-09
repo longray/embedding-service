@@ -34,7 +34,7 @@
 | P3-2 | HNSW向量索引 | 搜索10x加速 | ✅ 已完成 |
 | P3-3 | 监控告警 | 自动告警 | ⏳ 待开始 |
 | P3-4 | Kubernetes | 云原生部署 | ⏳ 待开始 |
-| P3-5 | 审计日志 | 合规审计 | ⏳ 待开始 |
+| P3-5 | 审计日志 | 合规审计 | 🔄 进行中 |
 
 查看 [ROADMAP.md](ROADMAP.md) 了解详细计划。
 
@@ -50,6 +50,7 @@
 | `/api/v1/memories/search` | POST | 搜索记忆（支持 code_filter 代码过滤） | 🌍 公开 |
 | `/api/v1/memories/{id}` | GET | 获取记忆详情（默认不含 embedding） | 🌍 公开 |
 | `/api/v1/memories/{id}?include_embedding=true` | GET | 获取记忆详情（含 embedding） | 🌍 公开 |
+| `/api/v1/memories/lookup` | GET | 记忆查询（source_id/hash/file_path）(BL-CA-34) ✅ | 🌍 公开 |
 | `/api/v1/memories/{id}/summary` | GET | 获取记忆摘要 | 🌍 公开 |
 | `/api/v1/memories/{id}/enrich/llm` | POST | LLM 摘要增强 | 🌍 公开 |
 | `/api/v1/memories/relations` | POST | 创建图关系 | 🌍 公开 |

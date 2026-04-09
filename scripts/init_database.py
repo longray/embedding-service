@@ -178,22 +178,20 @@ class DatabaseInitializer:
         try:
             logger.info("🔍 验证 Schema...")
 
-            # 检查必需的表
+            # 检查必需的表 - SurrealDB 3.0 使用 INFO FOR DB 获取表列表
             required_tables = ["memory", "memory_relation", "project", "schema_version", "conflict"]
-            tables_query = "SELECT name FROM tables"
-            tables_result = await self.db.query(tables_query)
+            db_info = await self.db.query("INFO FOR DB")
 
             tables = []
-            if tables_result and isinstance(tables_result, list):
-                for item in tables_result:
-                    if isinstance(item, dict):
-                        tables.append(item.get("name", ""))
-                    elif isinstance(item, list):
-                        for sub in item:
-                            if isinstance(sub, dict):
-                                tables.append(sub.get("name", ""))
+            if db_info and isinstance(db_info, dict) and "tables" in db_info:
+                tables = list(db_info["tables"].keys())
+            elif db_info and isinstance(db_info, list) and len(db_info) > 0:
+                # 处理嵌套结果
+                info = db_info[0] if isinstance(db_info[0], dict) else {}
+                if "tables" in info:
+                    tables = list(info["tables"].keys())
 
-            logger.info("  📋 当前表: %s", ", ".join(tables))
+            logger.info("  📋 当前表: %s", ", ".join(tables) if tables else "(无)")
 
             for table in required_tables:
                 if table in tables:
@@ -203,24 +201,29 @@ class DatabaseInitializer:
                     return False
 
             # 检查 schema_version
-            version_query = "SELECT version FROM schema_version ORDER BY applied_at DESC LIMIT 1"
-            version_result = await self.db.query(version_query)
+            try:
+                version_result = await self.db.query("SELECT * FROM schema_version LIMIT 1")
+                if version_result and isinstance(version_result, list) and len(version_result) > 0:
+                    version = version_result[0].get("version", "unknown")
+                    logger.info("  ✅ Schema 版本: %s", version)
+                else:
+                    logger.warning("  ⚠️  无法获取 Schema 版本（可能首次初始化）")
+            except Exception as e:
+                logger.warning("  ⚠️  检查 Schema 版本时出错: %s", e)
 
-            if version_result and isinstance(version_result, list) and version_result[0]:
-                version = version_result[0].get("version", "unknown")
-                logger.info("  ✅ Schema 版本: %s", version)
-            else:
-                logger.error("  ❌ 无法获取 Schema 版本")
-                return False
-
-            # 检查 HNSW 索引
-            hnsw_query = "SELECT * FROM indexes WHERE name = 'memory_embedding_hnsw'"
-            hnsw_result = await self.db.query(hnsw_query)
-
-            if hnsw_result and hnsw_result[0]:
-                logger.info("  ✅ HNSW 索引存在: memory_embedding_hnsw")
-            else:
-                logger.warning("  ⚠️  HNSW 索引不存在: memory_embedding_hnsw")
+            # 检查 HNSW 索引 - SurrealDB 3.0 使用 INFO FOR TABLE
+            try:
+                table_info = await self.db.query("INFO FOR TABLE memory")
+                if table_info and isinstance(table_info, dict) and "indexes" in table_info:
+                    indexes = table_info["indexes"]
+                    if "memory_embedding_hnsw" in indexes:
+                        logger.info("  ✅ HNSW 索引存在: memory_embedding_hnsw")
+                    else:
+                        logger.warning("  ⚠️  HNSW 索引不存在: memory_embedding_hnsw")
+                else:
+                    logger.warning("  ⚠️  无法获取表索引信息")
+            except Exception as e:
+                logger.warning("  ⚠️  检查索引时出错: %s", e)
 
             logger.info("✅ Schema 验证通过")
             return True

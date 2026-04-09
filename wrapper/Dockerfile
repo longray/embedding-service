@@ -16,8 +16,8 @@ RUN uv pip install --system \
     --index-url https://mirrors.aliyun.com/pypi/simple/ \
     "uvicorn[standard]>=0.30" fastapi surrealdb httpx meilisearch python-dotenv pydantic pydantic-settings structlog opentelemetry-api opentelemetry-sdk opentelemetry-exporter-otlp aiocache
 
-COPY wrapper/src ./wrapper/src
-COPY scripts/ ./scripts/
+# 注意：代码通过卷挂载提供，不需要 COPY
+# 开发模式：docker-compose.yml 中挂载 ./wrapper/src:/app/wrapper/src
 
 ENV WRAPPER_PORT=17999 \
     WRAPPER_HOST=0.0.0.0
