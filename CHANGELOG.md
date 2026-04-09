@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.2] - 2026-04-09
+
+### Added
+
+- **BL-CA-34: Memory Lookup API**
+  - 新增 `GET /api/v1/memories/lookup` 端点
+  - 支持 source_id、content_hash、file_path 三种查询方式
+  - 用于缓存重建和多设备同步场景
+  - 添加 SurrealDB 索引优化查询性能
+
 ## [2.7.1] - 2026-04-08
 
 ### Added

@@ -18,9 +18,58 @@
 
 ## 版本历史
 
-## 版本历史
+### v2.7.2 (当前) - Memory Lookup API ✅
 
-### v2.3.1 (当前) - 同步冲突解决 ✅
+**发布日期**: 2026-04-09
+
+**核心功能**:
+
+- Embedding 服务（Qwen3-Embedding-0.6B）
+- LLM 服务（MiniCPM4-0.5B）
+- 最小化包装服务（端口 17999）
+  - LRU 缓存
+  - HTTP 连接池
+  - SurrealDB 长期连接
+  - **Memory Lookup API** - 支持 source_id/hash/file_path 查询
+- 包装层服务（端口 3001，完整功能）
+- API 认证授权（API Key + 权限控制）
+- 记忆管理系统（SurrealDB + 向量搜索）
+- **Polyglot 搜索架构**（Meilisearch 全文搜索 + SurrealDB 向量/图）
+- **同步冲突解决**（多设备/多用户/离线编辑场景）
+- **代码分析**（调用关系、引用查询、代码地图、代码统计）
+- CI/CD（GitHub Actions）
+- **完整测试套件（150+ 测试用例）**
+
+---
+
+### v2.7.1 - SQL 优化与安全性修复 ✅
+
+**发布日期**: 2026-04-08
+
+**核心功能**:
+
+- SQL 查询优化（RecordID 统一、复合索引、分批处理）
+- embedding 字段优化（默认不返回，减少 97.9% 响应体积）
+- 代码分析数据上传修复
+- API 健壮性增强（字段自动填充）
+
+---
+
+### v2.7.0 - 多设备同步 ✅
+
+**发布日期**: 2026-04-04
+
+**核心功能**:
+
+- 指纹查询（`GET /api/v1/sync/fingerprints`）
+- 同步预览（`POST /api/v1/sync/preview`）
+- 全量同步（`POST /api/v1/sync/full`）
+- 冲突解决（`POST /api/v1/sync/conflicts/{id}/resolve`）
+- 测试架构优化（分层标记、条件跳过）
+
+---
+
+### v2.3.1 - 同步冲突解决 ✅
 
 **发布日期**: 2026-03-23
 

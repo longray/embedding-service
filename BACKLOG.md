@@ -267,7 +267,7 @@ python -c "from wrapper.src.utils.code_analyzer import CodeAnalyzer; a = CodeAna
 | BL-CA-31 | 实现分析结果导出 | 📋 | BL-CA-25 | `GET /api/v1/projects/{id}/export` — 导出项目全量分析数据为 JSON，含 `file_tree`, `statistics`, `call_graph` |
 | BL-CA-32 | 实现分析结果导入 | 📋 | BL-CA-31 | `POST /api/v1/projects/{id}/import` — 批量导入外部分析结果，Upsert 已有记录 |
 | BL-CA-33 | 集成测试与性能优化 | 📋 | 全部 | 端到端测试：上传→分析→引用查询→代码地图；性能基线：单文件分析 < 500ms，项目地图 < 2s |
-| BL-CA-34 | 实现 Memory Lookup API | 📋 | 无 | `GET /api/v1/memories/lookup` — 支持通过 source_id、file_path、hash 查询记忆，用于缓存重建和多设备同步 |
+| BL-CA-34 | 实现 Memory Lookup API | ✅ | 无 | `GET /api/v1/memories/lookup` — 支持通过 source_id、file_path、hash 查询记忆，用于缓存重建和多设备同步 |
 
 ### 依赖关系图
 
@@ -314,7 +314,7 @@ uv run pytest tests/test_lookup_api.py -v
 | **优先级** | P1 |
 | **预计工作量** | 2-3 天 |
 | **方案** | 1. 添加数据库索引<br>2. 创建 LookupMixin 实现查询逻辑<br>3. 创建 lookup 路由<br>4. 注册路由<br>5. 编写测试 |
-| **状态** | 📋 待开始 |
+| **状态** | ✅ 已完成 (2026-04-09) |
 | **相关文档** | - [产品规格书](docs/product/lookup-api-spec.md)<br>- [技术设计](docs/dev/lookup-api-design.md) |
 
 ---
