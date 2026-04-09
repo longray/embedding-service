@@ -79,6 +79,39 @@ uv run pytest tests/test_semantic_deduplication.py -v
 
 ---
 
+## 场景 5: 生产运维与合规审计
+
+> **用户流程**: 系统运行 → 管理员需要查看谁访问了什么记忆 → 合规审计需要操作记录 → 故障排查需要追踪请求链路
+>
+> **当前状态**: ⏳ 待开始。基础访问日志 API 已存在，但缺少持久化存储和查询能力。
+
+### P3-5: 审计日志系统
+
+| 属性 | 内容 |
+|------|------|
+| **目标** | 建立完整的审计日志系统，支持操作追踪、合规审计、故障排查 |
+| **涉及范围** | **Schema**: `scripts/init_surrealdb.surql` - 创建 `audit_log` 表<br>**API**: `wrapper/src/routers/audit.py` - 新增审计日志查询接口<br>**存储**: `wrapper/src/utils/memory_manager/audit.py` - AuditMixin 实现持久化<br>**中间件**: `wrapper/src/main.py` - FastAPI 中间件自动记录请求<br>**配置**: `wrapper/src/config.py` - 审计日志保留策略配置 |
+| **前置依赖** | 无（基础访问日志 API 已存在） |
+| **完成标准** | 1. 创建 `audit_log` 表（SurrealDB），含字段：id, timestamp, user_id, action, resource_type, resource_id, details, ip_address, user_agent<br>2. 实现 `POST /api/v1/audit/log` - 手动记录审计事件<br>3. 实现 `GET /api/v1/audit/logs` - 查询审计日志（支持时间范围、用户、操作类型过滤）<br>4. 实现 `DELETE /api/v1/audit/logs` - 清理过期日志（保留 90 天）<br>5. FastAPI 中间件自动记录所有 API 请求（可选开启）<br>6. 支持导出审计日志为 CSV/JSON |
+| **验证方式** | ```bash
+# 1. 记录审计日志
+curl -X POST http://localhost:17999/api/v1/audit/log \
+  -H "Content-Type: application/json" \
+  -d '{"action": "memory_read", "resource_type": "memory", "resource_id": "memory:xxx"}'
+
+# 2. 查询审计日志
+curl "http://localhost:17999/api/v1/audit/logs?start_date=2026-04-01&end_date=2026-04-08&action=memory_read"
+
+# 3. 运行测试
+uv run pytest tests/test_audit_log.py -v
+``` |
+| **优先级** | P3 |
+| **预计工作量** | 2-3 天 |
+| **方案** | 使用 SurrealDB 存储审计日志，支持时间序列查询；FastAPI 中间件自动记录；定期清理任务 |
+| **状态** | ⏳ 待开始 |
+
+---
+
 ## 执行路线图
 
 ```text
@@ -234,6 +267,7 @@ python -c "from wrapper.src.utils.code_analyzer import CodeAnalyzer; a = CodeAna
 | BL-CA-31 | 实现分析结果导出 | 📋 | BL-CA-25 | `GET /api/v1/projects/{id}/export` — 导出项目全量分析数据为 JSON，含 `file_tree`, `statistics`, `call_graph` |
 | BL-CA-32 | 实现分析结果导入 | 📋 | BL-CA-31 | `POST /api/v1/projects/{id}/import` — 批量导入外部分析结果，Upsert 已有记录 |
 | BL-CA-33 | 集成测试与性能优化 | 📋 | 全部 | 端到端测试：上传→分析→引用查询→代码地图；性能基线：单文件分析 < 500ms，项目地图 < 2s |
+| BL-CA-34 | 实现 Memory Lookup API | 📋 | 无 | `GET /api/v1/memories/lookup` — 支持通过 source_id、file_path、hash 查询记忆，用于缓存重建和多设备同步 |
 
 ### 依赖关系图
 
@@ -255,6 +289,33 @@ BL-CA-25 ──► BL-CA-31 (导出) ──► BL-CA-32 (导入)
 
 全部 ──► BL-CA-33 (集成测试)
 ```
+
+#### BL-CA-34: Memory Lookup API
+
+| 属性 | 内容 |
+|------|------|
+| **目标** | 实现 Memory Lookup API，支持通过 source_id、file_path、hash 查询记忆，用于缓存重建和多设备同步 |
+| **涉及范围** | **Schema**: `scripts/init_surrealdb.surql` - 添加 source_id、content_hash、file_path 索引<br>**API**: `wrapper/src/routers/lookup.py` - 新路由<br>**Mixin**: `wrapper/src/utils/memory_manager/lookup.py` - LookupMixin<br>**模型**: `wrapper/src/models.py` - LookupRequest/LookupResponse<br>**注册**: `wrapper/src/main.py` - 注册路由 |
+| **前置依赖** | 无（独立任务） |
+| **完成标准** | 1. API 端点 `GET /api/v1/memories/lookup` 可用<br>2. 支持 source_id 精确查询<br>3. 支持 hash 查询（32位十六进制，不含前缀）<br>4. 支持 file_path + project_id 查询<br>5. 查询优先级：source_id > hash > file_path<br>6. 默认返回 1 条，支持 limit 和 all 参数<br>7. 按 tenant_id 隔离数据<br>8. 响应格式符合产品规格书<br>9. 测试用例通过 |
+| **验证方式** | ```bash
+# 测试 source_id 查询
+curl "http://localhost:17999/api/v1/memories/lookup?source_id=01H1ABC..."
+
+# 测试 hash 查询
+curl "http://localhost:17999/api/v1/memories/lookup?hash=d41d8cd98f00b204..."
+
+# 测试 file_path 查询
+curl "http://localhost:17999/api/v1/memories/lookup?file_path=src/utils.ts&project_id=my-project"
+
+# 运行测试
+uv run pytest tests/test_lookup_api.py -v
+``` |
+| **优先级** | P1 |
+| **预计工作量** | 2-3 天 |
+| **方案** | 1. 添加数据库索引<br>2. 创建 LookupMixin 实现查询逻辑<br>3. 创建 lookup 路由<br>4. 注册路由<br>5. 编写测试 |
+| **状态** | 📋 待开始 |
+| **相关文档** | - [产品规格书](docs/product/lookup-api-spec.md)<br>- [技术设计](docs/dev/lookup-api-design.md) |
 
 ---
 
