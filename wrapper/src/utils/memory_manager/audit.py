@@ -45,55 +45,39 @@ class AuditMixin:
             记录结果
         """
         try:
-            # Build query dynamically based on whether details is provided
+            # Build query using SET clause (more reliable for object fields)
+            set_clauses = [
+                "timestamp = time::now()",
+                "action = $action",
+                "tenant_id = $tenant_id",
+            ]
+            params = {
+                "action": action,
+                "tenant_id": tenant_id,
+            }
+
+            if user_id:
+                set_clauses.append("user_id = $user_id")
+                params["user_id"] = user_id
+            if resource_type:
+                set_clauses.append("resource_type = $resource_type")
+                params["resource_type"] = resource_type
+            if resource_id:
+                set_clauses.append("resource_id = $resource_id")
+                params["resource_id"] = resource_id
             if details:
-                query = """
-                    CREATE audit_log CONTENT {
-                        timestamp: time::now(),
-                        user_id: $user_id,
-                        action: $action,
-                        resource_type: $resource_type,
-                        resource_id: $resource_id,
-                        details: $details,
-                        ip_address: $ip_address,
-                        user_agent: $user_agent,
-                        tenant_id: $tenant_id,
-                        created_at: time::now()
-                    }
-                """
-                params = {
-                    "user_id": user_id,
-                    "action": action,
-                    "resource_type": resource_type,
-                    "resource_id": resource_id,
-                    "details": details,
-                    "ip_address": ip_address,
-                    "user_agent": user_agent,
-                    "tenant_id": tenant_id,
-                }
-            else:
-                query = """
-                    CREATE audit_log CONTENT {
-                        timestamp: time::now(),
-                        user_id: $user_id,
-                        action: $action,
-                        resource_type: $resource_type,
-                        resource_id: $resource_id,
-                        ip_address: $ip_address,
-                        user_agent: $user_agent,
-                        tenant_id: $tenant_id,
-                        created_at: time::now()
-                    }
-                """
-                params = {
-                    "user_id": user_id,
-                    "action": action,
-                    "resource_type": resource_type,
-                    "resource_id": resource_id,
-                    "ip_address": ip_address,
-                    "user_agent": user_agent,
-                    "tenant_id": tenant_id,
-                }
+                # Store details as JSON string
+                set_clauses.append("details = $details")
+                params["details"] = json.dumps(details)
+            if ip_address:
+                set_clauses.append("ip_address = $ip_address")
+                params["ip_address"] = ip_address
+            if user_agent:
+                set_clauses.append("user_agent = $user_agent")
+                params["user_agent"] = user_agent
+
+            set_clause = ", ".join(set_clauses)
+            query = f"CREATE audit_log SET {set_clause}"
 
             result = await self._db_query(query, params)
 
@@ -107,7 +91,7 @@ class AuditMixin:
             else:
                 return {
                     "status": "error",
-                    "message": "创建审计日志失败",
+                    "message": "创建审计日志失败：无返回数据",
                 }
 
         except Exception as e:
@@ -146,7 +130,7 @@ class AuditMixin:
             审计日志列表和总数
         """
         try:
-            # 构建 WHERE 条件
+            # Build WHERE 条件
             conditions = ["tenant_id = $tenant_id"]
             params = {"tenant_id": tenant_id, "limit": limit, "offset": offset}
 
@@ -176,17 +160,17 @@ class AuditMixin:
 
             where_clause = " AND ".join(conditions)
 
-            # 查询总数
+            # Query total count
             count_query = f"""
                 SELECT count() AS total FROM audit_log
                 WHERE {where_clause}
                 GROUP ALL
             """
-            count_result = await self._db_query(count_query, params)
+            count_result = await self._db.query(count_query, params)
             count_records = self._extract_records(count_result)
             total = count_records[0].get("total", 0) if count_records else 0
 
-            # 查询数据
+            # Query data
             query = f"""
                 SELECT * FROM audit_log
                 WHERE {where_clause}
@@ -194,7 +178,7 @@ class AuditMixin:
                 LIMIT $limit
                 START $offset
             """
-            result = await self._db_query(query, params)
+            result = await self._db.query(query, params)
             records = self._extract_records(result)
 
             return {
@@ -235,7 +219,7 @@ class AuditMixin:
                     AND timestamp < $cutoff_date
             """
 
-            result = await self._db_query(
+            result = await self._db.query(
                 query,
                 {
                     "tenant_id": tenant_id,
@@ -243,7 +227,7 @@ class AuditMixin:
                 },
             )
 
-            # SurrealDB DELETE 返回被删除的记录数
+            # SurrealDB DELETE returns deleted records
             deleted_count = len(self._extract_records(result))
 
             return {

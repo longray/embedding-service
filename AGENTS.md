@@ -92,6 +92,12 @@ uv run task lint-md-stats
 
 **复杂场景**：调用 `skill("code-search")` 获取详细策略。
 
+## 技术问题参考
+
+### SurrealDB 相关问题
+
+- **[SurrealDB object FLEXIBLE 字段问题](docs/dev/SURREALDB_OBJECT_FLEXIBLE_ISSUE.md)** - 记录 SurrealDB 3.0 中 `TYPE object FLEXIBLE` 与 Python SDK 的兼容性问题及解决方案
+
 ## 最近变更
 
 - **v2.6.0 质量治理**：

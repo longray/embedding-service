@@ -266,6 +266,7 @@ UPSERT schema_version:current CONTENT {
 };
 
 -- ==================== audit_log 表 (P3-5) ====================
+
 DEFINE TABLE IF NOT EXISTS audit_log TYPE NORMAL SCHEMAFULL;
 
 -- 核心字段
@@ -286,8 +287,8 @@ DEFINE FIELD IF NOT EXISTS resource_type ON audit_log TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS resource_id ON audit_log TYPE option<string>;
     -- 资源ID（如 memory:xxx）
 
-DEFINE FIELD IF NOT EXISTS details ON audit_log TYPE object FLEXIBLE;
-    -- 详细信息（JSON对象，包含请求参数、变更内容等）
+DEFINE FIELD OVERWRITE details ON audit_log TYPE option<string>;
+    -- 详细信息（JSON字符串，应用层负责序列化/反序列化）
 
 DEFINE FIELD IF NOT EXISTS ip_address ON audit_log TYPE option<string>;
     -- 客户端IP地址
