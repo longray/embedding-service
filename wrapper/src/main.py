@@ -35,7 +35,7 @@ from .models import (  # noqa: F401 — re-exported for backward compatibility
     SyncPreviewRequest,
     SyncPreviewResponse,
 )
-from .routers import audit, embeddings, health, memories, projects, relations, search, stubs, sync, websocket
+from .routers import audit, embeddings, health, lookup, memories, projects, relations, search, stubs, sync, websocket
 from .utils.cache import ThreadSafeLRUCache
 from .utils.exceptions import WrapperServiceError
 from .utils.http_pool import close_http_pool, get_http_pool
@@ -283,6 +283,7 @@ app = FastAPI(title="Minimal Wrapper Service", version="2.6.0", lifespan=lifespa
 
 app.include_router(health.router)
 app.include_router(embeddings.router)
+app.include_router(lookup.router)  # 必须在 memories 之前
 app.include_router(memories.router)
 app.include_router(search.router)
 app.include_router(relations.router)

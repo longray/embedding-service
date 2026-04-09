@@ -22,6 +22,7 @@ from .dedup import DedupMixin
 from .meili_sync import MeiliSyncMixin
 from .code_analysis import CodeAnalysisMixin
 from .audit import AuditMixin
+from .lookup import LookupMixin
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ class MemoryManager(
     MeiliSyncMixin,
     CodeAnalysisMixin,
     AuditMixin,
+    LookupMixin,
 ):
     """记忆管理器，协调 embedding 服务和数据库操作
 

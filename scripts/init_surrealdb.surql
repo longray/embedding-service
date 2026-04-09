@@ -314,3 +314,19 @@ DEFINE INDEX IF NOT EXISTS audit_resource ON audit_log FIELDS resource_type, res
 
 DEFINE INDEX IF NOT EXISTS audit_tenant_timestamp ON audit_log FIELDS tenant_id, timestamp;
     -- 按租户和时间范围查询（最常用的查询模式）
+
+-- ==================== Memory Lookup 索引 (BL-CA-34) ====================
+
+-- source_id 索引（用于精确查询）
+DEFINE INDEX IF NOT EXISTS idx_memory_source_id ON memory FIELDS source_id;
+    -- 按 source_id 查询（缓存重建、多设备同步）
+
+-- content_hash 索引（用于内容去重）
+DEFINE INDEX IF NOT EXISTS idx_memory_content_hash ON memory FIELDS content_hash;
+    -- 按 content_hash 查询（内容去重）
+
+-- file_path + project_id 复合索引（用于路径查询）
+-- 注意: 由于 SurrealDB 3.0 不支持在索引中使用 metadata 嵌套字段，
+-- 这个查询将使用 project_id 索引 + WHERE 条件过滤
+DEFINE INDEX IF NOT EXISTS idx_memory_project_id ON memory FIELDS project_id;
+    -- 按 project_id 查询，配合 WHERE metadata.file_path 过滤
