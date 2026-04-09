@@ -125,7 +125,7 @@ class LookupMixin:
         try:
             query = """
                 SELECT * FROM memory
-                WHERE metadata.file_path = $file_path
+                WHERE file_path = $file_path
                     AND project_id = $project_id
                     AND tenant_id = $tenant_id
                     AND ($type_filter IS NONE OR type = $type_filter)

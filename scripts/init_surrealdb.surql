@@ -51,6 +51,9 @@ DEFINE FIELD IF NOT EXISTS source      ON memory TYPE option<string>
 DEFINE FIELD IF NOT EXISTS source_timestamp ON memory TYPE option<datetime>;
     -- 客户端原始时间戳（ISO 8601），与 created_at（服务端时间）区分
 
+DEFINE FIELD IF NOT EXISTS content_hash ON memory TYPE option<string>;
+    -- 内容哈希（32位十六进制），用于去重和指纹比对
+
 -- 质量信号（可选）
 DEFINE FIELD IF NOT EXISTS classification_confidence ON memory TYPE option<float>;
     -- 自动分类的置信度 [0.0, 1.0]
@@ -72,6 +75,10 @@ DEFINE FIELD IF NOT EXISTS created_at  ON memory TYPE datetime
 -- 注意: SurrealDB 3.0 语法为 TYPE object FLEXIBLE（FLEXIBLE 在 TYPE 后面）
 DEFINE FIELD IF NOT EXISTS metadata    ON memory TYPE object FLEXIBLE
     DEFAULT {};
+
+-- 文件路径字段（从 metadata 提升，用于 lookup 查询）
+DEFINE FIELD IF NOT EXISTS file_path ON memory TYPE option<string>;
+    -- 文件相对路径，用于 file_path + project_id 组合查询
 
 -- ==================== memory 索引 ====================
 
@@ -326,7 +333,5 @@ DEFINE INDEX IF NOT EXISTS idx_memory_content_hash ON memory FIELDS content_hash
     -- 按 content_hash 查询（内容去重）
 
 -- file_path + project_id 复合索引（用于路径查询）
--- 注意: 由于 SurrealDB 3.0 不支持在索引中使用 metadata 嵌套字段，
--- 这个查询将使用 project_id 索引 + WHERE 条件过滤
-DEFINE INDEX IF NOT EXISTS idx_memory_project_id ON memory FIELDS project_id;
-    -- 按 project_id 查询，配合 WHERE metadata.file_path 过滤
+DEFINE INDEX IF NOT EXISTS idx_memory_file_path_project ON memory FIELDS file_path, project_id;
+    -- 按 file_path + project_id 组合查询（lookup API）
