@@ -12,6 +12,7 @@
 本矩阵追踪 v3.2 架构设计到代码实现的映射关系，确保每个设计点都有对应的实现和测试。
 
 **状态图例**:
+
 - ⏳ 待实现
 - 🔄 进行中
 - ⚠️ 有风险
@@ -32,7 +33,7 @@
 | WS-006 | BACKEND-v3.2-WEBSOCKET.md | DIFF 模式 | `lib/ws-client.js` | `test/ws-client.test.js` | ⏳ | 🟡 中 |
 | WS-007 | PLUGIN-v3.2-API.md | 并发连接 ≥1000 | `test/performance/ws-load-test.js` | 性能测试 | ⏳ | 🔴 高 |
 | WS-008 | PLUGIN-v3.2-API.md | 消息延迟 p99<100ms | `test/performance/ws-load-test.js` | 性能测试 | ⏳ | 🔴 高 |
-| WS-009 | PLUGIN-v3.2-API.md | 心跳成功率 ≥99% | `test/performance/ws-load-test.js` | 性能测试 | ⏳ | 🟡 中 |
+| WS-009 | PLUGIN-v3.2-API.md | 心跳成功率 ≥99% | `test/performance/ws-load-test.js` | 性能测试 | ⏳ | 🟡 中 | 对应 BL-B-51 |
 
 ---
 
@@ -101,6 +102,7 @@
 | 模块 | 总数 | 已完成 | 进行中 | 待实现 | 高风险 |
 |------|------|--------|--------|--------|--------|
 | WebSocket | 9 | 0 | 0 | 9 | 6 |
+| **覆盖状态** | **34/34** | **0** | **0** | **34** | **8** |
 | PrecomputeService | 7 | 0 | 0 | 7 | 0 |
 | Database Schema | 5 | 0 | 0 | 5 | 0 |
 | API | 4 | 0 | 0 | 4 | 1 |
