@@ -77,7 +77,7 @@ async def lookup_memory(
                 "found": True,
                 "memory_id": str(record.get("id", "")),
                 "source_id": record.get("source_id"),
-                "file_path": record.get("metadata", {}).get("file_path"),
+                "file_path": record.get("file_path") or record.get("metadata", {}).get("file_path"),
                 "project_id": record.get("project_id"),
                 "type": record.get("type"),
                 "content_hash": record.get("content_hash"),
@@ -93,7 +93,7 @@ async def lookup_memory(
                     {
                         "memory_id": str(r.get("id", "")),
                         "source_id": r.get("source_id"),
-                        "file_path": r.get("metadata", {}).get("file_path"),
+                        "file_path": r.get("file_path") or r.get("metadata", {}).get("file_path"),
                         "created_at": r.get("created_at"),
                     }
                     for r in records
