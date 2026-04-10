@@ -179,6 +179,11 @@ class CrudMixin:
                         "metadata": memory.get("metadata", {}),
                     }
 
+                    # BL-CA-35: 同步 file_path 到顶层字段（用于 lookup 查询）
+                    metadata = memory.get("metadata", {})
+                    if metadata.get("file_path"):
+                        memory_data["file_path"] = metadata["file_path"]
+
                     # v2.4.0 L0/L1/L2 fields
                     memory_data["abstract"] = memory.get("abstract", "")
                     memory_data["overview"] = memory.get("overview", "")
