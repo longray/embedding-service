@@ -79,6 +79,21 @@ class SurrealDBManager:
             await self._db.close()
             self._db = None
 
+    async def reconnect(self):
+        """重新认证 SurrealDB 会话（用于 SessionExpired 自动恢复）"""
+        logger.info("[SurrealDBManager] 重新认证会话...")
+        if self._db is None:
+            self._db = AsyncSurreal(config.surrealdb.url)
+            await self._db.connect()
+        await self._db.signin(
+            {
+                "username": config.surrealdb.username,
+                "password": config.surrealdb.password,
+            }
+        )
+        await self._db.use(config.surrealdb.namespace, config.surrealdb.database)
+        logger.info("[SurrealDBManager] 会话重新认证成功")
+
     @property
     def db(self):
         if self._db is None:
@@ -245,6 +260,7 @@ async def lifespan(app: FastAPI):
         db=db_manager.db,
         embedding_service_url=config.service.embedding_service_url,
         search_config=config.search,
+        reauthenticate_fn=db_manager.reconnect,
     )
     print("[Startup] MemoryManager已初始化")
 
