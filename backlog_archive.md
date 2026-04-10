@@ -48,6 +48,45 @@
 
 ---
 
+## 2026-04-10 归档批次
+
+### 场景 9: 代码分析增强
+
+- [x] BL-CA-34 [P1] 实现 Memory Lookup API #feature (完成于 2026-04-09)
+  - 支持 source_id、file_path、hash 三种查询方式
+  - 用于缓存重建和多设备同步
+  - 添加 SurrealDB 索引优化查询性能
+- [x] BL-CA-35 [P1] SurrealDB SessionExpired 自动重连 #bug #reliability (完成于 2026-04-10)
+  - 添加 reconnect() 方法到 SurrealDBManager
+  - 传入 reauthenticate_fn 到 MemoryManager
+  - 自动检测会话过期并重试查询
+
+### 场景 10: 代码分析数据上传修复
+
+- [x] BL-CA-FIX-01 [P0] 代码数据被 hash 去重跳过 #bug (完成于 2026-04-08)
+- [x] BL-CA-FIX-02 [P0] 新代码文件未写入 #bug (完成于 2026-04-08)
+- [x] BL-CA-FIX-03 [P0] 相同 file_path 不更新 #bug (完成于 2026-04-08)
+- [x] BL-CA-FIX-04 [P1] 字段名不一致 #quality (完成于 2026-04-08)
+- [x] BL-CA-FIX-05 [P1] Schema 未初始化 #bug (完成于 2026-04-08)
+- [x] BL-CA-FIX-06 [P1] 验证脚本错误 #bug (完成于 2026-04-08)
+- [x] BL-CA-FIX-07 [P1] 项目地图 module_dependencies 为空 #bug (完成于 2026-04-08)
+- [x] BL-CA-FIX-08 [P1] 模块依赖重复 #bug (完成于 2026-04-08)
+- [x] BL-CA-FIX-09 [P1] 项目地图查询返回空 #bug (完成于 2026-04-08)
+- [x] BL-CA-FIX-API-01 [P1] 字段缺失导致查询 404 #bug (完成于 2026-04-08)
+- [x] BL-CA-FIX-API-02 [P1] 可选字段校验过严 #bug (完成于 2026-04-08)
+
+### 优化项
+
+- [x] BL-CA-OPT-01 [P1] RELATE SQL 注入防护 #security (完成于 2026-04-08)
+- [x] BL-CA-OPT-02 [P0] RecordID 格式统一 #quality (完成于 2026-04-08)
+- [x] BL-CA-OPT-03 [P2] 嵌套字段查询优化 #performance (完成于 2026-04-08)
+- [x] BL-CA-OPT-04 [P1] 批量插入分批处理 #performance (完成于 2026-04-08)
+- [x] BL-CA-OPT-05 [P2] SQL 查询规范文档 #docs (完成于 2026-04-08)
+- [x] BL-CA-OPT-06 [P1] Meilisearch 同步分批 #performance (完成于 2026-04-08)
+- [x] BL-CA-OPT-08 [P1] embedding 字段优化 #performance (完成于 2026-04-08)
+
+---
+
 ## 历史归档
 
 > v2.4.0 之前的已完成任务已归档至 CHANGELOG.md
@@ -118,4 +157,4 @@
 
 ---
 
-*最后更新: 2026-04-07*
+*最后更新: 2026-04-10*
