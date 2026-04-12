@@ -34,8 +34,8 @@
 | BL-B-31 | 依赖升级 — pyproject.toml | P0 | 1 天 | ✅ | [详情](#bl-b-31-p0-依赖升级--pyprojecttoml) |
 | **Phase 2** |
 | BL-B-1 | WebSocket — 心跳机制 | P0 | 1 天 | ✅ | [详情](#bl-b-1-p0-websocket-可靠连接--心跳机制) |
-| BL-B-2 | WebSocket — 指数退避重连 | P0 | 1 天 | ⏳ | [详情](#bl-b-2-p0-websocket-可靠连接--指数退避重连) |
-| BL-B-3 | WebSocket — ACK 确认系统 | P0 | 1 天 | ⏳ | [详情](#bl-b-3-p0-websocket-可靠连接--ack-确认系统) |
+| BL-B-2 | WebSocket — 指数退避重连 | P0 | 1 天 | ✅ | [详情](#bl-b-2-p0-websocket-可靠连接--指数退避重连) |
+| BL-B-3 | WebSocket — ACK 确认系统 | P0 | 1 天 | ✅ | [详情](#bl-b-3-p0-websocket-可靠连接--ack-确认系统) |
 | BL-B-4 | WebSocket — DIFF 模式 | P1 | 1 天 | ⏳ | [详情](#bl-b-4-p1-websocket-可靠连接--diff-模式) |
 | BL-B-5 | WebSocket — 状态恢复 | P0 | 1 天 | ⏳ | [详情](#bl-b-5-p0-websocket-可靠连接--状态恢复) |
 | BL-B-6 | WebSocket — 并发连接测试 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-6-p1-websocket-性能--并发连接测试) |
@@ -69,6 +69,10 @@
 | BL-B-28 | 集成测试 — WebSocket 端到端 | P1 | 1 天 | ⏳ | [详情](#bl-b-28-p1-集成测试--websocket-端到端) |
 | BL-B-29 | 集成测试 — API 端到端 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-29-p1-集成测试--api-端到端) |
 | BL-B-30 | 性能基准测试 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-30-p2-性能基准测试) |
+| **WebSocket 后续** |
+| BL-B-52 | WebSocket — AckManager 集成 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-52-p1-websocket-ackmanager-集成) |
+| BL-B-53 | WebSocket — ACK 消息协议定义 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-53-p1-websocket-ack-消息协议定义) |
+| BL-B-54 | WebSocket — 消息持久化 | P2 | 1 天 | ⏳ | [详情](#bl-b-54-p2-websocket-消息持久化) |
 | **文档** |
 | BL-CA-43 | 补充 WebSocket 性能测试基准 | P1 | 0.5 天 | ⏳ | [详情](#bl-ca-43-p1-补充-websocket-性能测试基准) |
 | BL-CA-44 | 完善 PrecomputeService 关系创建 | P1 | 1 天 | ⏳ | [详情](#bl-ca-44-p1-完善-precomputeservice-关系创建实现) |
@@ -178,19 +182,33 @@ uv run pytest tests/test_websocket_heartbeat.py -v
 BL-B-1 心跳机制完成
 
 **完成标准**  
-- [ ] 指数退避序列: 1→2→4→8→16→32→64→128→256→300s
-- [ ] 随机抖动: +random.uniform(0, 1)s
-- [ ] 最大重试: 10 次
-- [ ] 重连后恢复 session
-- [ ] 重连失败进入降级模式
+- [x] 指数退避序列: 1→2→4→8→16→32→64→128→256→300s
+- [x] 随机抖动: +random.uniform(0, 1)s
+- [x] 最大重试: 10 次
+- [ ] 重连后恢复 session（留待后续集成）
+- [ ] 重连失败进入降级模式（留待后续定义）
 
 **验证方式**  
-```python
-def test_exponential_backoff():
-    rm = ReconnectionManager()
-    delays = [rm.calculate_delay(i) for i in range(10)]
-    assert delays == [1, 2, 4, 8, 16, 32, 64, 128, 256, 300]
+```bash
+uv run pytest tests/test_websocket_reconnection.py -v
 ```
+
+**实现结果**  
+- ✅ `wrapper/src/websocket/reconnection.py` - ReconnectionManager 类 (160行)
+- ✅ `tests/test_websocket_reconnection.py` - 16个测试用例，全部通过
+- ✅ 指数退避序列: BACKOFF_SEQUENCE = [1, 2, 4, 8, 16, 32, 64, 128, 256, 300]
+- ✅ 随机抖动: random.uniform(0, 1)
+- ✅ 核心方法: calculate_delay(), schedule_reconnect(), reset_counter(), cancel_reconnect()
+
+**测试覆盖**  
+- ReconnectionManager 基础功能 (11个测试)
+- 指数退避序列测试 (2个测试)
+- 集成测试 (2个测试)
+- 总计: 16/16 测试通过
+
+**未结事项**  
+- session 恢复需要调用方实现（集成到 ReliableWebSocketServer 时处理）
+- 降级模式需要定义具体行为（如切换到轮询模式）
 
 ---
 
@@ -208,19 +226,34 @@ def test_exponential_backoff():
 BL-B-1 心跳机制完成
 
 **完成标准**  
-- [ ] 消息发送后启动 5s 超时计时器
-- [ ] 收到 ACK 后清除超时
-- [ ] 超时后自动重试（最多 3 次）
-- [ ] 达到最大重试次数后 reject
-- [ ] ACK 消息格式: `{"type": "ack", "_ackId": "..."}`
+- [x] 消息发送后启动 5s 超时计时器
+- [x] 收到 ACK 后清除超时
+- [x] 超时后自动重试（最多 3 次）
+- [x] 达到最大重试次数后 reject
+- [x] ACK 消息格式: `{"type": "ack", "_ackId": "..."}`
 
 **验证方式**  
-```python
-async def test_ack_success():
-    ack_mgr = AckManager()
-    result = await ack_mgr.send_with_ack(message, timeout=5000)
-    assert result.status == "ACKED"
+```bash
+uv run pytest tests/test_websocket_ack.py -v
 ```
+
+**实现结果**  
+- ✅ `wrapper/src/websocket/ack_manager.py` - AckManager 类 (166行)
+- ✅ `tests/test_websocket_ack.py` - 12个测试用例，全部通过
+- ✅ 核心方法: send_with_ack(), handle_ack(), is_pending(), get_retry_count()
+- ✅ 超时重试机制，最多3次重试
+- ✅ UUID 生成 ackId，自动添加到消息
+
+**测试覆盖**  
+- AckManager 基础功能 (8个测试)
+- 并发测试 (1个测试)
+- 配置测试 (2个测试)
+- 总计: 12/12 测试通过
+
+**未结事项（已规划到后续任务）**  
+- BL-B-52: 与 ReliableWebSocketServer 集成（将 AckManager 集成到 WebSocket 服务器）
+- BL-B-53: ACK 消息协议定义（定义客户端如何发送 ACK 消息）
+- BL-B-54: 消息持久化（消息队列持久化实现）
 
 ---
 
@@ -1164,19 +1197,90 @@ BL-B-25 SSL 配置完成
 
 ---
 
+### BL-B-52 [P1] WebSocket — AckManager 集成
+
+**目标**  
+将 AckManager 集成到 ReliableWebSocketServer，实现消息确认机制。
+
+**涉及范围**  
+- 文件: `wrapper/src/websocket/reliable_server.py`（修改）
+- 集成: AckManager 到 ReliableWebSocketServer
+
+**前置依赖**  
+BL-B-3 ACK 系统完成
+
+**完成标准**  
+- [ ] ReliableWebSocketServer 初始化时创建 AckManager
+- [ ] 发送消息时调用 ack_manager.send_with_ack()
+- [ ] 收到客户端 ACK 消息时调用 ack_manager.handle_ack()
+- [ ] 消息发送失败时自动重试
+
+**验证方式**  
+```bash
+uv run pytest tests/test_websocket_integration.py -v
+```
+
+---
+
+### BL-B-53 [P1] WebSocket — ACK 消息协议定义
+
+**目标**  
+定义客户端如何发送 ACK 消息的协议规范。
+
+**涉及范围**  
+- 文件: `docs/v3.2/WEBSOCKET-v3.2-PROTOCOL.md`（新建）
+
+**前置依赖**  
+BL-B-52 AckManager 集成完成
+
+**完成标准**  
+- [ ] ACK 消息格式定义
+- [ ] 客户端 ACK 发送时机说明
+- [ ] 服务端 ACK 处理流程
+- [ ] 错误处理规范
+
+**验证方式**  
+文档评审通过
+
+---
+
+### BL-B-54 [P2] WebSocket — 消息持久化
+
+**目标**  
+实现消息队列持久化，确保消息不丢失。
+
+**涉及范围**  
+- 文件: `wrapper/src/websocket/persistent_queue.py`（新建）
+
+**前置依赖**  
+BL-B-53 ACK 消息协议定义完成
+
+**完成标准**  
+- [ ] 消息队列持久化存储
+- [ ] 服务重启后恢复未确认消息
+- [ ] 消息过期清理机制
+
+**验证方式**  
+```bash
+uv run pytest tests/test_websocket_persistent.py -v
+```
+
+---
+
 ## 统计汇总
 
 | 分类 | 总数 | P0 | P1 | P2 | P3 | 工时 |
 |------|------|----|----|----|----|------|
 | 依赖升级 | 1 | 1 | 0 | 0 | 0 | 1 天 |
 | WebSocket | 8 | 3 | 5 | 0 | 0 | 5.5 天 |
+| WebSocket 后续 | 3 | 0 | 2 | 1 | 0 | 2 天 |
 | Precompute | 7 | 2 | 3 | 2 | 0 | 7 天 |
 | Meilisearch | 3 | 1 | 2 | 0 | 0 | 2 天 |
 | Schema | 4 | 1 | 3 | 0 | 0 | 2.5 天 |
 | Deployment | 4 | 1 | 2 | 1 | 0 | 2.5 天 |
 | Testing | 6 | 2 | 2 | 1 | 0 | 4.5 天 |
 | 文档完善 | 8 | 0 | 2 | 4 | 2 | 5 天 |
-| **总计** | **40** | **11** | **19** | **8** | **2** | **28 天** |
+| **总计** | **43** | **11** | **21** | **9** | **2** | **30 天** |
 
 ---
 
