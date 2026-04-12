@@ -33,7 +33,7 @@
 | **Phase 1** |
 | BL-B-31 | 依赖升级 — pyproject.toml | P0 | 1 天 | ✅ | [详情](#bl-b-31-p0-依赖升级--pyprojecttoml) |
 | **Phase 2** |
-| BL-B-1 | WebSocket — 心跳机制 | P0 | 1 天 | ⏳ | [详情](#bl-b-1-p0-websocket-可靠连接--心跳机制) |
+| BL-B-1 | WebSocket — 心跳机制 | P0 | 1 天 | ✅ | [详情](#bl-b-1-p0-websocket-可靠连接--心跳机制) |
 | BL-B-2 | WebSocket — 指数退避重连 | P0 | 1 天 | ⏳ | [详情](#bl-b-2-p0-websocket-可靠连接--指数退避重连) |
 | BL-B-3 | WebSocket — ACK 确认系统 | P0 | 1 天 | ⏳ | [详情](#bl-b-3-p0-websocket-可靠连接--ack-确认系统) |
 | BL-B-4 | WebSocket — DIFF 模式 | P1 | 1 天 | ⏳ | [详情](#bl-b-4-p1-websocket-可靠连接--diff-模式) |
@@ -137,20 +137,30 @@ uv run python -c "import surrealdb; print(surrealdb.__version__)"
 BL-B-31 依赖升级完成
 
 **完成标准**  
-- [ ] 每 30s 发送 ping 消息
-- [ ] 5s 内等待 pong 响应
-- [ ] 连续 2 次未响应触发 `on_connection_lost`
-- [ ] 心跳日志记录（DEBUG 级别）
-- [ ] 可配置参数（interval, timeout, max_missing）
+- [x] 每 30s 发送 ping 消息
+- [x] 5s 内等待 pong 响应
+- [x] 连续 2 次未响应触发 `on_connection_lost`
+- [x] 心跳日志记录（DEBUG 级别）
+- [x] 可配置参数（interval, timeout, max_missing）
 
 **验证方式**  
-```python
-async def test_heartbeat():
-    server = ReliableWebSocketServer()
-    await server.start_heartbeat()
-    await asyncio.sleep(35)
-    assert server.heartbeat_count >= 1
+```bash
+# 运行 WebSocket 心跳测试
+uv run pytest tests/test_websocket_heartbeat.py -v
 ```
+
+**实现结果**  
+- ✅ `wrapper/src/websocket/heartbeat.py` - HeartbeatManager 类 (151行)
+- ✅ `wrapper/src/websocket/reliable_server.py` - ReliableWebSocketServer 类 (192行)
+- ✅ `wrapper/src/websocket/__init__.py` - 模块导出
+- ✅ `tests/test_websocket_heartbeat.py` - 15个测试用例，全部通过
+- ✅ `wrapper/src/routers/websocket.py` - 迁移到 ReliableWebSocketServer
+
+**测试覆盖**  
+- HeartbeatManager 基础功能 (7个测试)
+- ReliableWebSocketServer 集成 (6个测试)
+- 心跳机制集成 (2个测试)
+- 总计: 15/15 测试通过
 
 ---
 
