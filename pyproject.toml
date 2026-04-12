@@ -32,10 +32,25 @@ dependencies = [
     "setuptools>=68.0.0,<70.0.0",
 
     # === SurrealDB ===
-    "surrealdb>=1.0.0,<2.0.0",
+    "surrealdb>=1.0.8,<1.1.0",         # v3.2: 收窄版本范围
 
     # === Meilisearch (全文搜索) ===
-    "httpx>=0.26.0,<1.0.0",            # Meilisearch REST API 客户端（复用项目已有依赖）
+    "httpx>=0.26.0,<1.0.0",            # 保留用于其他 HTTP 调用
+    "meilisearch>=0.40.0,<0.41.0",     # v3.2: 新增官方 SDK
+    
+    # === WebSocket (v3.2) ===
+    "websockets>=12.0,<13.0",          # v3.2: WebSocket 服务端
+    
+    # === Tree-sitter (v3.2) ===
+    "tree-sitter>=0.25.0,<0.26.0",     # v3.2: 代码解析
+    "tree-sitter-python>=0.25.0,<0.26.0",      # v3.2: Python 支持
+    "tree-sitter-javascript>=0.25.0,<0.26.0",  # v3.2: JavaScript 支持
+    "tree-sitter-typescript>=0.23.0,<0.24.0",  # v3.2: TypeScript 支持
+    
+    # === 工具库 (v3.2) ===
+    "jsonpatch>=1.32",                 # v3.2: DIFF 模式 (RFC 6902)
+    "portalocker>=2.7",                # v3.2: 文件锁
+    "aiofiles>=23.0",                  # v3.2: 异步文件操作
     
     # === 缓存 (Phase A-B3) ===
     "aiocache>=0.12.0",                # 异步缓存支持
