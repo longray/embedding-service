@@ -106,6 +106,25 @@ DEFINE INDEX IF NOT EXISTS perf_tenant ON performance_log FIELDS tenant_id;
 DEFINE INDEX IF NOT EXISTS perf_operation ON performance_log FIELDS operation;
 DEFINE INDEX IF NOT EXISTS perf_created_at ON performance_log FIELDS created_at;
 
+-- 5. session_state 表 - 会话状态
+DEFINE TABLE IF NOT EXISTS session_state TYPE NORMAL;
+
+DEFINE FIELD IF NOT EXISTS id ON session_state TYPE record<session_state>;
+DEFINE FIELD IF NOT EXISTS tenant_id ON session_state TYPE string
+    ASSERT $value != NONE AND string::len($value) > 0;
+DEFINE FIELD IF NOT EXISTS session_id ON session_state TYPE string;
+DEFINE FIELD IF NOT EXISTS state ON session_state TYPE object;
+DEFINE FIELD IF NOT EXISTS expires_at ON session_state TYPE datetime;
+DEFINE FIELD IF NOT EXISTS created_at ON session_state TYPE datetime
+    DEFAULT time::now();
+DEFINE FIELD IF NOT EXISTS updated_at ON session_state TYPE datetime
+    DEFAULT time::now();
+
+-- session_state 表索引
+DEFINE INDEX IF NOT EXISTS session_tenant ON session_state FIELDS tenant_id;
+DEFINE INDEX IF NOT EXISTS session_session_id ON session_state FIELDS session_id;
+DEFINE INDEX IF NOT EXISTS session_expires ON session_state FIELDS expires_at;
+
 -- ==================== v3.2: Schema 版本记录 ====================
 
 -- 记录 schema 版本

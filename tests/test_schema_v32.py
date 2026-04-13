@@ -210,3 +210,34 @@ class TestSchemaV32Version:
         ]
 
         assert len(required_fields) == 4
+
+
+class TestSchemaV32SessionState:
+    """Test session_state table schema"""
+
+    def test_session_state_structure(self):
+        """Test session_state table has required fields"""
+        required_fields = [
+            "id",
+            "tenant_id",
+            "session_id",
+            "state",
+            "expires_at",
+            "created_at",
+            "updated_at",
+        ]
+
+        assert len(required_fields) == 7
+        assert "session_id" in required_fields
+        assert "state" in required_fields
+        assert "expires_at" in required_fields
+
+    def test_session_state_indexes(self):
+        """Test session_state table indexes"""
+        expected_indexes = [
+            "session_tenant",
+            "session_session_id",
+            "session_expires",
+        ]
+
+        assert len(expected_indexes) == 3

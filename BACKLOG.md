@@ -59,7 +59,7 @@
 | **Phase 5** |
 | BL-B-18 | Schema — 核心表创建 | P0 | 1 天 | ✅ | [详情](#bl-b-18-p0-schema-v32--核心表创建) |
 | BL-B-19 | Schema — ChangeFeed 配置 | P1 | 0.5 天 | ✅ | [详情](#bl-b-19-p1-schema-v32--changefeed-配置) |
-| BL-B-20 | Schema — 辅助表创建 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-20-p1-schema-v32--辅助表创建) |
+| BL-B-20 | Schema — 辅助表创建 | P1 | 0.5 天 | ✅ | [详情](#bl-b-20-p1-schema-v32--辅助表创建) |
 | BL-B-21 | Schema — 迁移脚本 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-21-p1-schema-v32--迁移脚本) |
 | **Phase 6** |
 | BL-B-22 | 端口迁移 17999 → 18008 | P0 | 1 天 | ⏳ | [详情](#bl-b-22-p0-端口迁移-17999--18008) |
@@ -1014,15 +1014,21 @@ LIVE SELECT * FROM atom;
 BL-B-18 核心表创建完成
 
 **完成标准**  
-- [ ] performance_log 表创建
-- [ ] session_state 表创建
-- [ ] 索引创建
+- [x] performance_log 表创建
+- [x] session_state 表创建
+- [x] 索引创建
 
 **验证方式**  
 ```sql
 INFO FOR DB;
 -- 应显示所有表
 ```
+
+**实现结果**  
+- ✅ performance_log 表：7个字段，3个索引
+- ✅ session_state 表：7个字段，3个索引（新增）
+- ✅ schema_version 表：4个字段
+- ✅ 18个测试全部通过
 
 ---
 
