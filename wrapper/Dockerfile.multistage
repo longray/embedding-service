@@ -1,0 +1,122 @@
+# ============================================================
+# Multi-stage Dockerfile for Embedding Service v3.2
+# Optimized for smaller image size and faster builds
+# ============================================================
+
+# -------------------- Stage 1: Builder --------------------
+FROM python:3.11-slim AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
+
+# Set working directory
+WORKDIR /app
+
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
+
+# Create virtual environment and install dependencies
+RUN uv venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Install dependencies with cache optimization
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install \
+    --index-url https://mirrors.aliyun.com/pypi/simple/ \
+    "uvicorn[standard]>=0.30" \
+    fastapi \
+    surrealdb \
+    httpx \
+    meilisearch \
+    python-dotenv \
+    pydantic \
+    pydantic-settings \
+    structlog \
+    opentelemetry-api \
+    opentelemetry-sdk \
+    opentelemetry-exporter-otlp \
+    aiocache
+
+# Copy source code
+COPY wrapper/src ./wrapper/src
+
+# -------------------- Stage 2: Production --------------------
+FROM python:3.11-slim AS production
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for security
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+
+# Set working directory
+WORKDIR /app
+
+# Copy virtual environment from builder
+COPY --from=builder /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Copy source code
+COPY --from=builder /app/wrapper/src ./wrapper/src
+
+# Change ownership to non-root user
+RUN chown -R appuser:appgroup /app
+
+# Switch to non-root user
+USER appuser
+
+# Environment variables
+ENV WRAPPER_PORT=18008 \
+    WRAPPER_HOST=0.0.0.0 \
+    WRAPPER_LEGACY_PORT=17999 \
+    WRAPPER_ENABLE_DUAL_PORT=true
+
+# Expose ports
+EXPOSE 18008 17999
+
+# Health check
+HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=5 \
+    CMD curl -f http://localhost:18008/health || exit 1
+
+# Run the application
+CMD ["python", "-m", "wrapper.src.main"]
+
+# -------------------- Stage 3: Development --------------------
+FROM builder AS development
+
+ENV WRAPPER_PORT=18008 \
+    WRAPPER_HOST=0.0.0.0 \
+    WRAPPER_LEGACY_PORT=17999 \
+    WRAPPER_ENABLE_DUAL_PORT=true \
+    WRAPPER_DEBUG=true
+
+# Install development dependencies
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install \
+    pytest \
+    pytest-asyncio \
+    black \
+    ruff
+
+EXPOSE 18008 17999
+
+CMD ["python", "-m", "wrapper.src.main"]

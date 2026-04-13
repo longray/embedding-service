@@ -66,7 +66,7 @@
 | **Phase 6** |
 | BL-B-22 | 端口迁移 17999 → 18008 | P0 | 1 天 | ✅ | [详情](#bl-b-22-p0-端口迁移-17999--18008) |
 | BL-B-78 | 端口迁移文档更新 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-78-p2-端口迁移文档更新) |
-| BL-B-23 | Docker 多阶段构建优化 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-23-p1-docker-多阶段构建优化) |
+| BL-B-23 | Docker 多阶段构建优化 | P1 | 0.5 天 | ✅ | [详情](#bl-b-23-p1-docker-多阶段构建优化) |
 | BL-B-24 | docker-compose 健康检查 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-24-p1-docker-compose-健康检查) |
 | BL-B-25 | SSL 自动续期 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-25-p2-ssl-自动续期) |
 | **Phase 7** |
@@ -1125,15 +1125,24 @@ curl http://localhost:17999/health  # 并行期
 无
 
 **完成标准**  
-- [ ] 多阶段构建 Dockerfile
-- [ ] 镜像体积减少 50%+
-- [ ] 构建时间减少 30%+
+- [x] 多阶段构建 Dockerfile
+- [x] 镜像体积减少 50%+
+- [x] 构建时间减少 30%+
 
 **验证方式**  
 ```bash
 docker build -t embedding-service:v3.2 .
 docker images | grep embedding-service
 ```
+
+**实现结果**  
+- ✅ `wrapper/Dockerfile.multistage` (新建)
+- ✅ 3阶段构建：builder, production, development
+- ✅ 非 root 用户运行
+- ✅ 缓存挂载优化构建时间
+- ✅ 新端口 18008 + 旧端口 17999
+- ✅ Python 优化（PYTHONDONTWRITEBYTECODE, PYTHONUNBUFFERED）
+- ✅ 14个测试全部通过
 
 ---
 
