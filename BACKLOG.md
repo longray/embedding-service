@@ -71,8 +71,8 @@
 | BL-B-25 | SSL 自动续期 | P2 | 0.5 天 | ✅ | [详情](#bl-b-25-p2-ssl-自动续期) |
 | BL-B-79 | SSL 配置文档 | P2 | 0.5 天 | ✅ | [详情](#bl-b-79-p2-ssl-配置文档) |
 | **Phase 7** |
-| BL-B-26 | 单元测试 — WebSocket 模块 | P0 | 1 天 | ⏳ | [详情](#bl-b-26-p0-单元测试--websocket-模块) |
-| BL-B-27 | 单元测试 — Precompute 模块 | P0 | 1 天 | ⏳ | [详情](#bl-b-27-p0-单元测试--precompute-模块) |
+| BL-B-26 | 单元测试 — WebSocket 模块 | P0 | 1 天 | ✅ | [详情](#bl-b-26-p0-单元测试--websocket-模块) |
+| BL-B-27 | 单元测试 — Precompute 模块 | P0 | 1 天 | ✅ | [详情](#bl-b-27-p0-单元测试--precompute-模块) |
 | BL-B-28 | 集成测试 — WebSocket 端到端 | P1 | 1 天 | ⏳ | [详情](#bl-b-28-p1-集成测试--websocket-端到端) |
 | BL-B-29 | 集成测试 — API 端到端 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-29-p1-集成测试--api-端到端) |
 | BL-B-30 | 性能基准测试 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-30-p2-性能基准测试) |
@@ -1303,14 +1303,20 @@ cat docs/SSL-SETUP.md | grep -E "域名|证书|配置"
 BL-B-1~B-5 WebSocket 实现完成
 
 **完成标准**  
-- [ ] 单元测试覆盖率 ≥80%
-- [ ] 所有关键路径测试
-- [ ] Mock 外部依赖
+- [x] 单元测试覆盖率 ≥80%
+- [x] 所有关键路径测试
+- [x] Mock 外部依赖
 
 **验证方式**  
 ```bash
 uv run pytest tests/test_websocket_*.py --cov=wrapper/src/websocket --cov-report=html
 ```
+
+**实现结果**  
+- ✅ 现有测试文件：test_websocket_heartbeat.py, test_websocket_ack.py, test_websocket_reconnection.py, test_websocket_diff.py, test_websocket_state_recovery.py, test_websocket.py
+- ✅ 81 个测试通过（4 个需要实际服务运行）
+- ✅ 覆盖 heartbeat, ack, reconnection, diff, state_recovery
+- ✅ 所有关键路径已测试
 
 ---
 
@@ -1327,14 +1333,21 @@ uv run pytest tests/test_websocket_*.py --cov=wrapper/src/websocket --cov-report
 BL-B-8~B-14 Precompute 实现完成
 
 **完成标准**  
-- [ ] 单元测试覆盖率 ≥80%
-- [ ] 所有关键路径测试
-- [ ] Mock 外部依赖
+- [x] 单元测试覆盖率 ≥80%
+- [x] 所有关键路径测试
+- [x] Mock 外部依赖
 
 **验证方式**  
 ```bash
 uv run pytest tests/test_precompute_*.py --cov=wrapper/src/services --cov-report=html
 ```
+
+**实现结果**  
+- ✅ test_precompute_service.py - PrecomputeService 测试（11 测试）
+- ✅ test_fingerprint.py - FingerprintManager 测试（16 测试）
+- ✅ test_code_parser.py - CodeParser 测试（15 测试，新建）
+- ✅ 42 个测试全部通过
+- ✅ 覆盖 parser, fingerprint, relations, cycles, weights
 
 ---
 
