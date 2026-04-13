@@ -272,6 +272,96 @@ class MeilisearchSDKClient:
 
         return {"taskUid": task.task_uid, "status": "enqueued"}
 
+    def batch_add_documents(
+        self,
+        documents: list[dict[str, Any]],
+        primary_key: str = "id",
+        batch_size: int = 100,
+        *,
+        wait: bool = True,
+    ) -> dict[str, Any]:
+        """批量添加文档（分批处理）
+
+        Args:
+            documents: 文档列表
+            primary_key: 主键字段名
+            batch_size: 每批处理的文档数，默认 100
+            wait: 是否等待所有任务完成
+
+        Returns:
+            批量处理结果
+        """
+        if not documents:
+            return {"status": "skipped", "reason": "empty documents list", "processed": 0}
+
+        total = len(documents)
+        processed = 0
+        task_uids = []
+
+        for i in range(0, total, batch_size):
+            batch = documents[i : i + batch_size]
+            result = self.add_documents(batch, primary_key, wait=False)
+            task_uids.append(result["taskUid"])
+            processed += len(batch)
+            logger.debug("[Meilisearch SDK] 已提交批次: %d/%d", processed, total)
+
+        if wait:
+            for task_uid in task_uids:
+                self.client.wait_for_task(task_uid)
+
+        return {
+            "status": "enqueued",
+            "processed": processed,
+            "total": total,
+            "batches": len(task_uids),
+            "taskUids": task_uids,
+        }
+
+    def batch_delete_documents(
+        self,
+        document_ids: list[str],
+        batch_size: int = 100,
+        *,
+        wait: bool = True,
+    ) -> dict[str, Any]:
+        """批量删除文档（分批处理）
+
+        Args:
+            document_ids: 文档 ID 列表
+            batch_size: 每批处理的文档数，默认 100
+            wait: 是否等待所有任务完成
+
+        Returns:
+            批量处理结果
+        """
+        if not document_ids:
+            return {"status": "skipped", "reason": "empty document_ids list", "processed": 0}
+
+        total = len(document_ids)
+        processed = 0
+        task_uids = []
+
+        for i in range(0, total, batch_size):
+            batch = document_ids[i : i + batch_size]
+            meili_ids = [self._to_meili_id(doc_id) for doc_id in batch]
+            index = self.client.index(self._index_name)
+            task = index.delete_documents(meili_ids)
+            task_uids.append(task.task_uid)
+            processed += len(batch)
+            logger.debug("[Meilisearch SDK] 已提交删除批次: %d/%d", processed, total)
+
+        if wait:
+            for task_uid in task_uids:
+                self.client.wait_for_task(task_uid)
+
+        return {
+            "status": "enqueued",
+            "processed": processed,
+            "total": total,
+            "batches": len(task_uids),
+            "taskUids": task_uids,
+        }
+
     def delete_all_documents(self) -> None:
         """删除所有文档"""
         index = self.client.index(self._index_name)
@@ -355,3 +445,25 @@ class MeilisearchSDKClient:
             }
         except Exception as e:
             return {"error": str(e)}
+
+    def get_settings(self) -> dict[str, Any]:
+        """获取索引设置"""
+        try:
+            index = self.client.index(self._index_name)
+            settings = index.get_settings()
+            return {
+                "searchableAttributes": getattr(settings, "searchable_attributes", []),
+                "filterableAttributes": getattr(settings, "filterable_attributes", []),
+                "sortableAttributes": getattr(settings, "sortable_attributes", []),
+                "typoTolerance": getattr(settings, "typo_tolerance", {}),
+                "dictionary": getattr(settings, "dictionary", []),
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
+    def reset_settings(self) -> None:
+        """重置索引设置为默认值"""
+        index = self.client.index(self._index_name)
+        task = index.reset_settings()
+        self.client.wait_for_task(task.task_uid)
+        logger.info("[Meilisearch SDK] 索引设置已重置: %s", self._index_name)

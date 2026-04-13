@@ -51,10 +51,11 @@
 | BL-B-14 | PrecomputeService — 并发控制 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-14-p1-precomputeservice--并发控制) |
 | **Phase 4** |
 | BL-B-15 | Meilisearch SDK — 客户端迁移 | P0 | 1 天 | ✅ | [详情](#bl-b-15-p0-meilisearch-sdk-040--客户端迁移) |
-| BL-B-16 | Meilisearch SDK — 索引设置迁移 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-16-p1-meilisearch-sdk-040--索引设置迁移) |
-| BL-B-17 | Meilisearch SDK — 批量操作 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-17-p1-meilisearch-sdk-040--批量操作支持) |
+| BL-B-16 | Meilisearch SDK — 索引设置迁移 | P1 | 0.5 天 | ✅ | [详情](#bl-b-16-p1-meilisearch-sdk-040--索引设置迁移) |
+| BL-B-17 | Meilisearch SDK — 批量操作 | P1 | 0.5 天 | ✅ | [详情](#bl-b-17-p1-meilisearch-sdk-040--批量操作支持) |
 | BL-B-73 | Meilisearch SDK — 与现有代码集成 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-73-p1-meilisearch-sdk--与现有代码集成) |
 | BL-B-74 | Meilisearch SDK — 异步支持优化 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-74-p2-meilisearch-sdk--异步支持优化) |
+| BL-B-75 | Meilisearch SDK — code_search_index 配置 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-75-p2-meilisearch-sdk--codesearchindex-配置) |
 | **Phase 5** |
 | BL-B-18 | Schema — 核心表创建 | P0 | 1 天 | ⏳ | [详情](#bl-b-18-p0-schema-v32--核心表创建) |
 | BL-B-19 | Schema — ChangeFeed 配置 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-19-p1-schema-v32--changefeed-配置) |
@@ -871,9 +872,9 @@ async def test_meilisearch_sdk():
 BL-B-15 客户端迁移完成
 
 **完成标准**  
-- [ ] 索引设置迁移
-- [ ] 字段映射更新
-- [ ] 搜索配置更新
+- [x] 索引设置迁移
+- [x] 字段映射更新
+- [x] 搜索配置更新
 
 **验证方式**  
 ```python
@@ -882,6 +883,12 @@ async def test_index_settings():
     settings = await client.get_settings("memories")
     assert "filterableAttributes" in settings
 ```
+
+**实现结果**  
+- ✅ `get_settings()` 方法实现
+- ✅ `reset_settings()` 方法实现
+- ✅ 18个测试全部通过
+- ⏳ code_search_index 特定配置（BL-B-75 后续任务）
 
 ---
 
@@ -898,10 +905,10 @@ async def test_index_settings():
 BL-B-15 客户端迁移完成
 
 **完成标准**  
-- [ ] 批量添加文档
-- [ ] 批量更新文档
-- [ ] 批量删除文档
-- [ ] 批处理大小 100 条
+- [x] 批量添加文档
+- [x] 批量更新文档
+- [x] 批量删除文档
+- [x] 批处理大小 100 条
 
 **验证方式**  
 ```python
@@ -911,6 +918,14 @@ async def test_batch_operations():
     result = await client.batch_add_documents("memories", documents)
     assert result["processed"] == 100
 ```
+
+**实现结果**  
+- ✅ `batch_add_documents()` 方法实现
+- ✅ `batch_delete_documents()` 方法实现
+- ✅ 支持自定义 `batch_size`（默认 100）
+- ✅ 自动分批处理大文档列表
+- ✅ 返回处理统计信息（processed, total, batches, taskUids）
+- ✅ 22个测试全部通过
 
 ---
 
@@ -1951,6 +1966,32 @@ uv run pytest tests/test_meili_async.py -v
 
 ---
 
+### BL-B-75 [P2] Meilisearch SDK — code_search_index 配置
+
+**目标**  
+为代码搜索索引添加特定配置和优化。
+
+**涉及范围**  
+- 文件: `wrapper/src/utils/meili_sdk_client.py`（修改）
+- 索引: `code_search_index`
+- 配置: 代码术语词典、搜索优化
+
+**前置依赖**  
+BL-B-16 索引设置迁移完成
+
+**完成标准**  
+- [ ] 定义 code_search_index 专用配置
+- [ ] 添加代码术语词典（104词）
+- [ ] 优化代码标识符搜索
+- [ ] 测试代码搜索功能
+
+**验证方式**  
+```bash
+uv run pytest tests/test_code_search_index.py -v
+```
+
+---
+
 ## 统计汇总
 
 | 分类 | 总数 | P0 | P1 | P2 | P3 | 工时 |
@@ -1960,12 +2001,12 @@ uv run pytest tests/test_meili_async.py -v
 | WebSocket 后续 | 12 | 0 | 11 | 1 | 0 | 6.5 天 |
 | Precompute | 7 | 2 | 3 | 2 | 0 | 7 天 |
 | Precompute 后续 | 7 | 0 | 5 | 2 | 0 | 3.5 天 |
-| Meilisearch | 5 | 1 | 3 | 1 | 0 | 3 天 |
+| Meilisearch | 6 | 1 | 3 | 2 | 0 | 3.5 天 |
 | Schema | 4 | 1 | 3 | 0 | 0 | 2.5 天 |
 | Deployment | 4 | 1 | 2 | 1 | 0 | 2.5 天 |
 | Testing | 6 | 2 | 2 | 1 | 0 | 4.5 天 |
 | 文档完善 | 8 | 0 | 2 | 4 | 2 | 5 天 |
-| **总计** | **61** | **11** | **36** | **12** | **2** | **39 天** |
+| **总计** | **62** | **11** | **36** | **13** | **2** | **39.5 天** |
 
 ---
 

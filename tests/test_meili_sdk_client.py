@@ -286,3 +286,143 @@ class TestMeilisearchSDKClientHealth:
 
             assert result["status"] == "unhealthy"
             assert "error" in result
+
+
+class TestMeilisearchSDKClientSettings:
+    """Test MeilisearchSDKClient settings methods"""
+
+    def test_get_settings(self):
+        """Test getting index settings"""
+        client = MeilisearchSDKClient()
+
+        with patch("wrapper.src.utils.meili_sdk_client.Client") as mock_client:
+            mock_instance = MagicMock()
+            mock_instance.health.return_value = {"status": "available"}
+
+            mock_settings = MagicMock()
+            mock_settings.searchable_attributes = ["content", "title"]
+            mock_settings.filterable_attributes = ["tenant_id"]
+            mock_settings.sortable_attributes = ["date"]
+            mock_settings.typo_tolerance = {"enabled": True}
+            mock_settings.dictionary = ["python", "java"]
+
+            mock_index = MagicMock()
+            mock_index.get_settings.return_value = mock_settings
+            mock_instance.index.return_value = mock_index
+            mock_client.return_value = mock_instance
+
+            client.connect()
+            result = client.get_settings()
+
+            assert "searchableAttributes" in result
+            assert "filterableAttributes" in result
+            assert "sortableAttributes" in result
+            assert "typoTolerance" in result
+            assert "dictionary" in result
+
+    def test_reset_settings(self):
+        """Test resetting index settings"""
+        client = MeilisearchSDKClient()
+
+        with patch("wrapper.src.utils.meili_sdk_client.Client") as mock_client:
+            mock_instance = MagicMock()
+            mock_instance.health.return_value = {"status": "available"}
+
+            mock_task = MagicMock()
+            mock_task.task_uid = 456
+            mock_index = MagicMock()
+            mock_index.reset_settings.return_value = mock_task
+            mock_instance.index.return_value = mock_index
+            mock_instance.wait_for_task = MagicMock()
+            mock_client.return_value = mock_instance
+
+            client.connect()
+            client.reset_settings()
+
+            mock_index.reset_settings.assert_called_once()
+            mock_instance.wait_for_task.assert_called_once_with(456)
+
+
+class TestMeilisearchSDKClientBatchOperations:
+    """Test MeilisearchSDKClient batch operations"""
+
+    def test_batch_add_documents_empty(self):
+        """Test batch add with empty list"""
+        client = MeilisearchSDKClient()
+
+        result = client.batch_add_documents([])
+
+        assert result["status"] == "skipped"
+        assert result["processed"] == 0
+
+    def test_batch_add_documents_single_batch(self):
+        """Test batch add with single batch"""
+        client = MeilisearchSDKClient()
+        docs = [{"id": f"memory:{i}", "content": f"test{i}"} for i in range(50)]
+
+        with patch("wrapper.src.utils.meili_sdk_client.Client") as mock_client:
+            mock_instance = MagicMock()
+            mock_instance.health.return_value = {"status": "available"}
+
+            mock_task = MagicMock()
+            mock_task.task_uid = 100
+            mock_index = MagicMock()
+            mock_index.add_documents.return_value = mock_task
+            mock_instance.index.return_value = mock_index
+            mock_instance.wait_for_task = MagicMock()
+            mock_client.return_value = mock_instance
+
+            client.connect()
+            result = client.batch_add_documents(docs, batch_size=100)
+
+            assert result["processed"] == 50
+            assert result["total"] == 50
+            assert result["batches"] == 1
+
+    def test_batch_add_documents_multiple_batches(self):
+        """Test batch add with multiple batches"""
+        client = MeilisearchSDKClient()
+        docs = [{"id": f"memory:{i}", "content": f"test{i}"} for i in range(250)]
+
+        with patch("wrapper.src.utils.meili_sdk_client.Client") as mock_client:
+            mock_instance = MagicMock()
+            mock_instance.health.return_value = {"status": "available"}
+
+            mock_task = MagicMock()
+            mock_task.task_uid = 200
+            mock_index = MagicMock()
+            mock_index.add_documents.return_value = mock_task
+            mock_instance.index.return_value = mock_index
+            mock_instance.wait_for_task = MagicMock()
+            mock_client.return_value = mock_instance
+
+            client.connect()
+            result = client.batch_add_documents(docs, batch_size=100)
+
+            assert result["processed"] == 250
+            assert result["total"] == 250
+            assert result["batches"] == 3
+
+    def test_batch_delete_documents(self):
+        """Test batch delete documents"""
+        client = MeilisearchSDKClient()
+        doc_ids = [f"memory:{i}" for i in range(150)]
+
+        with patch("wrapper.src.utils.meili_sdk_client.Client") as mock_client:
+            mock_instance = MagicMock()
+            mock_instance.health.return_value = {"status": "available"}
+
+            mock_task = MagicMock()
+            mock_task.task_uid = 300
+            mock_index = MagicMock()
+            mock_index.delete_documents.return_value = mock_task
+            mock_instance.index.return_value = mock_index
+            mock_instance.wait_for_task = MagicMock()
+            mock_client.return_value = mock_instance
+
+            client.connect()
+            result = client.batch_delete_documents(doc_ids, batch_size=100)
+
+            assert result["processed"] == 150
+            assert result["total"] == 150
+            assert result["batches"] == 2
