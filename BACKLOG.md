@@ -58,7 +58,7 @@
 | BL-B-75 | Meilisearch SDK — code_search_index 配置 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-75-p2-meilisearch-sdk--codesearchindex-配置) |
 | **Phase 5** |
 | BL-B-18 | Schema — 核心表创建 | P0 | 1 天 | ✅ | [详情](#bl-b-18-p0-schema-v32--核心表创建) |
-| BL-B-19 | Schema — ChangeFeed 配置 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-19-p1-schema-v32--changefeed-配置) |
+| BL-B-19 | Schema — ChangeFeed 配置 | P1 | 0.5 天 | ✅ | [详情](#bl-b-19-p1-schema-v32--changefeed-配置) |
 | BL-B-20 | Schema — 辅助表创建 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-20-p1-schema-v32--辅助表创建) |
 | BL-B-21 | Schema — 迁移脚本 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-21-p1-schema-v32--迁移脚本) |
 | **Phase 6** |
@@ -981,15 +981,23 @@ INFO FOR DB;
 BL-B-18 核心表创建完成
 
 **完成标准**  
-- [ ] ChangeFeed 启用
-- [ ] 7 天 TTL 配置
-- [ ] 支持 atom/entity/reference 表
+- [x] ChangeFeed 启用
+- [x] 7 天 TTL 配置
+- [x] 支持 atom/entity/reference 表
 
 **验证方式**  
 ```sql
 LIVE SELECT * FROM atom;
 -- 应返回 query UUID
 ```
+
+**实现结果**  
+- ✅ `wrapper/src/utils/changefeed_client.py` (新建)
+- ✅ ChangeFeedClient 类实现
+- ✅ `subscribe_to_changes()` 方法
+- ✅ `LIVE SELECT` 查询支持
+- ✅ 12个测试全部通过
+- ✅ 支持回调函数处理变更事件
 
 ---
 
