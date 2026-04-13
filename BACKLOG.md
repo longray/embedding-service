@@ -65,7 +65,7 @@
 | BL-B-77 | Schema — 迁移性能优化 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-77-p2-schema--迁移性能优化) |
 | **Phase 6** |
 | BL-B-22 | 端口迁移 17999 → 18008 | P0 | 1 天 | ✅ | [详情](#bl-b-22-p0-端口迁移-17999--18008) |
-| BL-B-78 | 端口迁移文档更新 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-78-p2-端口迁移文档更新) |
+| BL-B-78 | 端口迁移文档更新 | P2 | 0.5 天 | ✅ | [详情](#bl-b-78-p2-端口迁移文档更新) |
 | BL-B-23 | Docker 多阶段构建优化 | P1 | 0.5 天 | ✅ | [详情](#bl-b-23-p1-docker-多阶段构建优化) |
 | BL-B-24 | docker-compose 健康检查 | P1 | 0.5 天 | ✅ | [详情](#bl-b-24-p1-docker-compose-健康检查) |
 | BL-B-25 | SSL 自动续期 | P2 | 0.5 天 | ✅ | [详情](#bl-b-25-p2-ssl-自动续期) |
@@ -1197,16 +1197,24 @@ docker-compose ps
 BL-B-22 端口迁移完成
 
 **完成标准**  
-- [ ] README.md 端口说明更新
-- [ ] START_GUIDE.md 启动命令更新
-- [ ] API_SPECIFICATION.md 端点更新
-- [ ] 环境变量文档更新
+- [x] README.md 端口说明更新
+- [x] START_GUIDE.md 启动命令更新
+- [x] API_SPECIFICATION.md 端点更新
+- [x] 环境变量文档更新
 
 **验证方式**  
 ```bash
 # 检查文档中端口引用
 grep -r "17999\|18008" docs/ README.md
 ```
+
+**实现结果**  
+- ✅ `README.md` 更新
+- ✅ `docs/START_GUIDE.md` 更新
+- ✅ `docs/API_SPECIFICATION.md` 更新
+- ✅ 所有 curl 示例更新为 18008
+- ✅ 双端口支持说明
+- ✅ 8个测试全部通过
 
 ---
 

@@ -40,7 +40,7 @@
 
 ## API端点
 
-### 最小化包装服务（端口 17999）
+### 最小化包装服务（端口 18008，旧端口 17999 并行支持）
 
 | 端点 | 方法 | 功能 | 认证 |
 |------|------|------|------|
@@ -112,7 +112,7 @@ export WRAPPER_API_KEYS="your_key:read;write"
 **JavaScript 示例**:
 
 ```javascript
-const ws = new WebSocket('ws://localhost:17999/ws/memories/live?tenant_id=default&token=your_token');
+const ws = new WebSocket('ws://localhost:18008/ws/memories/live?tenant_id=default&token=your_token');
 ws.onmessage = (event) => {
   const { action, result } = JSON.parse(event.data);
   console.log(action, result); // CREATE/UPDATE/DELETE
@@ -125,7 +125,7 @@ ws.onmessage = (event) => {
 import json
 from websockets import connect
 
-async with connect('ws://localhost:17999/ws/memories/live?tenant_id=default') as ws:
+async with connect('ws://localhost:18008/ws/memories/live?tenant_id=default') as ws:
     async for message in ws:
         data = json.loads(message)
         print(data['action'], data['result'])
@@ -230,11 +230,11 @@ uv run python -m wrapper.src.main
 export MEILI_MASTER_KEY=<your_api_key>
 
 # 正确的 key（会清空所有数据）
-curl -X DELETE http://localhost:17999/api/v1/memories/clear \
+curl -X DELETE http://localhost:18008/api/v1/memories/clear \
   -H "WRAPPER_MEILI_API_KEY: <your_api_key>"
 
 # 错误的 key（只返回 403，保护数据）
-curl -X DELETE http://localhost:17999/api/v1/memories/clear \
+curl -X DELETE http://localhost:18008/api/v1/memories/clear \
   -H "WRAPPER_MEILI_API_KEY: wrong_key"
 ```text
 
@@ -370,7 +370,7 @@ import httpx
 
 # 1. 同步预览（分析差异）
 response = await httpx.post(
-    "http://localhost:17999/api/v1/sync/preview",
+    "http://localhost:18008/api/v1/sync/preview",
     json={
         "fingerprints": [
             {"path": "test.md", "mtime": 1711234567890,
@@ -384,7 +384,7 @@ response = await httpx.post(
 if response.json()["conflicts"]:
     # 3. 解决冲突（大小写不敏感）
     await httpx.post(
-        f"http://localhost:17999/api/v1/sync/conflicts/{conflict_id}/resolve",
+        f"http://localhost:18008/api/v1/sync/conflicts/{conflict_id}/resolve",
         json={"resolution": "use_local", "tenant_id": "default"}
     )
 ```

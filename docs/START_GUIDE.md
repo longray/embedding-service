@@ -32,7 +32,7 @@ uv run python start_services.py --with-llm --no-wrapper
    └── 等待就绪（约10-30秒）
 
 3. 启动包装层服务（推荐）
-   ├── 端口：17999
+   ├── 端口：18008（旧端口 17999 并行支持）
    └── 等待就绪（<5秒）
 
 ```text
@@ -43,7 +43,7 @@ uv run python start_services.py --with-llm --no-wrapper
 
 | 服务 | 地址 | 说明 |
 |------|------|------|
-| **包装层** | http://localhost:17999 | 推荐使用（带缓存、熔断器、Meilisearch 全文搜索） |
+| **包装层** | http://localhost:18008 | 推荐使用（带缓存、熔断器、Meilisearch 全文搜索） |
 | Embedding | http://localhost:18000 | 直接访问后端 |
 | LLM | http://localhost:18001 | 直接访问后端 |
 | SurrealDB | ws://localhost:18002/rpc | 向量搜索 + 图关系 + 数据存储 |
@@ -57,7 +57,7 @@ uv run python start_services.py --with-llm --no-wrapper
 
 ```text
 
-包装层服务 (17999)
+包装层服务 (18008)
     ├── 必须依赖：Embedding 服务 (18000)
     ├── 必须依赖：SurrealDB (18002) — 向量搜索 + 图关系
     ├── 可选依赖：LLM 服务 (18001)
@@ -82,7 +82,7 @@ uv run python start_services.py --with-llm --no-wrapper
 **问题3：包装层服务启动失败**
 
 - 确保后端服务已启动
-- 检查端口 17999 是否被占用
+- 检查端口 18008 是否被占用
 - 检查环境变量配置（SurrealDB、Meilisearch 地址等）
 
 ## ✅ 验证 v2.7.0 功能（多设备同步）
@@ -91,13 +91,13 @@ uv run python start_services.py --with-llm --no-wrapper
 
 ```bash
 # 1. 健康检查
-curl http://localhost:17999/health
+curl http://localhost:18008/health
 
 # 2. 获取服务端指纹（空数据库返回空列表）
-curl "http://localhost:17999/api/v1/sync/fingerprints?tenant_id=default"
+curl "http://localhost:18008/api/v1/sync/fingerprints?tenant_id=default"
 
 # 3. 同步预览（空指纹列表）
-curl -X POST http://localhost:17999/api/v1/sync/preview \
+curl -X POST http://localhost:18008/api/v1/sync/preview \
   -H "Content-Type: application/json" \
   -d '{"fingerprints": [], "tenant_id": "default"}'
 ```
@@ -156,7 +156,7 @@ export EMB_CACHE_SIZE=1000
 export LLM_CACHE_SIZE=100
 
 # 包装层服务
-export WRAPPER_PORT=17999
+export WRAPPER_PORT=18008
 export WRAPPER_CACHE_MAX_SIZE=1000
 export WRAPPER_CACHE_TTL=3600
 

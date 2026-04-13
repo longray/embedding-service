@@ -36,7 +36,7 @@
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              包装层服务 (端口 17999)                     │
+│              包装层服务 (端口 18008（旧端口 17999 并行支持）)                     │
 │  ┌─────────┐  ┌─────────┐  ┌─────────┐                │
 │  │ 缓存    │  │ 熔断器  │  │ 连接池  │                │
 │  └─────────┘  └─────────┘  └─────────┘                │
@@ -60,7 +60,7 @@
 | LLM服务 | 18001 | 对话补全生成 | MiniCPM4-0.5B |
 | SurrealDB | 18002 | 向量搜索 + 图关系 + 数据存储 | HNSW 索引 |
 | Meilisearch | 7700 | 全文搜索 + CJK 中文分词 | charabia tokenizer |
-| 包装层服务 | 17999 | 统一入口+增强功能 | - |
+| 包装层服务 | 18008 | 统一入口+增强功能 | - |
 
 ### 1.3 核心特性
 
@@ -712,7 +712,7 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
   "status": "healthy",
   "service": "minimal-wrapper",
   "version": "2.3.0",
-  "port": 17999,
+  "port": 18008,
   "embedding_service": {
     "status": "healthy",
     "device": "cuda",
@@ -1777,7 +1777,7 @@ async def test_full_workflow():
 | `LLM_MAX_NEW_TOKENS` | 512-2048 | 最大生成长度 |
 | `LLM_CACHE_SIZE` | 100 | 缓存大小 |
 | **包装层服务** |||
-| `WRAPPER_PORT` | 17999 | 服务端口 |
+| `WRAPPER_PORT` | 18008 | 服务端口 |
 | `WRAPPER_EMBEDDING_SERVICE_URL` | http://localhost:18000 | Embedding服务地址 |
 | `WRAPPER_LLM_SERVICE_URL` | http://localhost:18001 | LLM服务地址 |
 | `WRAPPER_CACHE_MAX_SIZE` | 1000 | 缓存大小 |
