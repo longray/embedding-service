@@ -67,7 +67,7 @@
 | BL-B-22 | 端口迁移 17999 → 18008 | P0 | 1 天 | ✅ | [详情](#bl-b-22-p0-端口迁移-17999--18008) |
 | BL-B-78 | 端口迁移文档更新 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-78-p2-端口迁移文档更新) |
 | BL-B-23 | Docker 多阶段构建优化 | P1 | 0.5 天 | ✅ | [详情](#bl-b-23-p1-docker-多阶段构建优化) |
-| BL-B-24 | docker-compose 健康检查 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-24-p1-docker-compose-健康检查) |
+| BL-B-24 | docker-compose 健康检查 | P1 | 0.5 天 | ✅ | [详情](#bl-b-24-p1-docker-compose-健康检查) |
 | BL-B-25 | SSL 自动续期 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-25-p2-ssl-自动续期) |
 | **Phase 7** |
 | BL-B-26 | 单元测试 — WebSocket 模块 | P0 | 1 天 | ⏳ | [详情](#bl-b-26-p0-单元测试--websocket-模块) |
@@ -1159,9 +1159,9 @@ docker images | grep embedding-service
 BL-B-22 端口迁移完成
 
 **完成标准**  
-- [ ] healthcheck 配置
-- [ ] 依赖服务启动顺序
-- [ ] 自动重启策略
+- [x] healthcheck 配置
+- [x] 依赖服务启动顺序
+- [x] 自动重启策略
 
 **验证方式**  
 ```bash
@@ -1169,6 +1169,17 @@ docker-compose up -d
 docker-compose ps
 # 应显示 healthy
 ```
+
+**实现结果**  
+- ✅ `docker-compose.yml` 修改
+- ✅ healthcheck 使用新端口 18008
+- ✅ 添加 `start_period: 15s`
+- ✅ 增加 `retries: 5`
+- ✅ `depends_on` 使用 `condition: service_healthy`
+- ✅ 添加 `restart: unless-stopped`
+- ✅ 双端口配置（18008 + 17999）
+- ✅ 使用 `Dockerfile.multistage` + `target: production`
+- ✅ 11个测试全部通过
 
 ---
 
