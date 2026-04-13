@@ -46,7 +46,7 @@
 | BL-B-9 | PrecomputeService — tree-sitter + 指纹 | P0 | 1.5 天 | ✅ | [详情](#bl-b-9-p0-precomputeservice--tree-sitter-集成--指纹) |
 | BL-B-10 | PrecomputeService — 调用关系创建 | P1 | 1 天 | ✅ | [详情](#bl-b-10-p1-precomputeservice--调用关系创建) |
 | BL-B-11 | PrecomputeService — 循环检测 | P2 | 0.5 天 | ✅ | [详情](#bl-b-11-p2-precomputeservice--循环检测) |
-| BL-B-12 | PrecomputeService — 权重计算 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-12-p2-precomputeservice--权重计算) |
+| BL-B-12 | PrecomputeService — 权重计算 | P2 | 0.5 天 | ✅ | [详情](#bl-b-12-p2-precomputeservice--权重计算) |
 | BL-B-13 | PrecomputeService — 性能监控 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-13-p1-precomputeservice--性能监控) |
 | BL-B-14 | PrecomputeService — 并发控制 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-14-p1-precomputeservice--并发控制) |
 | **Phase 4** |
@@ -86,6 +86,8 @@
 | BL-B-64 | PrecomputeService — SurrealDB RELATE 集成 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-64-p1-precomputeservice--surrealdb-relate-集成) |
 | BL-B-65 | PrecomputeService — CycleDetector 集成 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-65-p1-precomputeservice--cycledetector-集成) |
 | BL-B-66 | PrecomputeService — 循环依赖解决策略 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-66-p2-precomputeservice--循环依赖解决策略) |
+| BL-B-67 | PrecomputeService — 权重持久化 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-67-p1-precomputeservice--权重持久化) |
+| BL-B-68 | PrecomputeService — WeightCalculator 集成 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-68-p1-precomputeservice--weightcalculator-集成) |
 | **文档** |
 | BL-CA-43 | 补充 WebSocket 性能测试基准 | P1 | 0.5 天 | ⏳ | [详情](#bl-ca-43-p1-补充-websocket-性能测试基准) |
 | BL-CA-44 | 完善 PrecomputeService 关系创建 | P1 | 1 天 | ⏳ | [详情](#bl-ca-44-p1-完善-precomputeservice-关系创建实现) |
@@ -707,10 +709,10 @@ uv run pytest tests/test_cycle_detector.py -v
 BL-B-10 调用关系创建完成
 
 **完成标准**  
-- [ ] 权重因子定义
-- [ ] 权重计算公式
-- [ ] 归一化处理
-- [ ] 权重持久化
+- [x] 权重因子定义
+- [x] 权重计算公式
+- [x] 归一化处理
+- [ ] 权重持久化（BL-B-67 后续任务）
 
 **验证方式**  
 ```python
@@ -719,6 +721,15 @@ def test_calculate_weight():
     weight = wc.calculate_weight(call_frequency=10, complexity=5, param_count=3, is_cross_file=True)
     assert 0 <= weight <= 1
 ```
+
+**实现结果**  
+- ✅ `wrapper/src/services/weight_calculator.py` (195行)
+- ✅ WeightFactors 数据类定义
+- ✅ 权重计算公式: `base + frequency_factor + complexity_factor + param_factor + cross_file_factor`
+- ✅ 归一化到 [0, 1] 范围
+- ✅ 18个测试全部通过
+- ⏳ 权重持久化到 DB（BL-B-67 后续任务）
+- ⏳ 与 RelationBuilder 集成（BL-B-68 后续任务）
 
 ---
 
