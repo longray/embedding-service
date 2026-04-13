@@ -88,6 +88,8 @@
 | BL-B-66 | PrecomputeService — 循环依赖解决策略 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-66-p2-precomputeservice--循环依赖解决策略) |
 | BL-B-67 | PrecomputeService — 权重持久化 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-67-p1-precomputeservice--权重持久化) |
 | BL-B-68 | PrecomputeService — WeightCalculator 集成 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-68-p1-precomputeservice--weightcalculator-集成) |
+| BL-B-69 | PrecomputeService — PerformanceMonitor 集成 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-69-p1-precomputeservice--performancemonitor-集成) |
+| BL-B-70 | PrecomputeService — 性能指标持久化 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-70-p2-precomputeservice--性能指标持久化) |
 | **文档** |
 | BL-CA-43 | 补充 WebSocket 性能测试基准 | P1 | 0.5 天 | ⏳ | [详情](#bl-ca-43-p1-补充-websocket-性能测试基准) |
 | BL-CA-44 | 完善 PrecomputeService 关系创建 | P1 | 1 天 | ⏳ | [详情](#bl-ca-44-p1-完善-precomputeservice-关系创建实现) |
@@ -747,10 +749,10 @@ def test_calculate_weight():
 BL-B-8 基础架构完成
 
 **完成标准**  
-- [ ] 性能指标收集
-- [ ] 内存监控
-- [ ] 日志记录
-- [ ] 性能报告生成
+- [x] 性能指标收集
+- [x] 内存监控
+- [x] 日志记录
+- [x] 性能报告生成
 
 **验证方式**  
 ```python
@@ -761,6 +763,15 @@ async def test_performance_monitor():
     metrics = pm.get_metrics()
     assert "parse_time_ms" in metrics
 ```
+
+**实现结果**  
+- ✅ `wrapper/src/services/performance_monitor.py` (277行)
+- ✅ PerformanceMetrics 数据类
+- ✅ 19个测试全部通过
+- ✅ 上下文管理器支持 (`with pm.monitor()`)
+- ✅ tracemalloc 内存追踪集成
+- ⏳ 与 PrecomputeService 集成（BL-B-69 后续任务）
+- ⏳ 持久化到 SurrealDB（BL-B-70 可选任务）
 
 ---
 
@@ -1763,6 +1774,58 @@ uv run pytest tests/test_cycle_resolver.py -v
 
 ---
 
+### BL-B-69 [P1] PrecomputeService — PerformanceMonitor 集成
+
+**目标**  
+将 PerformanceMonitor 集成到 PrecomputeService，监控 process_batch 性能。
+
+**涉及范围**  
+- 文件: `wrapper/src/services/precompute.py`（修改）
+- 集成: PerformanceMonitor 实例
+- 指标: parse_time, analysis_time, total_time
+
+**前置依赖**  
+BL-B-13 PerformanceMonitor 完成
+
+**完成标准**  
+- [ ] PrecomputeService 初始化时创建 PerformanceMonitor
+- [ ] process_batch 中使用 monitor 上下文
+- [ ] 记录 parse_time, analysis_time 等指标
+- [ ] 提供 get_performance_report() 方法
+
+**验证方式**  
+```bash
+uv run pytest tests/test_precompute.py::test_performance_monitoring -v
+```
+
+---
+
+### BL-B-70 [P2] PrecomputeService — 性能指标持久化
+
+**目标**  
+将性能指标持久化到 SurrealDB，支持历史查询和分析。
+
+**涉及范围**  
+- 文件: `wrapper/src/services/performance_monitor.py`（修改）
+- 表: `performance_log`（新建）
+- 功能: 异步保存指标到 DB
+
+**前置依赖**  
+BL-B-69 PerformanceMonitor 集成完成
+
+**完成标准**  
+- [ ] 定义 performance_log 表结构
+- [ ] 实现 save_to_db() 方法
+- [ ] 支持批量保存
+- [ ] 提供查询接口
+
+**验证方式**  
+```bash
+uv run pytest tests/test_performance_persistence.py -v
+```
+
+---
+
 ## 统计汇总
 
 | 分类 | 总数 | P0 | P1 | P2 | P3 | 工时 |
@@ -1771,13 +1834,13 @@ uv run pytest tests/test_cycle_resolver.py -v
 | WebSocket | 8 | 3 | 5 | 0 | 0 | 5.5 天 |
 | WebSocket 后续 | 12 | 0 | 11 | 1 | 0 | 6.5 天 |
 | Precompute | 7 | 2 | 3 | 2 | 0 | 7 天 |
-| Precompute 后续 | 3 | 0 | 3 | 0 | 0 | 1.5 天 |
+| Precompute 后续 | 5 | 0 | 4 | 1 | 0 | 2.5 天 |
 | Meilisearch | 3 | 1 | 2 | 0 | 0 | 2 天 |
 | Schema | 4 | 1 | 3 | 0 | 0 | 2.5 天 |
 | Deployment | 4 | 1 | 2 | 1 | 0 | 2.5 天 |
 | Testing | 6 | 2 | 2 | 1 | 0 | 4.5 天 |
 | 文档完善 | 8 | 0 | 2 | 4 | 2 | 5 天 |
-| **总计** | **55** | **11** | **33** | **9** | **2** | **36 天** |
+| **总计** | **57** | **11** | **34** | **10** | **2** | **37 天** |
 
 ---
 
