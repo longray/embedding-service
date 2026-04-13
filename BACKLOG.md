@@ -57,7 +57,7 @@
 | BL-B-74 | Meilisearch SDK — 异步支持优化 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-74-p2-meilisearch-sdk--异步支持优化) |
 | BL-B-75 | Meilisearch SDK — code_search_index 配置 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-75-p2-meilisearch-sdk--codesearchindex-配置) |
 | **Phase 5** |
-| BL-B-18 | Schema — 核心表创建 | P0 | 1 天 | ⏳ | [详情](#bl-b-18-p0-schema-v32--核心表创建) |
+| BL-B-18 | Schema — 核心表创建 | P0 | 1 天 | ✅ | [详情](#bl-b-18-p0-schema-v32--核心表创建) |
 | BL-B-19 | Schema — ChangeFeed 配置 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-19-p1-schema-v32--changefeed-配置) |
 | BL-B-20 | Schema — 辅助表创建 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-20-p1-schema-v32--辅助表创建) |
 | BL-B-21 | Schema — 迁移脚本 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-21-p1-schema-v32--迁移脚本) |
@@ -944,17 +944,27 @@ async def test_batch_operations():
 SurrealDB 1.0.8 已安装
 
 **完成标准**  
-- [ ] atom 表创建
-- [ ] entity 表创建
-- [ ] reference 表创建
-- [ ] tenant_id 预留字段
-- [ ] 索引创建
+- [x] atom 表创建
+- [x] entity 表创建
+- [x] reference 表创建
+- [x] tenant_id 预留字段
+- [x] 索引创建
 
 **验证方式**  
 ```sql
 INFO FOR DB;
 -- 应显示 atom, entity, reference 表
 ```
+
+**实现结果**  
+- ✅ `scripts/init_surrealdb_v3.2.surql` (新建)
+- ✅ atom 表：8个字段，4个索引
+- ✅ entity 表：12个字段，6个索引
+- ✅ reference 表：7个字段，3个索引
+- ✅ ChangeFeed 配置（7天保留）
+- ✅ performance_log 辅助表
+- ✅ schema_version 版本记录
+- ✅ 16个测试全部通过
 
 ---
 
