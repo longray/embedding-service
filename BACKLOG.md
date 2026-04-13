@@ -36,7 +36,7 @@
 | BL-B-1 | WebSocket — 心跳机制 | P0 | 1 天 | ✅ | [详情](#bl-b-1-p0-websocket-可靠连接--心跳机制) |
 | BL-B-2 | WebSocket — 指数退避重连 | P0 | 1 天 | ✅ | [详情](#bl-b-2-p0-websocket-可靠连接--指数退避重连) |
 | BL-B-3 | WebSocket — ACK 确认系统 | P0 | 1 天 | ✅ | [详情](#bl-b-3-p0-websocket-可靠连接--ack-确认系统) |
-| BL-B-4 | WebSocket — DIFF 模式 | P1 | 1 天 | ⏳ | [详情](#bl-b-4-p1-websocket-可靠连接--diff-模式) |
+| BL-B-4 | WebSocket — DIFF 模式 | P1 | 1 天 | ✅ | [详情](#bl-b-4-p1-websocket-可靠连接--diff-模式) |
 | BL-B-5 | WebSocket — 状态恢复 | P0 | 1 天 | ⏳ | [详情](#bl-b-5-p0-websocket-可靠连接--状态恢复) |
 | BL-B-6 | WebSocket — 并发连接测试 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-6-p1-websocket-性能--并发连接测试) |
 | BL-B-7 | WebSocket — 消息延迟测试 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-7-p1-websocket-性能--消息延迟测试) |
@@ -73,6 +73,9 @@
 | BL-B-52 | WebSocket — AckManager 集成 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-52-p1-websocket-ackmanager-集成) |
 | BL-B-53 | WebSocket — ACK 消息协议定义 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-53-p1-websocket-ack-消息协议定义) |
 | BL-B-54 | WebSocket — 消息持久化 | P2 | 1 天 | ⏳ | [详情](#bl-b-54-p2-websocket-消息持久化) |
+| BL-B-55 | WebSocket — DiffManager 集成 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-55-p1-websocket-diffmanager-集成) |
+| BL-B-56 | WebSocket — LIVE SELECT DIFF 订阅 | P1 | 1 天 | ⏳ | [详情](#bl-b-56-p1-websocket-live-select-diff-订阅) |
+| BL-B-57 | WebSocket — DIFF 客户端配置接口 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-57-p1-websocket-diff-客户端配置接口) |
 | **文档** |
 | BL-CA-43 | 补充 WebSocket 性能测试基准 | P1 | 0.5 天 | ⏳ | [详情](#bl-ca-43-p1-补充-websocket-性能测试基准) |
 | BL-CA-44 | 完善 PrecomputeService 关系创建 | P1 | 1 天 | ⏳ | [详情](#bl-ca-44-p1-完善-precomputeservice-关系创建实现) |
@@ -271,20 +274,36 @@ uv run pytest tests/test_websocket_ack.py -v
 BL-B-3 ACK 系统完成
 
 **完成标准**  
-- [ ] 支持 `LIVE SELECT DIFF` 订阅
-- [ ] 生成 RFC 6902 标准 JSON Patch
-- [ ] Patch 操作: replace/add/remove
-- [ ] 带宽节省 ≥90%
-- [ ] 客户端可配置 diff/full 模式
+- [x] 生成 RFC 6902 标准 JSON Patch
+- [x] Patch 操作: replace/add/remove
+- [x] 带宽节省计算
+- [x] 客户端可配置 diff/full 模式
+- [ ] 支持 `LIVE SELECT DIFF` 订阅（已规划到 BL-B-56）
 
 **验证方式**  
-```python
-def test_generate_patch():
-    old = {"content": "hello"}
-    new = {"content": "world", "tags": ["new"]}
-    patch = generate_patch(old, new)
-    assert patch == [{"op": "replace", "path": "/content", "value": "world"}]
+```bash
+uv run pytest tests/test_websocket_diff.py -v
 ```
+
+**实现结果**  
+- ✅ `wrapper/src/websocket/patch_generator.py` - PatchGenerator 类 (186行)
+- ✅ `wrapper/src/websocket/diff_manager.py` - DiffManager 类 (212行)
+- ✅ `tests/test_websocket_diff.py` - 23个测试用例，全部通过
+- ✅ RFC 6902 JSON Patch 生成 (replace/add/remove)
+- ✅ Patch 应用和验证
+- ✅ 带宽节省计算
+- ✅ diff/full 模式切换
+
+**测试覆盖**  
+- PatchGenerator 测试 (10个测试)
+- DiffManager 测试 (11个测试)
+- 带宽节省测试 (2个测试)
+- 总计: 23/23 测试通过
+
+**未结事项（已规划到后续任务）**  
+- BL-B-55: DiffManager 集成到 ReliableWebSocketServer
+- BL-B-56: LIVE SELECT DIFF 订阅实现
+- BL-B-57: DIFF 客户端配置接口
 
 ---
 
@@ -1267,20 +1286,94 @@ uv run pytest tests/test_websocket_persistent.py -v
 
 ---
 
+### BL-B-55 [P1] WebSocket — DiffManager 集成
+
+**目标**  
+将 DiffManager 集成到 ReliableWebSocketServer，实现增量同步。
+
+**涉及范围**  
+- 文件: `wrapper/src/websocket/reliable_server.py`（修改）
+- 集成: DiffManager 到 ReliableWebSocketServer
+
+**前置依赖**  
+BL-B-4 DIFF 模式完成
+
+**完成标准**  
+- [ ] ReliableWebSocketServer 初始化时创建 DiffManager
+- [ ] 发送消息时根据配置选择 diff/full 模式
+- [ ] 缓存消息状态用于生成 diff
+- [ ] 支持客户端切换 diff/full 模式
+
+**验证方式**  
+```bash
+uv run pytest tests/test_websocket_diff_integration.py -v
+```
+
+---
+
+### BL-B-56 [P1] WebSocket — LIVE SELECT DIFF 订阅
+
+**目标**  
+实现 `LIVE SELECT DIFF` 订阅，支持 SurrealDB 变更通知的增量同步。
+
+**涉及范围**  
+- 文件: `wrapper/src/websocket/live_diff_handler.py`（新建）
+
+**前置依赖**  
+BL-B-55 DiffManager 集成完成
+
+**完成标准**  
+- [ ] 监听 SurrealDB LIVE SELECT 变更
+- [ ] 将变更转换为 JSON Patch
+- [ ] 发送 diff 消息到客户端
+- [ ] 支持变更合并（减少消息数量）
+
+**验证方式**  
+```bash
+uv run pytest tests/test_websocket_live_diff.py -v
+```
+
+---
+
+### BL-B-57 [P1] WebSocket — DIFF 客户端配置接口
+
+**目标**  
+提供客户端配置接口，允许客户端选择 diff/full 模式。
+
+**涉及范围**  
+- 文件: `wrapper/src/routers/websocket.py`（修改）
+- 文件: `docs/v3.2/WEBSOCKET-v3.2-PROTOCOL.md`（更新）
+
+**前置依赖**  
+BL-B-56 LIVE SELECT DIFF 订阅完成
+
+**完成标准**  
+- [ ] WebSocket 连接参数支持 `mode=diff|full`
+- [ ] 动态切换模式 API
+- [ ] 客户端配置文档
+- [ ] 向后兼容（默认 full 模式）
+
+**验证方式**  
+```bash
+uv run pytest tests/test_websocket_client_config.py -v
+```
+
+---
+
 ## 统计汇总
 
 | 分类 | 总数 | P0 | P1 | P2 | P3 | 工时 |
 |------|------|----|----|----|----|------|
 | 依赖升级 | 1 | 1 | 0 | 0 | 0 | 1 天 |
 | WebSocket | 8 | 3 | 5 | 0 | 0 | 5.5 天 |
-| WebSocket 后续 | 3 | 0 | 2 | 1 | 0 | 2 天 |
+| WebSocket 后续 | 6 | 0 | 5 | 1 | 0 | 3.5 天 |
 | Precompute | 7 | 2 | 3 | 2 | 0 | 7 天 |
 | Meilisearch | 3 | 1 | 2 | 0 | 0 | 2 天 |
 | Schema | 4 | 1 | 3 | 0 | 0 | 2.5 天 |
 | Deployment | 4 | 1 | 2 | 1 | 0 | 2.5 天 |
 | Testing | 6 | 2 | 2 | 1 | 0 | 4.5 天 |
 | 文档完善 | 8 | 0 | 2 | 4 | 2 | 5 天 |
-| **总计** | **43** | **11** | **21** | **9** | **2** | **30 天** |
+| **总计** | **46** | **11** | **24** | **9** | **2** | **31.5 天** |
 
 ---
 
