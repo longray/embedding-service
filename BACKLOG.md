@@ -73,8 +73,8 @@
 | **Phase 7** |
 | BL-B-26 | 单元测试 — WebSocket 模块 | P0 | 1 天 | ✅ | [详情](#bl-b-26-p0-单元测试--websocket-模块) |
 | BL-B-27 | 单元测试 — Precompute 模块 | P0 | 1 天 | ✅ | [详情](#bl-b-27-p0-单元测试--precompute-模块) |
-| BL-B-28 | 集成测试 — WebSocket 端到端 | P1 | 1 天 | ⏳ | [详情](#bl-b-28-p1-集成测试--websocket-端到端) |
-| BL-B-29 | 集成测试 — API 端到端 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-29-p1-集成测试--api-端到端) |
+| BL-B-28 | 集成测试 — WebSocket 端到端 | P1 | 1 天 | ✅ | [详情](#bl-b-28-p1-集成测试--websocket-端到端) |
+| BL-B-29 | 集成测试 — API 端到端 | P1 | 0.5 天 | ✅ | [详情](#bl-b-29-p1-集成测试--api-端到端) |
 | BL-B-30 | 性能基准测试 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-30-p2-性能基准测试) |
 | **WebSocket 后续** |
 | BL-B-52 | WebSocket — AckManager 集成 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-52-p1-websocket-ackmanager-集成) |
