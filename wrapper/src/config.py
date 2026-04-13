@@ -131,7 +131,10 @@ class LLMConfig:
 @dataclass
 class AppConfig:
     host: str = "0.0.0.0"  # nosec B104 - 容器环境需要绑定所有接口
-    port: int = 17999
+    port: int = 18008  # v3.2: 新默认端口
+    legacy_port: int = 17999  # v3.2: 旧端口（并行期支持）
+    enable_dual_port: bool = True  # v3.2: 启用双端口并行
+    dual_port_duration_days: int = 14  # v3.2: 并行期天数
     debug: bool = False
     cache: CacheConfig = field(default_factory=CacheConfig)
     http: HTTPConfig = field(default_factory=HTTPConfig)
@@ -149,6 +152,9 @@ def load_config():
     cfg = AppConfig()
     cfg.host = os.getenv("WRAPPER_HOST", cfg.host)
     cfg.port = int(os.getenv("WRAPPER_PORT", str(cfg.port)))
+    cfg.legacy_port = int(os.getenv("WRAPPER_LEGACY_PORT", str(cfg.legacy_port)))
+    cfg.enable_dual_port = os.getenv("WRAPPER_ENABLE_DUAL_PORT", "true").lower() == "true"
+    cfg.dual_port_duration_days = int(os.getenv("WRAPPER_DUAL_PORT_DURATION_DAYS", str(cfg.dual_port_duration_days)))
     cfg.cache.enabled = os.getenv("WRAPPER_CACHE_ENABLED", "true").lower() == "true"
     cfg.service.embedding_service_url = os.getenv("WRAPPER_EMBEDDING_SERVICE_URL", cfg.service.embedding_service_url)
     cfg.surrealdb.url = os.getenv("WRAPPER_SURREALDB_URL", cfg.surrealdb.url)

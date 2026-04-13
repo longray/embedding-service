@@ -64,7 +64,8 @@
 | BL-B-76 | Schema — 迁移脚本实际测试 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-76-p2-schema--迁移脚本实际测试) |
 | BL-B-77 | Schema — 迁移性能优化 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-77-p2-schema--迁移性能优化) |
 | **Phase 6** |
-| BL-B-22 | 端口迁移 17999 → 18008 | P0 | 1 天 | ⏳ | [详情](#bl-b-22-p0-端口迁移-17999--18008) |
+| BL-B-22 | 端口迁移 17999 → 18008 | P0 | 1 天 | ✅ | [详情](#bl-b-22-p0-端口迁移-17999--18008) |
+| BL-B-78 | 端口迁移文档更新 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-78-p2-端口迁移文档更新) |
 | BL-B-23 | Docker 多阶段构建优化 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-23-p1-docker-多阶段构建优化) |
 | BL-B-24 | docker-compose 健康检查 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-24-p1-docker-compose-健康检查) |
 | BL-B-25 | SSL 自动续期 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-25-p2-ssl-自动续期) |
@@ -1087,9 +1088,9 @@ uv run python scripts/migrate_v2_to_v32.py --execute
 无
 
 **完成标准**  
-- [ ] 默认端口改为 18008
-- [ ] 双端口并行支持（1-2 周）
-- [ ] 环境变量覆盖支持
+- [x] 默认端口改为 18008
+- [x] 双端口并行支持（1-2 周）
+- [x] 环境变量覆盖支持
 - [ ] 文档更新
 
 **验证方式**  
@@ -1097,6 +1098,17 @@ uv run python scripts/migrate_v2_to_v32.py --execute
 curl http://localhost:18008/health
 curl http://localhost:17999/health  # 并行期
 ```
+
+**实现结果**  
+- ✅ `wrapper/src/config.py` 修改
+- ✅ 新默认端口 18008
+- ✅ 旧端口 17999（legacy_port）
+- ✅ 双端口并行支持（enable_dual_port）
+- ✅ 并行期配置（dual_port_duration_days = 14）
+- ✅ 环境变量支持：WRAPPER_PORT, WRAPPER_LEGACY_PORT, WRAPPER_ENABLE_DUAL_PORT, WRAPPER_DUAL_PORT_DURATION_DAYS
+- ✅ 向后兼容（旧 WRAPPER_PORT 仍然有效）
+- ✅ 13个测试全部通过
+- ⏳ 文档更新（BL-B-78 后续任务）
 
 ---
 
@@ -1147,6 +1159,32 @@ BL-B-22 端口迁移完成
 docker-compose up -d
 docker-compose ps
 # 应显示 healthy
+```
+
+---
+
+### BL-B-78 [P2] 端口迁移文档更新
+
+**目标**  
+更新端口迁移相关文档。
+
+**涉及范围**  
+- 文件: `README.md`, `docs/START_GUIDE.md`, `docs/API_SPECIFICATION.md`
+- 内容: 端口配置说明
+
+**前置依赖**  
+BL-B-22 端口迁移完成
+
+**完成标准**  
+- [ ] README.md 端口说明更新
+- [ ] START_GUIDE.md 启动命令更新
+- [ ] API_SPECIFICATION.md 端点更新
+- [ ] 环境变量文档更新
+
+**验证方式**  
+```bash
+# 检查文档中端口引用
+grep -r "17999\|18008" docs/ README.md
 ```
 
 ---
@@ -2095,10 +2133,10 @@ uv run python scripts/benchmark_migration.py
 | Precompute 后续 | 7 | 0 | 5 | 2 | 0 | 3.5 天 |
 | Meilisearch | 6 | 1 | 3 | 2 | 0 | 3.5 天 |
 | Schema | 6 | 1 | 3 | 2 | 0 | 3.5 天 |
-| Deployment | 4 | 1 | 2 | 1 | 0 | 2.5 天 |
+| Deployment | 5 | 1 | 2 | 2 | 0 | 3 天 |
 | Testing | 6 | 2 | 2 | 1 | 0 | 4.5 天 |
 | 文档完善 | 8 | 0 | 2 | 4 | 2 | 5 天 |
-| **总计** | **64** | **11** | **36** | **15** | **2** | **40.5 天** |
+| **总计** | **65** | **11** | **36** | **16** | **2** | **41 天** |
 
 ---
 
