@@ -45,7 +45,7 @@
 | BL-B-8 | PrecomputeService — 基础架构 | P0 | 1 天 | ✅ | [详情](#bl-b-8-p0-precomputeservice--基础架构) |
 | BL-B-9 | PrecomputeService — tree-sitter + 指纹 | P0 | 1.5 天 | ✅ | [详情](#bl-b-9-p0-precomputeservice--tree-sitter-集成--指纹) |
 | BL-B-10 | PrecomputeService — 调用关系创建 | P1 | 1 天 | ✅ | [详情](#bl-b-10-p1-precomputeservice--调用关系创建) |
-| BL-B-11 | PrecomputeService — 循环检测 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-11-p2-precomputeservice--循环检测) |
+| BL-B-11 | PrecomputeService — 循环检测 | P2 | 0.5 天 | ✅ | [详情](#bl-b-11-p2-precomputeservice--循环检测) |
 | BL-B-12 | PrecomputeService — 权重计算 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-12-p2-precomputeservice--权重计算) |
 | BL-B-13 | PrecomputeService — 性能监控 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-13-p1-precomputeservice--性能监控) |
 | BL-B-14 | PrecomputeService — 并发控制 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-14-p1-precomputeservice--并发控制) |
@@ -84,6 +84,8 @@
 | BL-B-63 | WebSocket — 性能测试套件整合 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-63-p1-websocket-性能测试套件整合) |
 | **PrecomputeService 后续** |
 | BL-B-64 | PrecomputeService — SurrealDB RELATE 集成 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-64-p1-precomputeservice--surrealdb-relate-集成) |
+| BL-B-65 | PrecomputeService — CycleDetector 集成 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-65-p1-precomputeservice--cycledetector-集成) |
+| BL-B-66 | PrecomputeService — 循环依赖解决策略 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-66-p2-precomputeservice--循环依赖解决策略) |
 | **文档** |
 | BL-CA-43 | 补充 WebSocket 性能测试基准 | P1 | 0.5 天 | ⏳ | [详情](#bl-ca-43-p1-补充-websocket-性能测试基准) |
 | BL-CA-44 | 完善 PrecomputeService 关系创建 | P1 | 1 天 | ⏳ | [详情](#bl-ca-44-p1-完善-precomputeservice-关系创建实现) |
@@ -659,20 +661,35 @@ uv run pytest tests/test_relation_builder.py -v
 BL-B-10 调用关系创建完成
 
 **完成标准**  
-- [ ] DFS 算法实现
-- [ ] 检测循环调用链
-- [ ] 记录循环路径
-- [ ] 日志输出警告
-- [ ] 时间复杂度 O(V+E)
+- [x] DFS 算法实现
+- [x] 检测循环调用链
+- [x] 记录循环路径
+- [x] 日志输出警告
+- [x] 时间复杂度 O(V+E)
 
 **验证方式**  
-```python
-def test_detect_cycles():
-    relations = [{"from": "A", "to": "B"}, {"from": "B", "to": "C"}, {"from": "C", "to": "A"}]
-    cd = CycleDetector()
-    cycles = cd.detect_cycles(relations)
-    assert len(cycles) == 1
+```bash
+uv run pytest tests/test_cycle_detector.py -v
 ```
+
+**实现结果**  
+- ✅ `wrapper/src/services/cycle_detector.py` - CycleDetector 类 (191行)
+- ✅ `tests/test_cycle_detector.py` - 12个测试用例，全部通过
+- ✅ `Cycle` 数据类 - 循环信息（path, length）
+- ✅ `detect_cycles(relations)` - 检测循环
+- ✅ `_build_graph(relations)` - 构建有向图
+- ✅ `_dfs(node, graph, visited, rec_stack, path)` - 深度优先搜索
+- ✅ `_extract_cycle(path, start_node)` - 提取循环路径
+- ✅ 使用三色标记法（白/灰/黑）
+
+**测试覆盖**  
+- CycleDetector 基础功能 (10个测试)
+- 性能测试 (2个测试)
+- 总计: 12/12 测试通过
+
+**未结事项（已规划到后续任务）**  
+- BL-B-65: CycleDetector 集成到 RelationBuilder
+- BL-B-66: 循环依赖解决策略
 
 ---
 
@@ -1687,6 +1704,54 @@ uv run pytest tests/test_relation_builder_integration.py -v
 
 ---
 
+### BL-B-65 [P1] PrecomputeService — CycleDetector 集成
+
+**目标**  
+将 CycleDetector 集成到 RelationBuilder，在创建关系时检测循环。
+
+**涉及范围**  
+- 文件: `wrapper/src/services/relation_builder.py`（修改）
+
+**前置依赖**  
+BL-B-11 循环检测完成
+
+**完成标准**  
+- [ ] 在 RelationBuilder 中集成 CycleDetector
+- [ ] 创建关系前检测循环
+- [ ] 发现循环时记录警告
+- [ ] 支持跳过循环关系创建
+
+**验证方式**  
+```bash
+uv run pytest tests/test_relation_builder_cycle.py -v
+```
+
+---
+
+### BL-B-66 [P2] PrecomputeService — 循环依赖解决策略
+
+**目标**  
+定义循环依赖的解决策略，如何处理检测到的循环。
+
+**涉及范围**  
+- 文件: `wrapper/src/services/cycle_resolver.py`（新建）
+
+**前置依赖**  
+BL-B-65 CycleDetector 集成完成
+
+**完成标准**  
+- [ ] 定义循环类型分类
+- [ ] 实现循环打破策略
+- [ ] 支持循环标记（跳过/警告/错误）
+- [ ] 循环依赖报告生成
+
+**验证方式**  
+```bash
+uv run pytest tests/test_cycle_resolver.py -v
+```
+
+---
+
 ## 统计汇总
 
 | 分类 | 总数 | P0 | P1 | P2 | P3 | 工时 |
@@ -1695,13 +1760,13 @@ uv run pytest tests/test_relation_builder_integration.py -v
 | WebSocket | 8 | 3 | 5 | 0 | 0 | 5.5 天 |
 | WebSocket 后续 | 12 | 0 | 11 | 1 | 0 | 6.5 天 |
 | Precompute | 7 | 2 | 3 | 2 | 0 | 7 天 |
-| Precompute 后续 | 1 | 0 | 1 | 0 | 0 | 0.5 天 |
+| Precompute 后续 | 3 | 0 | 3 | 0 | 0 | 1.5 天 |
 | Meilisearch | 3 | 1 | 2 | 0 | 0 | 2 天 |
 | Schema | 4 | 1 | 3 | 0 | 0 | 2.5 天 |
 | Deployment | 4 | 1 | 2 | 1 | 0 | 2.5 天 |
 | Testing | 6 | 2 | 2 | 1 | 0 | 4.5 天 |
 | 文档完善 | 8 | 0 | 2 | 4 | 2 | 5 天 |
-| **总计** | **53** | **11** | **31** | **9** | **2** | **35 天** |
+| **总计** | **55** | **11** | **33** | **9** | **2** | **36 天** |
 
 ---
 
