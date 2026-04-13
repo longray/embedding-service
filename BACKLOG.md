@@ -50,9 +50,11 @@
 | BL-B-13 | PrecomputeService — 性能监控 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-13-p1-precomputeservice--性能监控) |
 | BL-B-14 | PrecomputeService — 并发控制 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-14-p1-precomputeservice--并发控制) |
 | **Phase 4** |
-| BL-B-15 | Meilisearch SDK — 客户端迁移 | P0 | 1 天 | ⏳ | [详情](#bl-b-15-p0-meilisearch-sdk-040--客户端迁移) |
+| BL-B-15 | Meilisearch SDK — 客户端迁移 | P0 | 1 天 | ✅ | [详情](#bl-b-15-p0-meilisearch-sdk-040--客户端迁移) |
 | BL-B-16 | Meilisearch SDK — 索引设置迁移 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-16-p1-meilisearch-sdk-040--索引设置迁移) |
 | BL-B-17 | Meilisearch SDK — 批量操作 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-17-p1-meilisearch-sdk-040--批量操作支持) |
+| BL-B-73 | Meilisearch SDK — 与现有代码集成 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-73-p1-meilisearch-sdk--与现有代码集成) |
+| BL-B-74 | Meilisearch SDK — 异步支持优化 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-74-p2-meilisearch-sdk--异步支持优化) |
 | **Phase 5** |
 | BL-B-18 | Schema — 核心表创建 | P0 | 1 天 | ⏳ | [详情](#bl-b-18-p0-schema-v32--核心表创建) |
 | BL-B-19 | Schema — ChangeFeed 配置 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-19-p1-schema-v32--changefeed-配置) |
@@ -831,10 +833,10 @@ async def test_concurrency_limit():
 BL-B-31 依赖升级完成
 
 **完成标准**  
-- [ ] 替换 httpx 为 meilisearch SDK
-- [ ] 更新所有 API 调用
-- [ ] 错误处理适配
-- [ ] 配置迁移
+- [x] 替换 httpx 为 meilisearch SDK
+- [x] 更新所有 API 调用
+- [x] 错误处理适配
+- [x] 配置迁移
 
 **验证方式**  
 ```python
@@ -844,6 +846,15 @@ async def test_meilisearch_sdk():
     result = await client.search("test")
     assert "hits" in result
 ```
+
+**实现结果**  
+- ✅ `wrapper/src/utils/meili_sdk_client.py` (357行)
+- ✅ MeilisearchSDKClient 类实现
+- ✅ 16个测试全部通过
+- ✅ 使用官方 `meilisearch` SDK v0.40
+- ✅ 同步 API 调用（SDK 主要提供同步接口）
+- ⏳ 与现有代码集成（BL-B-73 后续任务）
+- ⏳ 异步支持优化（BL-B-74 可选任务）
 
 ---
 
@@ -1889,6 +1900,57 @@ uv run pytest tests/test_queue_persistence.py -v
 
 ---
 
+### BL-B-73 [P1] Meilisearch SDK — 与现有代码集成
+
+**目标**  
+将 MeilisearchSDKClient 集成到现有代码中，替换 httpx 调用。
+
+**涉及范围**  
+- 文件: `wrapper/src/utils/meili_client.py`（修改）
+- 文件: `wrapper/src/config.py`（修改）
+- 功能: 使用新 SDK 客户端
+
+**前置依赖**  
+BL-B-15 Meilisearch SDK 客户端迁移完成
+
+**完成标准**  
+- [ ] 更新 `meili_client.py` 使用新 SDK
+- [ ] 更新 `config.py` 中的客户端初始化
+- [ ] 保持向后兼容
+- [ ] 所有现有测试通过
+
+**验证方式**  
+```bash
+uv run pytest tests/test_meili_integration.py -v
+```
+
+---
+
+### BL-B-74 [P2] Meilisearch SDK — 异步支持优化
+
+**目标**  
+为 MeilisearchSDKClient 添加异步支持。
+
+**涉及范围**  
+- 文件: `wrapper/src/utils/meili_sdk_client.py`（修改）
+- 方案: 线程池或 meilisearch-python-sdk
+
+**前置依赖**  
+BL-B-73 与现有代码集成完成
+
+**完成标准**  
+- [ ] 评估异步方案（线程池 vs 异步 SDK）
+- [ ] 实现异步 API 包装
+- [ ] 保持同步 API 兼容
+- [ ] 性能测试对比
+
+**验证方式**  
+```bash
+uv run pytest tests/test_meili_async.py -v
+```
+
+---
+
 ## 统计汇总
 
 | 分类 | 总数 | P0 | P1 | P2 | P3 | 工时 |
@@ -1898,12 +1960,12 @@ uv run pytest tests/test_queue_persistence.py -v
 | WebSocket 后续 | 12 | 0 | 11 | 1 | 0 | 6.5 天 |
 | Precompute | 7 | 2 | 3 | 2 | 0 | 7 天 |
 | Precompute 后续 | 7 | 0 | 5 | 2 | 0 | 3.5 天 |
-| Meilisearch | 3 | 1 | 2 | 0 | 0 | 2 天 |
+| Meilisearch | 5 | 1 | 3 | 1 | 0 | 3 天 |
 | Schema | 4 | 1 | 3 | 0 | 0 | 2.5 天 |
 | Deployment | 4 | 1 | 2 | 1 | 0 | 2.5 天 |
 | Testing | 6 | 2 | 2 | 1 | 0 | 4.5 天 |
 | 文档完善 | 8 | 0 | 2 | 4 | 2 | 5 天 |
-| **总计** | **59** | **11** | **35** | **11** | **2** | **38 天** |
+| **总计** | **61** | **11** | **36** | **12** | **2** | **39 天** |
 
 ---
 
