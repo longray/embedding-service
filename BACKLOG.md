@@ -90,6 +90,8 @@
 | BL-B-68 | PrecomputeService — WeightCalculator 集成 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-68-p1-precomputeservice--weightcalculator-集成) |
 | BL-B-69 | PrecomputeService — PerformanceMonitor 集成 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-69-p1-precomputeservice--performancemonitor-集成) |
 | BL-B-70 | PrecomputeService — 性能指标持久化 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-70-p2-precomputeservice--性能指标持久化) |
+| BL-B-71 | PrecomputeService — ConcurrencyControl 集成 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-71-p1-precomputeservice--concurrencycontrol-集成) |
+| BL-B-72 | PrecomputeService — 队列状态持久化 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-72-p2-precomputeservice--队列状态持久化) |
 | **文档** |
 | BL-CA-43 | 补充 WebSocket 性能测试基准 | P1 | 0.5 天 | ⏳ | [详情](#bl-ca-43-p1-补充-websocket-性能测试基准) |
 | BL-CA-44 | 完善 PrecomputeService 关系创建 | P1 | 1 天 | ⏳ | [详情](#bl-ca-44-p1-完善-precomputeservice-关系创建实现) |
@@ -789,10 +791,10 @@ async def test_performance_monitor():
 BL-B-8 基础架构完成
 
 **完成标准**  
-- [ ] Semaphore(5) 并发限制
-- [ ] processing Set 去重
-- [ ] 队列机制
-- [ ] 超时处理
+- [x] Semaphore(5) 并发限制
+- [x] processing Set 去重
+- [x] 队列机制
+- [x] 超时处理
 
 **验证方式**  
 ```python
@@ -802,6 +804,15 @@ async def test_concurrency_limit():
     results = await asyncio.gather(*tasks)
     assert cc.max_concurrent_reached <= 5
 ```
+
+**实现结果**  
+- ✅ `wrapper/src/services/concurrency_control.py` (282行)
+- ✅ DuplicateTaskError 异常类
+- ✅ 18个测试全部通过
+- ✅ `_processing` + `_queued` 双集合去重
+- ✅ 超时控制与统计跟踪
+- ⏳ 与 PrecomputeService 集成（BL-B-71 后续任务）
+- ⏳ 队列持久化（BL-B-72 可选任务）
 
 ---
 
@@ -1826,6 +1837,58 @@ uv run pytest tests/test_performance_persistence.py -v
 
 ---
 
+### BL-B-71 [P1] PrecomputeService — ConcurrencyControl 集成
+
+**目标**  
+将 ConcurrencyControl 集成到 PrecomputeService，防止同文件重复处理。
+
+**涉及范围**  
+- 文件: `wrapper/src/services/precompute.py`（修改）
+- 集成: ConcurrencyControl 实例
+- 功能: process_batch 中使用并发控制
+
+**前置依赖**  
+BL-B-14 ConcurrencyControl 完成
+
+**完成标准**  
+- [ ] PrecomputeService 初始化时创建 ConcurrencyControl
+- [ ] process_batch 中使用 cc.process() 处理文件
+- [ ] 防止同文件重复处理
+- [ ] 支持并发限制配置
+
+**验证方式**  
+```bash
+uv run pytest tests/test_precompute.py::test_concurrency_integration -v
+```
+
+---
+
+### BL-B-72 [P2] PrecomputeService — 队列状态持久化
+
+**目标**  
+将队列状态持久化到 SurrealDB，服务重启后恢复。
+
+**涉及范围**  
+- 文件: `wrapper/src/services/concurrency_control.py`（修改）
+- 表: `task_queue`（新建）
+- 功能: 保存/恢复队列状态
+
+**前置依赖**  
+BL-B-71 ConcurrencyControl 集成完成
+
+**完成标准**  
+- [ ] 定义 task_queue 表结构
+- [ ] 实现 save_queue_state() 方法
+- [ ] 实现 restore_queue_state() 方法
+- [ ] 服务启动时自动恢复队列
+
+**验证方式**  
+```bash
+uv run pytest tests/test_queue_persistence.py -v
+```
+
+---
+
 ## 统计汇总
 
 | 分类 | 总数 | P0 | P1 | P2 | P3 | 工时 |
@@ -1834,13 +1897,13 @@ uv run pytest tests/test_performance_persistence.py -v
 | WebSocket | 8 | 3 | 5 | 0 | 0 | 5.5 天 |
 | WebSocket 后续 | 12 | 0 | 11 | 1 | 0 | 6.5 天 |
 | Precompute | 7 | 2 | 3 | 2 | 0 | 7 天 |
-| Precompute 后续 | 5 | 0 | 4 | 1 | 0 | 2.5 天 |
+| Precompute 后续 | 7 | 0 | 5 | 2 | 0 | 3.5 天 |
 | Meilisearch | 3 | 1 | 2 | 0 | 0 | 2 天 |
 | Schema | 4 | 1 | 3 | 0 | 0 | 2.5 天 |
 | Deployment | 4 | 1 | 2 | 1 | 0 | 2.5 天 |
 | Testing | 6 | 2 | 2 | 1 | 0 | 4.5 天 |
 | 文档完善 | 8 | 0 | 2 | 4 | 2 | 5 天 |
-| **总计** | **57** | **11** | **34** | **10** | **2** | **37 天** |
+| **总计** | **59** | **11** | **35** | **11** | **2** | **38 天** |
 
 ---
 
