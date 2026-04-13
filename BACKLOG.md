@@ -60,7 +60,9 @@
 | BL-B-18 | Schema — 核心表创建 | P0 | 1 天 | ✅ | [详情](#bl-b-18-p0-schema-v32--核心表创建) |
 | BL-B-19 | Schema — ChangeFeed 配置 | P1 | 0.5 天 | ✅ | [详情](#bl-b-19-p1-schema-v32--changefeed-配置) |
 | BL-B-20 | Schema — 辅助表创建 | P1 | 0.5 天 | ✅ | [详情](#bl-b-20-p1-schema-v32--辅助表创建) |
-| BL-B-21 | Schema — 迁移脚本 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-21-p1-schema-v32--迁移脚本) |
+| BL-B-21 | Schema — 迁移脚本 | P1 | 0.5 天 | ✅ | [详情](#bl-b-21-p1-schema-v32--迁移脚本) |
+| BL-B-76 | Schema — 迁移脚本实际测试 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-76-p2-schema--迁移脚本实际测试) |
+| BL-B-77 | Schema — 迁移性能优化 | P2 | 0.5 天 | ⏳ | [详情](#bl-b-77-p2-schema--迁移性能优化) |
 | **Phase 6** |
 | BL-B-22 | 端口迁移 17999 → 18008 | P0 | 1 天 | ⏳ | [详情](#bl-b-22-p0-端口迁移-17999--18008) |
 | BL-B-23 | Docker 多阶段构建优化 | P1 | 0.5 天 | ⏳ | [详情](#bl-b-23-p1-docker-多阶段构建优化) |
@@ -1045,16 +1047,28 @@ INFO FOR DB;
 BL-B-18~B-20 Schema 创建完成
 
 **完成标准**  
-- [ ] 数据迁移脚本
-- [ ] 数据验证
-- [ ] 回滚机制
-- [ ] 迁移日志
+- [x] 数据迁移脚本
+- [x] 数据验证
+- [x] 回滚机制
+- [x] 迁移日志
 
 **验证方式**  
 ```bash
-uv run python scripts/migrate_v2_to_v3.2.py --dry-run
-uv run python scripts/migrate_v2_to_v3.2.py --execute
+uv run python scripts/migrate_v2_to_v32.py --dry-run
+uv run python scripts/migrate_v2_to_v32.py --execute
 ```
+
+**实现结果**  
+- ✅ `scripts/migrate_v2_to_v32.py` (新建)
+- ✅ `V2ToV3Migration` 类实现
+- ✅ dry-run / execute 模式支持
+- ✅ 批量处理（可配置 batch_size）
+- ✅ schema 验证
+- ✅ 回滚机制
+- ✅ 详细日志记录
+- ✅ 10个测试全部通过
+- ⏳ 实际数据迁移测试（BL-B-76 后续任务）
+- ⏳ 性能优化（BL-B-77 可选任务）
 
 ---
 
@@ -2016,6 +2030,60 @@ uv run pytest tests/test_code_search_index.py -v
 
 ---
 
+### BL-B-76 [P2] Schema — 迁移脚本实际测试
+
+**目标**  
+在真实 SurrealDB 环境中测试迁移脚本，验证数据完整性。
+
+**涉及范围**  
+- 文件: `scripts/migrate_v2_to_v32.py`（测试）
+- 环境: 真实 SurrealDB 实例
+- 数据: 实际 memory 表数据
+
+**前置依赖**  
+BL-B-21 迁移脚本完成
+
+**完成标准**  
+- [ ] 在测试环境运行迁移
+- [ ] 验证 atom 表数据完整性
+- [ ] 验证 entity 表数据完整性
+- [ ] 验证 reference 表数据完整性
+- [ ] 性能基准测试
+
+**验证方式**  
+```bash
+# 在测试环境执行
+uv run python scripts/migrate_v2_to_v32.py --execute --batch-size 100
+```
+
+---
+
+### BL-B-77 [P2] Schema — 迁移性能优化
+
+**目标**  
+优化迁移脚本性能，支持大批量数据并行处理。
+
+**涉及范围**  
+- 文件: `scripts/migrate_v2_to_v32.py`（优化）
+- 优化: 并行处理、批量大小调优
+
+**前置依赖**  
+BL-B-76 实际测试完成
+
+**完成标准**  
+- [ ] 并行处理实现
+- [ ] 批量大小自动调优
+- [ ] 进度报告优化
+- [ ] 性能提升 50%+
+
+**验证方式**  
+```bash
+# 对比优化前后性能
+uv run python scripts/benchmark_migration.py
+```
+
+---
+
 ## 统计汇总
 
 | 分类 | 总数 | P0 | P1 | P2 | P3 | 工时 |
@@ -2026,11 +2094,11 @@ uv run pytest tests/test_code_search_index.py -v
 | Precompute | 7 | 2 | 3 | 2 | 0 | 7 天 |
 | Precompute 后续 | 7 | 0 | 5 | 2 | 0 | 3.5 天 |
 | Meilisearch | 6 | 1 | 3 | 2 | 0 | 3.5 天 |
-| Schema | 4 | 1 | 3 | 0 | 0 | 2.5 天 |
+| Schema | 6 | 1 | 3 | 2 | 0 | 3.5 天 |
 | Deployment | 4 | 1 | 2 | 1 | 0 | 2.5 天 |
 | Testing | 6 | 2 | 2 | 1 | 0 | 4.5 天 |
 | 文档完善 | 8 | 0 | 2 | 4 | 2 | 5 天 |
-| **总计** | **62** | **11** | **36** | **13** | **2** | **39.5 天** |
+| **总计** | **64** | **11** | **36** | **15** | **2** | **40.5 天** |
 
 ---
 
