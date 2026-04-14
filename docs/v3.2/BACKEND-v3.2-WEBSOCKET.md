@@ -893,6 +893,283 @@ async def test_websocket_performance():
 
 ---
 
+## 6. 错误处理
+
+### 6.1 错误码定义
+
+| 错误码 | 类型 | 说明 | 处理建议 |
+|--------|------|------|----------|
+| **WS-001** | ConnectionError | 连接失败 | 检查网络和服务状态 |
+| **WS-002** | AuthenticationError | 认证失败 | 检查 token 是否有效 |
+| **WS-003** | TimeoutError | 连接超时 | 增加超时时间或重试 |
+| **WS-004** | HeartbeatTimeout | 心跳超时 | 检查网络稳定性 |
+| **WS-005** | AckTimeoutError | 消息确认超时 | 检查服务端处理状态 |
+| **WS-006** | ReconnectExhausted | 重连次数耗尽 | 检查服务端是否可用 |
+| **WS-007** | InvalidMessageFormat | 消息格式错误 | 检查消息结构 |
+| **WS-008** | RateLimitError | 请求频率限制 | 降低发送频率 |
+
+### 6.2 处理示例代码
+
+**客户端错误处理**
+
+```python
+# wrapper/src/websocket/reliable_client.py
+
+class ReliableWebSocketClient:
+    """可靠的 WebSocket 客户端"""
+
+    async def connect_with_retry(self, max_retries: int = 3) -> bool:
+        """带重试的连接"""
+        for attempt in range(max_retries):
+            try:
+                return await self.connect()
+            except ConnectionError as e:
+                logger.warning(f"连接失败 (尝试 {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(2 ** attempt)  # 指数退避
+                else:
+                    raise ReconnectExhausted("重连次数耗尽")
+
+    async def send_with_ack(
+        self,
+        message: Dict,
+        timeout: float = 5.0,
+        max_retries: int = 3
+    ) -> bool:
+        """发送消息并等待确认"""
+        for attempt in range(max_retries):
+            try:
+                message_id = await self.send(message)
+                ack = await self.wait_for_ack(message_id, timeout)
+                if ack:
+                    return True
+            except TimeoutError:
+                logger.warning(f"消息确认超时 (尝试 {attempt + 1}/{max_retries})")
+                if attempt >= max_retries - 1:
+                    raise AckTimeoutError(f"消息 {message_id} 确认失败")
+            except Exception as e:
+                logger.error(f"发送失败: {e}")
+                raise
+
+    def _handle_error(self, error: Exception) -> None:
+        """处理错误"""
+        error_code = self._get_error_code(error)
+        
+        if error_code == "WS-001":
+            # 连接错误，触发重连
+            self._schedule_reconnect()
+        elif error_code == "WS-002":
+            # 认证错误，刷新 token
+            self._refresh_token()
+        elif error_code == "WS-004":
+            # 心跳超时，检查连接
+            self._check_connection_health()
+        else:
+            # 其他错误，记录日志
+            logger.error(f"WebSocket 错误 [{error_code}]: {error}")
+
+    def _get_error_code(self, error: Exception) -> str:
+        """获取错误码"""
+        error_map = {
+            ConnectionError: "WS-001",
+            AuthenticationError: "WS-002",
+            TimeoutError: "WS-003",
+            HeartbeatTimeout: "WS-004",
+            AckTimeoutError: "WS-005",
+        }
+        return error_map.get(type(error), "WS-999")
+```
+
+**服务端错误处理**
+
+```python
+# wrapper/src/websocket/reliable_server.py
+
+class ReliableWebSocketServer:
+    """可靠的 WebSocket 服务端"""
+
+    async def handle_client(self, websocket: WebSocket, client_id: str):
+        """处理客户端连接"""
+        try:
+            await self._authenticate(websocket)
+            await self._handle_messages(websocket, client_id)
+        except AuthenticationError as e:
+            logger.warning(f"客户端 {client_id} 认证失败: {e}")
+            await websocket.close(code=4001, reason="Authentication failed")
+        except WebSocketDisconnect:
+            logger.info(f"客户端 {client_id} 断开连接")
+        except Exception as e:
+            logger.error(f"处理客户端 {client_id} 时出错: {e}", exc_info=True)
+            await websocket.close(code=4000, reason="Internal error")
+        finally:
+            await self._cleanup_client(client_id)
+
+    async def _handle_messages(self, websocket: WebSocket, client_id: str):
+        """处理消息"""
+        while True:
+            try:
+                message = await websocket.receive_json()
+                await self._process_message(websocket, client_id, message)
+            except json.JSONDecodeError:
+                logger.warning(f"客户端 {client_id} 发送了无效 JSON")
+                await self._send_error(websocket, "WS-007", "Invalid message format")
+            except RateLimitError:
+                logger.warning(f"客户端 {client_id} 触发频率限制")
+                await self._send_error(websocket, "WS-008", "Rate limit exceeded")
+                await asyncio.sleep(1)  # 短暂暂停
+```
+
+**错误恢复策略**
+
+```python
+# 自动重连策略
+class ReconnectionStrategy:
+    """重连策略"""
+
+    def __init__(self):
+        self.base_delay = 1.0
+        self.max_delay = 300.0
+        self.max_retries = 10
+
+    def get_delay(self, attempt: int) -> float:
+        """获取重连延迟"""
+        delay = self.base_delay * (2 ** attempt)
+        return min(delay, self.max_delay)
+
+    def should_retry(self, error: Exception, attempt: int) -> bool:
+        """是否应该重试"""
+        if attempt >= self.max_retries:
+            return False
+        
+        # 某些错误不应该重试
+        non_retryable = (AuthenticationError, InvalidMessageFormat)
+        return not isinstance(error, non_retryable)
+
+
+# 使用示例
+strategy = ReconnectionStrategy()
+client = ReliableWebSocketClient()
+
+for attempt in range(strategy.max_retries):
+    try:
+        await client.connect()
+        break
+    except Exception as e:
+        if not strategy.should_retry(e, attempt):
+            raise
+        delay = strategy.get_delay(attempt)
+        logger.info(f"{delay}秒后重试...")
+        await asyncio.sleep(delay)
+```
+
+### 6.3 故障排查指南
+
+**问题 1: 连接失败**
+
+```bash
+# 症状: Connection refused
+# 排查步骤:
+
+# 1. 检查服务是否运行
+curl http://localhost:18008/health
+
+# 2. 检查端口是否开放
+netstat -an | grep 18008
+
+# 3. 检查防火墙设置
+sudo iptables -L | grep 18008
+
+# 4. 查看服务端日志
+tail -f logs/websocket.log | grep ERROR
+```
+
+**问题 2: 频繁断开**
+
+```python
+# 症状: 连接频繁断开
+# 可能原因:
+# 1. 心跳超时
+# 2. 网络不稳定
+# 3. 代理超时
+
+# 解决方案:
+# 1. 调整心跳间隔
+client.heartbeat_interval = 15  # 从 30s 改为 15s
+
+# 2. 增加超时时间
+client.connection_timeout = 60  # 从 30s 改为 60s
+
+# 3. 检查代理设置
+# 确保代理支持 WebSocket 长连接
+```
+
+**问题 3: 消息丢失**
+
+```python
+# 症状: 消息未送达
+# 排查步骤:
+
+# 1. 检查 ACK 机制
+client.enable_ack = True
+client.ack_timeout = 10.0
+
+# 2. 检查消息队列
+queue_size = client.message_queue.size()
+logger.info(f"消息队列大小: {queue_size}")
+
+# 3. 检查持久化
+undelivered = client.message_queue.get_undelivered()
+logger.info(f"未送达消息: {len(undelivered)}")
+
+# 4. 重发未送达消息
+for msg in undelivered:
+    await client.resend(msg.id)
+```
+
+**问题 4: 性能问题**
+
+```python
+# 症状: 消息延迟高
+# 排查步骤:
+
+# 1. 检查并发数
+if client.concurrent_connections > 1000:
+    logger.warning("并发连接数过高")
+
+# 2. 检查消息大小
+if len(json.dumps(message)) > 1024 * 1024:  # 1MB
+    logger.warning("消息过大")
+
+# 3. 检查网络延迟
+latency = await client.ping()
+if latency > 100:  # 100ms
+    logger.warning(f"网络延迟过高: {latency}ms")
+
+# 4. 启用压缩
+client.enable_compression = True
+```
+
+**调试工具**
+
+```bash
+# 使用 wscat 测试 WebSocket
+npm install -g wscat
+wscat -c ws://localhost:18008/ws/memories/live
+
+# 使用 curl 测试 HTTP 端点
+curl -N \
+  -H "Connection: Upgrade" \
+  -H "Upgrade: websocket" \
+  -H "Sec-WebSocket-Key: $(openssl rand -base64 16)" \
+  -H "Sec-WebSocket-Version: 13" \
+  http://localhost:18008/ws/memories/live
+
+# 使用 tcpdump 抓包
+sudo tcpdump -i lo port 18008 -w websocket.pcap
+```
+
+---
+
 ## 参考文档
 
 - [UNIFIED-ARCHITECTURE-v3.2.md](./UNIFIED-ARCHITECTURE-v3.2.md)

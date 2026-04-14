@@ -1644,12 +1644,21 @@ Phase 2-3 开发完成
 BL-B-1~B-5 实现完成
 
 **完成标准**  
-- [ ] 错误码定义
-- [ ] 处理示例代码
-- [ ] 故障排查指南
+- [x] 错误码定义
+- [x] 处理示例代码
+- [x] 故障排查指南
 
 **验证方式**  
 文档评审通过
+
+**实际完成**  
+- ✅ 在 `docs/v3.2/BACKEND-v3.2-WEBSOCKET.md` 添加第 6 节错误处理
+- ✅ 错误码定义表格（8 个错误码：WS-001 ~ WS-008）
+- ✅ 客户端错误处理示例（connect_with_retry, send_with_ack, _handle_error）
+- ✅ 服务端错误处理示例（handle_client, _handle_messages）
+- ✅ 错误恢复策略（ReconnectionStrategy）
+- ✅ 故障排查指南（4 个常见问题及解决方案）
+- ✅ 调试工具（wscat, curl, tcpdump）
 
 ---
 
