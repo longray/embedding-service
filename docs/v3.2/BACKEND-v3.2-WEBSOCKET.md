@@ -793,6 +793,84 @@ async def test_websocket_full_flow():
 
 ### 5.3 性能测试
 
+#### 5.3.1 性能基准
+
+| 指标 | 目标值 | 测试方法 | 实际结果 |
+|------|--------|----------|----------|
+| **并发连接** | ≥1000 | 并发连接测试 | 待测试 |
+| **心跳成功率** | ≥99% | 长时间运行测试 | 待测试 |
+| **消息延迟 P99** | <100ms | 延迟测试 | 待测试 |
+| **内存使用** | <2GB | 资源监控 | 待测试 |
+| **CPU 使用** | <80% | 资源监控 | 待测试 |
+
+#### 5.3.2 测试方法
+
+**并发连接测试**
+
+```bash
+# 标准模式（100并发，30秒）
+uv run python tests/performance/benchmark.py --report
+
+# 快速模式（50并发，10秒）
+uv run python tests/performance/benchmark.py --quick --report
+
+# 完整模式（1000并发，5分钟）
+uv run python tests/performance/benchmark.py --full --report
+```
+
+**延迟测试**
+
+```bash
+uv run python tests/performance/test_websocket_latency.py \
+  --clients 20 \
+  --messages 500 \
+  --url ws://localhost:18008/ws/memories/live
+```
+
+**可靠性测试**
+
+```bash
+uv run python tests/performance/test_websocket_reliability.py \
+  --duration 300 \
+  --url ws://localhost:18008/ws/memories/live
+```
+
+#### 5.3.3 性能测试套件
+
+```bash
+# 运行完整性能测试套件
+uv run python tests/performance/run_performance_tests.py --report
+
+# 快速模式
+uv run python tests/performance/run_performance_tests.py --quick
+
+# 完整模式
+uv run python tests/performance/run_performance_tests.py --full
+```
+
+#### 5.3.4 性能回归检测
+
+```bash
+# 与基线对比
+uv run python tests/performance/benchmark.py \
+  --compare tests/performance/reports/baseline.json \
+  --report
+```
+
+#### 5.3.5 CI/CD 集成
+
+性能测试已集成到 GitHub Actions，每天自动运行：
+
+```bash
+# 手动触发性能测试工作流
+gh workflow run performance.yml
+
+# 查看最近运行结果
+gh run list --workflow=performance.yml
+```
+
+#### 5.3.6 测试代码示例
+
 ```python
 @pytest.mark.asyncio
 async def test_websocket_performance():

@@ -100,7 +100,7 @@
 | BL-B-71 | PrecomputeService — ConcurrencyControl 集成 | P1 | 0.5 天 | ✅ | [详情](#bl-b-71-p1-precomputeservice--concurrencycontrol-集成) |
 | BL-B-72 | PrecomputeService — 队列状态持久化 | P2 | 0.5 天 | ✅ | [详情](#bl-b-72-p2-precomputeservice--队列状态持久化) |
 | **文档** |
-| BL-CA-43 | 补充 WebSocket 性能测试基准 | P1 | 0.5 天 | ⏳ | [详情](#bl-ca-43-p1-补充-websocket-性能测试基准) |
+| BL-CA-43 | 补充 WebSocket 性能测试基准 | P1 | 0.5 天 | ✅ | [详情](#bl-ca-43-p1-补充-websocket-性能测试基准) |
 | BL-CA-44 | 完善 PrecomputeService 关系创建 | P1 | 1 天 | ⏳ | [详情](#bl-ca-44-p1-完善-precomputeservice-关系创建实现) |
 | BL-CA-45 | 统一预计算批处理大小参数 | P2 | 0.5 天 | ⏳ | [详情](#bl-ca-45-p2-统一预计算批处理大小参数) |
 | BL-CA-46 | 扩充后端实施指南 | P2 | 1 天 | ⏳ | [详情](#bl-ca-46-p2-扩充后端实施指南) |
@@ -1538,12 +1538,20 @@ uv run python tests/performance/benchmark.py --compare reports/baseline.json --r
 BL-B-6~B-7 性能测试完成
 
 **完成标准**  
-- [ ] 性能指标文档
-- [ ] 测试方法说明
-- [ ] 基准数据记录
+- [x] 性能指标文档
+- [x] 测试方法说明
+- [x] 基准数据记录
 
 **验证方式**  
 文档评审通过
+
+**实际完成**  
+- ✅ 在 `docs/v3.2/BACKEND-v3.2-WEBSOCKET.md` 第 5.3 节补充性能测试基准
+- ✅ 性能指标表格：并发连接、心跳成功率、消息延迟 P99、内存/CPU 使用
+- ✅ 测试方法说明：并发测试、延迟测试、可靠性测试
+- ✅ 性能测试套件使用说明
+- ✅ 性能回归检测方法
+- ✅ CI/CD 集成说明
 
 ---
 
