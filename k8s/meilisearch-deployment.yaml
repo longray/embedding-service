@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: meilisearch
+  namespace: opencode-memory
+  labels:
+    app: meilisearch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: meilisearch
+  template:
+    metadata:
+      labels:
+        app: meilisearch
+    spec:
+      containers:
+        - name: meilisearch
+          image: getmeili/meilisearch:latest
+          ports:
+            - containerPort: 7700
+              name: http
+          env:
+            - name: MEILI_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: meilisearch-secret
+                  key: master-key
+            - name: MEILI_HTTP_ADDR
+              value: "0.0.0.0:7700"
+            - name: MEILI_ENV
+              value: "production"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 7700
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 7700
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: meilisearch-data
+              mountPath: /meili_data
+      volumes:
+        - name: meilisearch-data
+          persistentVolumeClaim:
+            claimName: meilisearch-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: meilisearch
+  namespace: opencode-memory
+  labels:
+    app: meilisearch
+spec:
+  selector:
+    app: meilisearch
+  ports:
+    - port: 7700
+      targetPort: 7700
+      name: http
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: meilisearch-pvc
+  namespace: opencode-memory
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: meilisearch-secret
+  namespace: opencode-memory
+type: Opaque
+stringData:
+  master-key: "masterKey_change_in_production"

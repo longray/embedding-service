@@ -1,0 +1,54 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wrapper-ingress
+  namespace: opencode-memory
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/websocket-services: "wrapper"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: api.opencode-memory.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: wrapper
+                port:
+                  number: 18008
+  tls:
+    - hosts:
+        - api.opencode-memory.local
+      secretName: wrapper-tls
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wrapper-ingress-embedding
+  namespace: opencode-memory
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: embedding.opencode-memory.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: wrapper
+                port:
+                  number: 18000
+  tls:
+    - hosts:
+        - embedding.opencode-memory.local
+      secretName: wrapper-tls

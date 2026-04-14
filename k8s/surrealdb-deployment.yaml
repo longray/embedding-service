@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: surrealdb
+  namespace: opencode-memory
+  labels:
+    app: surrealdb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: surrealdb
+  template:
+    metadata:
+      labels:
+        app: surrealdb
+    spec:
+      containers:
+        - name: surrealdb
+          image: surrealdb/surrealdb:latest
+          ports:
+            - containerPort: 8000
+              name: http
+          command:
+            - /surreal
+            - start
+            - --log
+            - trace
+            - --user
+            - root
+            - --pass
+            - root
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "2000m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: surrealdb-data
+              mountPath: /data
+      volumes:
+        - name: surrealdb-data
+          persistentVolumeClaim:
+            claimName: surrealdb-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: surrealdb
+  namespace: opencode-memory
+  labels:
+    app: surrealdb
+spec:
+  selector:
+    app: surrealdb
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: surrealdb-pvc
+  namespace: opencode-memory
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi

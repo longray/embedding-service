@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: opencode-memory
+
+resources:
+  - namespace.yaml
+  - surrealdb-deployment.yaml
+  - meilisearch-deployment.yaml
+  - wrapper-deployment.yaml
+  - ingress.yaml
+
+commonLabels:
+  app.kubernetes.io/name: opencode-memory
+  app.kubernetes.io/version: v3.2.0
+
+images:
+  - name: opencode-memory/wrapper
+    newTag: v3.2.0
+
+replicas:
+  - name: wrapper
+    count: 2

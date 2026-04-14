@@ -1674,14 +1674,44 @@ BL-B-1~B-5 实现完成
 BL-B-22~B-25 部署配置完成
 
 **完成标准**  
-- [ ] Kubernetes 配置
+- [x] Kubernetes 配置
 - [ ] Helm chart（可选）
-- [ ] 部署文档
+- [x] 部署文档
 
 **验证方式**  
 ```bash
 kubectl apply -f k8s/
 kubectl get pods
+```
+
+**实际完成**  
+- ✅ `k8s/namespace.yaml` - 命名空间配置
+- ✅ `k8s/surrealdb-deployment.yaml` - SurrealDB Deployment + Service + PVC
+- ✅ `k8s/meilisearch-deployment.yaml` - Meilisearch Deployment + Service + PVC + Secret
+- ✅ `k8s/wrapper-deployment.yaml` - Wrapper Deployment + Service + Secret
+- ✅ `k8s/ingress.yaml` - Ingress 配置（HTTP + WebSocket）
+- ✅ `k8s/kustomization.yaml` - Kustomize 配置
+- ✅ `k8s/README.md` - Kubernetes 部署文档
+
+**部署组件**
+
+| 组件 | 类型 | 副本 | 资源 |
+|------|------|------|------|
+| SurrealDB | Stateful | 1 | 512Mi-2Gi, 500m-2000m |
+| Meilisearch | Stateful | 1 | 256Mi-1Gi, 250m-1000m |
+| Wrapper | Deployment | 2 | 1Gi-4Gi, 500m-2000m |
+
+**使用方式**
+
+```bash
+# 部署所有服务
+kubectl apply -k k8s/
+
+# 查看 Pod
+kubectl get pods -n opencode-memory
+
+# 查看服务
+kubectl get svc -n opencode-memory
 ```
 
 ---
