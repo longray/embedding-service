@@ -8,11 +8,16 @@
 
 import asyncio
 import logging
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Literal, Optional
 
 from fastapi import WebSocket, WebSocketDisconnect
 
 from .heartbeat import HeartbeatManager
+from .ack_manager import AckManager
+from .diff_manager import DiffManager
+from .message_queue import MessageQueue
+from .reconnection import ReconnectionManager
+from .state_recovery import StateRecoveryManager
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +39,11 @@ class ReliableWebSocketServer:
         heartbeat_interval: float = 30.0,
         heartbeat_timeout: float = 5.0,
         max_missing_pongs: int = 2,
+        ack_timeout: float = 5.0,
+        ack_max_retries: int = 3,
+        diff_mode: Literal["diff", "full"] = "diff",
+        diff_threshold: float = 50.0,
+        diff_min_size: int = 100,
     ):
         """初始化可靠 WebSocket 服务器
 
@@ -42,10 +52,17 @@ class ReliableWebSocketServer:
             heartbeat_interval: 心跳间隔（秒），默认 30
             heartbeat_timeout: pong 响应超时（秒），默认 5
             max_missing_pongs: 最大未响应次数，默认 2
+            ack_timeout: ACK 超时时间（秒），默认 5
+            ack_max_retries: ACK 最大重试次数，默认 3
+            diff_mode: DIFF 模式（diff/full），默认 diff
+            diff_threshold: 带宽节省阈值（百分比），默认 50%
+            diff_min_size: 最小 diff 大小（字节），默认 100
         """
         self._websocket = websocket
         self._is_connected = False
         self._heartbeat_manager: Optional[HeartbeatManager] = None
+        self._ack_manager: Optional[AckManager] = None
+        self._diff_manager: Optional[DiffManager] = None
         self._receive_task: Optional[asyncio.Task] = None
         self._disconnect_event = asyncio.Event()
 
@@ -54,11 +71,38 @@ class ReliableWebSocketServer:
         self._heartbeat_timeout = heartbeat_timeout
         self._max_missing_pongs = max_missing_pongs
 
+        # ACK 配置
+        self._ack_timeout = ack_timeout
+        self._ack_max_retries = ack_max_retries
+
+        # DIFF 配置
+        self._diff_mode: Literal["diff", "full"] = diff_mode
+        self._diff_threshold = diff_threshold
+        self._diff_min_size = diff_min_size
+
+        # State Recovery 配置
+        self._state_recovery: Optional[StateRecoveryManager] = None
+        self._session_id: Optional[str] = None
+        self._message_offset: int = 0
+
+        # Message Queue 配置
+        self._message_queue: Optional[MessageQueue] = None
+
+        # Reconnection 配置
+        self._reconnection_manager: Optional[ReconnectionManager] = None
+        self._auto_recovery_enabled: bool = True
+        self._recovery_failed: bool = False
+
         logger.debug(
-            "[ReliableWebSocketServer] 初始化: interval=%.1fs, timeout=%.1fs, max_missing=%d",
+            "[ReliableWebSocketServer] 初始化: interval=%.1fs, timeout=%.1fs, max_missing=%d, "
+            "ack_timeout=%.1fs, ack_max_retries=%d, diff_mode=%s, state_recovery=enabled, "
+            "auto_recovery=enabled",
             heartbeat_interval,
             heartbeat_timeout,
             max_missing_pongs,
+            ack_timeout,
+            ack_max_retries,
+            diff_mode,
         )
 
     async def accept(self) -> None:
@@ -74,10 +118,27 @@ class ReliableWebSocketServer:
             max_missing=self._max_missing_pongs,
         )
 
+        self._ack_manager = AckManager(
+            default_timeout=self._ack_timeout,
+            max_retries=self._ack_max_retries,
+        )
+
+        self._diff_manager = DiffManager(
+            mode=self._diff_mode,
+            threshold=self._diff_threshold,
+            min_diff_size=self._diff_min_size,
+        )
+
+        self._state_recovery = StateRecoveryManager()
+
+        self._message_queue = MessageQueue()
+
+        self._reconnection_manager = ReconnectionManager()
+
         self._receive_task = asyncio.create_task(self._receive_loop(), name="websocket_receive")
         await self._heartbeat_manager.start()
 
-        logger.info("[ReliableWebSocketServer] 连接已接受，心跳机制已启动")
+        logger.info("[ReliableWebSocketServer] 连接已接受，心跳/ACK/DIFF/StateRecovery机制已启动")
 
     async def close(self, code: int = 1000, reason: str = "") -> None:
         """关闭 WebSocket 连接"""
@@ -99,6 +160,13 @@ class ReliableWebSocketServer:
             except asyncio.CancelledError:
                 pass
 
+        # 保存状态
+        if self._state_recovery and self._session_id:
+            self._state_recovery.save_state(self._session_id, self._message_offset, {"reason": reason, "code": code})
+            logger.debug(
+                "[ReliableWebSocketServer] 状态已保存: session_id=%s, offset=%d", self._session_id, self._message_offset
+            )
+
         # 关闭 WebSocket
         try:
             await self._websocket.close(code=code, reason=reason)
@@ -111,6 +179,102 @@ class ReliableWebSocketServer:
         if not self._is_connected:
             raise RuntimeError("WebSocket 未连接")
         await self._websocket.send_json(data)
+
+    async def send_json_with_ack(self, data: dict[str, Any], timeout: Optional[float] = None) -> bool:
+        """发送 JSON 数据并等待 ACK 确认
+
+        Args:
+            data: 要发送的数据
+            timeout: ACK 超时时间（秒），默认使用初始化时的 ack_timeout
+
+        Returns:
+            是否成功收到 ACK
+        """
+        if not self._is_connected:
+            raise RuntimeError("WebSocket 未连接")
+
+        if self._ack_manager is None:
+            raise RuntimeError("ACK 管理器未初始化")
+
+        async def send_callback(message: dict) -> None:
+            await self._websocket.send_json(message)
+
+        return await self._ack_manager.send_with_ack(send_callback, data, timeout=timeout)
+
+    async def send_data_with_diff(
+        self,
+        key: str,
+        data: Any,
+        metadata: Optional[dict] = None,
+        use_ack: bool = False,
+        ack_timeout: Optional[float] = None,
+    ) -> bool:
+        """发送数据，自动选择 diff/full 模式
+
+        Args:
+            key: 数据标识（用于状态缓存）
+            data: 要发送的数据
+            metadata: 额外元数据
+            use_ack: 是否使用 ACK 确认
+            ack_timeout: ACK 超时时间（秒）
+
+        Returns:
+            是否成功发送（使用 ACK 时返回 ACK 结果，否则返回 True）
+        """
+        if not self._is_connected:
+            raise RuntimeError("WebSocket 未连接")
+
+        if self._diff_manager is None:
+            raise RuntimeError("DIFF 管理器未初始化")
+
+        message = self._diff_manager.create_message(key, data, metadata)
+
+        if use_ack:
+            return await self.send_json_with_ack(message, timeout=ack_timeout)
+        else:
+            await self._websocket.send_json(message)
+            return True
+
+    def set_diff_mode(self, mode: Literal["diff", "full"]) -> None:
+        """设置 DIFF 模式
+
+        Args:
+            mode: 模式 (diff/full)
+        """
+        if self._diff_manager is None:
+            raise RuntimeError("DIFF 管理器未初始化")
+
+        self._diff_manager.set_mode(mode)
+        self._diff_mode = mode
+        logger.info("[ReliableWebSocketServer] DIFF 模式切换: %s", mode)
+
+    def update_diff_state(self, key: str, data: Any) -> None:
+        """更新 DIFF 状态缓存
+
+        Args:
+            key: 数据标识
+            data: 数据
+        """
+        if self._diff_manager is None:
+            raise RuntimeError("DIFF 管理器未初始化")
+
+        self._diff_manager.update_state(key, data)
+
+    def clear_diff_state(self, key: Optional[str] = None) -> None:
+        """清除 DIFF 状态缓存
+
+        Args:
+            key: 数据标识，如果为 None 清除所有
+        """
+        if self._diff_manager is None:
+            raise RuntimeError("DIFF 管理器未初始化")
+
+        self._diff_manager.clear_state(key)
+
+    @property
+    def diff_mode(self) -> str:
+        """当前 DIFF 模式"""
+        return self._diff_mode if self._diff_manager else "diff"
 
     async def send_text(self, text: str) -> None:
         """发送文本数据"""
@@ -142,16 +306,27 @@ class ReliableWebSocketServer:
         await self.close(code=1001, reason="Heartbeat timeout")
 
     async def _receive_loop(self) -> None:
-        """接收循环 - 处理客户端消息和 pong 响应"""
+        """接收循环 - 处理客户端消息、pong 响应和 ACK"""
         try:
             while self._is_connected:
                 try:
                     message = await self._websocket.receive_json()
 
-                    if isinstance(message, dict) and message.get("type") == "pong":
+                    if not isinstance(message, dict):
+                        logger.debug("[ReliableWebSocketServer] 收到非字典消息: %s", message)
+                        continue
+
+                    msg_type = message.get("type")
+
+                    if msg_type == "pong":
                         if self._heartbeat_manager:
                             self._heartbeat_manager.on_pong_received()
                         logger.debug("[ReliableWebSocketServer] pong 已接收")
+                    elif msg_type == "ack":
+                        ack_id = message.get("_ackId")
+                        if ack_id and self._ack_manager:
+                            self._ack_manager.handle_ack(ack_id)
+                            logger.debug("[ReliableWebSocketServer] ACK 已处理: ack_id=%s", ack_id)
                     else:
                         logger.debug("[ReliableWebSocketServer] 收到消息: %s", message)
 
@@ -186,3 +361,79 @@ class ReliableWebSocketServer:
     async def wait_for_disconnect(self) -> None:
         """等待连接断开"""
         await self._disconnect_event.wait()
+
+    def create_session(self) -> str:
+        """创建新 Session
+
+        Returns:
+            Session ID
+        """
+        if self._state_recovery is None:
+            raise RuntimeError("StateRecoveryManager 未初始化")
+
+        self._session_id = self._state_recovery.generate_session_id()
+        self._message_offset = 0
+        logger.info("[ReliableWebSocketServer] 创建 Session: %s", self._session_id)
+        return self._session_id
+
+    def restore_session(self, session_id: str) -> bool:
+        """恢复 Session
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            是否成功恢复
+        """
+        if self._state_recovery is None:
+            raise RuntimeError("StateRecoveryManager 未初始化")
+
+        state = self._state_recovery.restore_state(session_id)
+        if state is not None:
+            self._session_id = session_id
+            self._message_offset = state.get("offset", 0)
+            logger.info(
+                "[ReliableWebSocketServer] 恢复 Session: %s, offset=%d",
+                session_id,
+                self._message_offset,
+            )
+            return True
+
+        logger.warning("[ReliableWebSocketServer] 恢复 Session 失败: %s", session_id)
+        return False
+
+    def update_message_offset(self, offset: int) -> None:
+        """更新消息 offset
+
+        Args:
+            offset: 新的 offset
+        """
+        self._message_offset = offset
+        if self._state_recovery and self._session_id:
+            self._state_recovery.update_offset(self._session_id, offset)
+            logger.debug(
+                "[ReliableWebSocketServer] 更新 offset: session_id=%s, offset=%d",
+                self._session_id,
+                offset,
+            )
+
+    def increment_message_offset(self) -> int:
+        """递增消息 offset
+
+        Returns:
+            新的 offset
+        """
+        self._message_offset += 1
+        if self._state_recovery and self._session_id:
+            self._state_recovery.update_offset(self._session_id, self._message_offset)
+        return self._message_offset
+
+    @property
+    def session_id(self) -> Optional[str]:
+        """当前 Session ID"""
+        return self._session_id
+
+    @property
+    def message_offset(self) -> int:
+        """当前消息 offset"""
+        return self._message_offset

@@ -1,12 +1,14 @@
-"""WebSocket 实时推送端点 (Phase 3D + v3.2 心跳机制)"""
+"""WebSocket 实时推送端点 (Phase 3D + v3.2 心跳机制 + DIFF 模式)"""
 
 import asyncio
 import logging
+from typing import Literal
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from ..utils.auth import verify_websocket_token
 from ..websocket.reliable_server import ReliableWebSocketServer
+from ..websocket.live_diff_handler import LiveDiffHandler
 
 logger = logging.getLogger(__name__)
 
@@ -18,11 +20,19 @@ async def websocket_live_memories(
     websocket: WebSocket,
     tenant_id: str = "default",
     token: str | None = None,
+    mode: Literal["diff", "full"] = "full",
 ):
-    """WebSocket 端点：实时推送记忆变更通知（带心跳保活）
+    """WebSocket 端点：实时推送记忆变更通知（带心跳保活 + DIFF 模式）
 
     连接后自动订阅指定租户的 memory 表变更，推送 CREATE/UPDATE/DELETE 通知。
     内置心跳机制：每 30s 发送 ping，5s 内等待 pong，连续 2 次未响应断开连接。
+
+    支持 DIFF 模式：通过 mode 参数选择 diff（增量）或 full（完整）模式。
+
+    参数:
+        tenant_id: 租户 ID，默认 default
+        token: 认证 token（可选）
+        mode: 同步模式，diff（增量）或 full（完整），默认 full
 
     认证：通过 token 查询参数传递（可选，取决于 WRAPPER_WEBSOCKET_TOKEN 配置）。
     """
@@ -32,15 +42,19 @@ async def websocket_live_memories(
         logger.warning("[WebSocket] 认证失败，拒绝连接")
         return
 
-    # 包装为可靠 WebSocket 服务器（带心跳）
+    # 包装为可靠 WebSocket 服务器（带心跳和 DIFF 支持）
     reliable_ws = ReliableWebSocketServer(
         websocket=websocket,
         heartbeat_interval=30.0,
         heartbeat_timeout=5.0,
         max_missing_pongs=2,
+        diff_mode=mode,
+        diff_threshold=50.0,
+        diff_min_size=100,
     )
 
     query_uuid = None
+    live_diff_handler = None
 
     try:
         from ..main import SurrealDBManager
@@ -50,34 +64,78 @@ async def websocket_live_memories(
         # 接受连接并启动心跳
         await reliable_ws.accept()
 
-        # 启动 LIVE SELECT 查询（过滤租户）
-        query_result = await db_manager.db.query(
-            "LIVE SELECT * FROM memory WHERE tenant_id = $tenant_id",
-            {"tenant_id": tenant_id},
-        )
-        query_uuid = query_result[0]["result"]
+        # 创建 Session
+        session_id = reliable_ws.create_session()
+
+        # 如果有恢复的状态，尝试恢复
+        restore_session_id = websocket.query_params.get("session_id")
+        if restore_session_id:
+            if reliable_ws.restore_session(restore_session_id):
+                session_id = restore_session_id
+                logger.info("[WebSocket] 恢复 Session: %s", session_id)
 
         logger.info(
-            "[WebSocket] 客户端已连接，订阅租户: %s, query_uuid: %s",
+            "[WebSocket] 客户端已连接，租户: %s, 模式: %s, Session: %s",
             tenant_id,
-            query_uuid,
+            mode,
+            session_id,
         )
 
-        # 创建任务：转发 LIVE 通知到客户端
-        forward_task = asyncio.create_task(
-            _forward_notifications(db_manager, query_uuid, reliable_ws),
-            name="websocket_forward",
-        )
+        # 根据模式选择处理方式
+        if mode == "diff":
+            # 使用 LiveDiffHandler 处理增量同步
+            live_diff_handler = LiveDiffHandler(
+                surrealdb_client=db_manager.db,
+                websocket_server=reliable_ws,
+                diff_manager=reliable_ws._diff_manager,
+                table_name="memory",
+            )
 
-        # 等待连接断开（心跳超时或客户端断开）
-        await reliable_ws.wait_for_disconnect()
+            # 启动 LIVE SELECT 监听
+            success = await live_diff_handler.start()
+            if not success:
+                await reliable_ws.send_json(
+                    {
+                        "type": "error",
+                        "message": "启动 LIVE SELECT 失败",
+                    }
+                )
+                await reliable_ws.close(code=1011, reason="Live select failed")
+                return
 
-        # 取消转发任务
-        forward_task.cancel()
-        try:
-            await forward_task
-        except asyncio.CancelledError:
-            pass
+            # 等待连接断开
+            await reliable_ws.wait_for_disconnect()
+
+            # 停止 LiveDiffHandler
+            await live_diff_handler.stop()
+        else:
+            # 使用传统方式处理完整同步
+            query_result = await db_manager.db.query(
+                "LIVE SELECT * FROM memory WHERE tenant_id = $tenant_id",
+                {"tenant_id": tenant_id},
+            )
+            query_uuid = query_result[0]["result"]
+
+            logger.info(
+                "[WebSocket] 启动 LIVE 查询: %s",
+                query_uuid,
+            )
+
+            # 创建任务：转发 LIVE 通知到客户端
+            forward_task = asyncio.create_task(
+                _forward_notifications(db_manager, query_uuid, reliable_ws),
+                name="websocket_forward",
+            )
+
+            # 等待连接断开（心跳超时或客户端断开）
+            await reliable_ws.wait_for_disconnect()
+
+            # 取消转发任务
+            forward_task.cancel()
+            try:
+                await forward_task
+            except asyncio.CancelledError:
+                pass
 
     except WebSocketDisconnect:
         logger.info("[WebSocket] 客户端断开连接")
@@ -88,7 +146,14 @@ async def websocket_live_memories(
         except Exception:
             pass
     finally:
-        # 清理
+        # 清理 LiveDiffHandler
+        if live_diff_handler:
+            try:
+                await live_diff_handler.stop()
+            except Exception:
+                pass
+
+        # 清理传统 LIVE 查询
         if query_uuid:
             try:
                 await db_manager.db.kill(query_uuid)

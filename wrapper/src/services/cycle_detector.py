@@ -7,9 +7,10 @@
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, List, Set
+from typing import TYPE_CHECKING, Dict, List, Set
 
-from .relation_builder import CallRelation
+if TYPE_CHECKING:
+    from .relation_builder import CallRelation
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class CycleDetector:
 
         self._logger.debug("[CycleDetector] 初始化")
 
-    def detect_cycles(self, relations: List[CallRelation]) -> List[Cycle]:
+    def detect_cycles(self, relations: List["CallRelation"]) -> List[Cycle]:
         """检测循环
 
         从调用关系中检测循环依赖。
@@ -88,7 +89,7 @@ class CycleDetector:
 
         return self._cycles
 
-    def _build_graph(self, relations: List[CallRelation]) -> Dict[str, List[str]]:
+    def _build_graph(self, relations: List["CallRelation"]) -> Dict[str, List[str]]:
         """构建有向图
 
         从调用关系构建邻接表表示的有向图。
@@ -165,7 +166,7 @@ class CycleDetector:
         cycle = path[start_idx:] + [start_node]
         return cycle
 
-    def has_cycles(self, relations: List[CallRelation]) -> bool:
+    def has_cycles(self, relations: List["CallRelation"]) -> bool:
         """检查是否存在循环
 
         Args:

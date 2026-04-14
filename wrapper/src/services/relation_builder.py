@@ -5,7 +5,9 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+
+from .cycle_detector import CycleDetector, Cycle
 
 logger = logging.getLogger(__name__)
 
@@ -31,15 +33,19 @@ class RelationBuilder:
         relations: 待创建的关系列表
     """
 
-    def __init__(self, db: Any = None):
+    def __init__(self, db: Any = None, skip_cycles: bool = True):
         """初始化关系构建器
 
         Args:
             db: 数据库连接（可选）
+            skip_cycles: 是否跳过循环关系，默认 True
         """
         self._db = db
         self._relations: List[CallRelation] = []
         self._logger = logging.getLogger(__name__)
+        self._cycle_detector = CycleDetector()
+        self._skip_cycles = skip_cycles
+        self._cycles: List[Cycle] = []
 
         self._logger.debug("[RelationBuilder] 初始化")
 
@@ -112,7 +118,7 @@ class RelationBuilder:
     def create_relations(self, relations: List[CallRelation]) -> Dict[str, Any]:
         """创建关系
 
-        过滤自调用，批量创建关系。
+        过滤自调用和循环（如果启用），批量创建关系。
 
         Args:
             relations: 调用关系列表
@@ -128,6 +134,17 @@ class RelationBuilder:
             len(relations),
             len(filtered),
         )
+
+        # 过滤循环（如果启用）
+        if self._skip_cycles:
+            non_cycle, cycle_rels = self.filter_cycle_relations(filtered)
+            self._logger.info(
+                "[RelationBuilder] 过滤循环: %d -> %d (跳过 %d 条)",
+                len(filtered),
+                len(non_cycle),
+                len(cycle_rels),
+            )
+            filtered = non_cycle
 
         # 批量创建
         return self.batch_relate(filtered)
@@ -233,6 +250,88 @@ class RelationBuilder:
         """清除关系缓存"""
         self._relations.clear()
         self._logger.debug("[RelationBuilder] 清除关系缓存")
+
+    def detect_cycles(self, relations: List[CallRelation]) -> List[Cycle]:
+        """检测循环
+
+        Args:
+            relations: 调用关系列表
+
+        Returns:
+            检测到的循环列表
+        """
+        self._cycles = self._cycle_detector.detect_cycles(relations)
+        if self._cycles:
+            self._logger.warning(
+                "[RelationBuilder] 检测到 %d 个循环依赖",
+                len(self._cycles),
+            )
+        return self._cycles
+
+    def filter_cycle_relations(self, relations: List[CallRelation]) -> Tuple[List[CallRelation], List[CallRelation]]:
+        """过滤循环关系
+
+        Args:
+            relations: 调用关系列表
+
+        Returns:
+            (非循环关系列表, 循环关系列表)
+        """
+        if not self._skip_cycles:
+            return relations, []
+
+        cycles = self.detect_cycles(relations)
+        if not cycles:
+            return relations, []
+
+        # 收集循环中的边
+        cycle_edges = set()
+        for cycle in cycles:
+            path = cycle.path
+            for i in range(len(path) - 1):
+                cycle_edges.add((path[i], path[i + 1]))
+
+        # 分离循环和非循环关系
+        non_cycle = []
+        cycle_rels = []
+        for rel in relations:
+            if (rel.caller, rel.callee) in cycle_edges:
+                cycle_rels.append(rel)
+            else:
+                non_cycle.append(rel)
+
+        return non_cycle, cycle_rels
+
+    def has_cycles(self, relations: List[CallRelation]) -> bool:
+        """检查是否存在循环
+
+        Args:
+            relations: 调用关系列表
+
+        Returns:
+            是否存在循环
+        """
+        return self._cycle_detector.has_cycles(relations)
+
+    def get_cycles(self) -> List[Cycle]:
+        """获取所有循环"""
+        return list(self._cycles)
+
+    def clear_cycles(self) -> None:
+        """清除循环记录"""
+        self._cycles.clear()
+        self._cycle_detector.clear_cycles()
+        self._logger.debug("[RelationBuilder] 清除循环记录")
+
+    @property
+    def skip_cycles(self) -> bool:
+        """是否跳过循环关系"""
+        return self._skip_cycles
+
+    @skip_cycles.setter
+    def skip_cycles(self, value: bool) -> None:
+        """设置是否跳过循环关系"""
+        self._skip_cycles = value
 
     @property
     def relation_count(self) -> int:
