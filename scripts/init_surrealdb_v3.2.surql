@@ -125,6 +125,32 @@ DEFINE INDEX IF NOT EXISTS session_tenant ON session_state FIELDS tenant_id;
 DEFINE INDEX IF NOT EXISTS session_session_id ON session_state FIELDS session_id;
 DEFINE INDEX IF NOT EXISTS session_expires ON session_state FIELDS expires_at;
 
+-- 6. task_queue 表 - 任务队列状态
+DEFINE TABLE IF NOT EXISTS task_queue TYPE NORMAL;
+
+DEFINE FIELD IF NOT EXISTS id ON task_queue TYPE record<task_queue>;
+DEFINE FIELD IF NOT EXISTS tenant_id ON task_queue TYPE string
+    ASSERT $value != NONE AND string::len($value) > 0;
+DEFINE FIELD IF NOT EXISTS task_id ON task_queue TYPE string;
+DEFINE FIELD IF NOT EXISTS task_data ON task_queue TYPE object;
+DEFINE FIELD IF NOT EXISTS status ON task_queue TYPE string
+    ASSERT $value IN ['pending', 'processing', 'completed', 'failed'];
+DEFINE FIELD IF NOT EXISTS priority ON task_queue TYPE int DEFAULT 0;
+DEFINE FIELD IF NOT EXISTS retry_count ON task_queue TYPE int DEFAULT 0;
+DEFINE FIELD IF NOT EXISTS max_retries ON task_queue TYPE int DEFAULT 3;
+DEFINE FIELD IF NOT EXISTS error_message ON task_queue TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created_at ON task_queue TYPE datetime
+    DEFAULT time::now();
+DEFINE FIELD IF NOT EXISTS updated_at ON task_queue TYPE datetime
+    DEFAULT time::now();
+DEFINE FIELD IF NOT EXISTS expires_at ON task_queue TYPE option<datetime>;
+
+-- task_queue 表索引
+DEFINE INDEX IF NOT EXISTS task_queue_tenant ON task_queue FIELDS tenant_id;
+DEFINE INDEX IF NOT EXISTS task_queue_status ON task_queue FIELDS status;
+DEFINE INDEX IF NOT EXISTS task_queue_task_id ON task_queue FIELDS task_id UNIQUE;
+DEFINE INDEX IF NOT EXISTS task_queue_created_at ON task_queue FIELDS created_at;
+
 -- ==================== v3.2: Schema 版本记录 ====================
 
 -- 记录 schema 版本

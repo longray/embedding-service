@@ -49,6 +49,8 @@ class V2ToV3Migration:
         password: str = "root",
         batch_size: int = 100,
         dry_run: bool = True,
+        max_concurrent: int = 5,
+        auto_tune_batch: bool = True,
     ):
         self._url = url
         self._namespace = namespace
@@ -57,6 +59,8 @@ class V2ToV3Migration:
         self._password = password
         self._batch_size = batch_size
         self._dry_run = dry_run
+        self._max_concurrent = max_concurrent
+        self._auto_tune_batch = auto_tune_batch
         self._db: Optional[Surreal] = None
         self._stats = {
             "memory_records": 0,
@@ -64,7 +68,10 @@ class V2ToV3Migration:
             "entities_created": 0,
             "references_created": 0,
             "errors": 0,
+            "duration_seconds": 0.0,
+            "throughput": 0.0,
         }
+        self._semaphore = asyncio.Semaphore(max_concurrent)
 
     async def connect(self) -> None:
         """Connect to SurrealDB"""
@@ -155,10 +162,53 @@ class V2ToV3Migration:
             logger.error("[Migration] Batch failed at offset %d: %s", offset, e)
             return False
 
+    async def migrate_batch_parallel(self, offset: int) -> bool:
+        """Migrate a batch of records in parallel"""
+        try:
+            query = f"SELECT * FROM memory LIMIT {self._batch_size} START {offset}"
+            records = await self._db.query(query)
+
+            if not records:
+                return False
+
+            # Process records in parallel with semaphore control
+            async def process_with_semaphore(record):
+                async with self._semaphore:
+                    return await self.migrate_memory_to_atom(record)
+
+            # Create tasks for all records
+            tasks = [process_with_semaphore(record) for record in records]
+
+            # Wait for all tasks to complete
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+            return True
+        except Exception as e:
+            logger.error("[Migration] Parallel batch failed at offset %d: %s", offset, e)
+            return False
+
+    def _calculate_optimal_batch_size(self, current_size: int, duration: float) -> int:
+        """Calculate optimal batch size based on performance
+
+        Args:
+            current_size: Current batch size
+            duration: Time taken for last batch (seconds)
+
+        Returns:
+            Optimal batch size
+        """
+        if duration < 0.5:  # If very fast, increase batch size
+            return min(current_size * 2, 1000)
+        elif duration > 2.0:  # If slow, decrease batch size
+            return max(current_size // 2, 50)
+        return current_size
+
     async def run_migration(self) -> dict[str, Any]:
-        """Run the migration"""
+        """Run the migration with parallel processing"""
         logger.info("[Migration] Starting v2.x to v3.2 migration")
         logger.info("[Migration] Dry run: %s", self._dry_run)
+        logger.info("[Migration] Max concurrent: %d", self._max_concurrent)
+        logger.info("[Migration] Auto-tune batch: %s", self._auto_tune_batch)
 
         start_time = datetime.now()
 
@@ -176,19 +226,51 @@ class V2ToV3Migration:
                 logger.info("[Migration] No records to migrate")
                 return self._stats
 
-            # Migrate in batches
+            # Migrate in batches with parallel processing
             offset = 0
-            while offset < total_records:
-                logger.info("[Migration] Processing batch at offset %d", offset)
+            batch_times = []
+            last_progress_time = datetime.now()
 
-                if not await self.migrate_batch(offset):
+            while offset < total_records:
+                batch_start = datetime.now()
+
+                logger.info("[Migration] Processing batch at offset %d (batch_size=%d)", offset, self._batch_size)
+
+                # Use parallel batch processing
+                if not await self.migrate_batch_parallel(offset):
                     break
+
+                batch_end = datetime.now()
+                batch_duration = (batch_end - batch_start).total_seconds()
+                batch_times.append(batch_duration)
+
+                # Auto-tune batch size
+                if self._auto_tune_batch and len(batch_times) >= 3:
+                    avg_duration = sum(batch_times[-3:]) / 3
+                    old_size = self._batch_size
+                    self._batch_size = self._calculate_optimal_batch_size(self._batch_size, avg_duration)
+                    if old_size != self._batch_size:
+                        logger.info("[Migration] Auto-tuned batch size: %d -> %d", old_size, self._batch_size)
 
                 offset += self._batch_size
 
-                # Progress report every 10 batches
-                if (offset // self._batch_size) % 10 == 0:
-                    logger.info("[Migration] Progress: %d/%d records", offset, total_records)
+                # Progress report every 5 seconds or every 10 batches
+                current_time = datetime.now()
+                if (current_time - last_progress_time).total_seconds() >= 5 or (offset // self._batch_size) % 10 == 0:
+                    progress_pct = (offset / total_records) * 100
+                    elapsed = (current_time - start_time).total_seconds()
+                    throughput = offset / elapsed if elapsed > 0 else 0
+                    eta = (total_records - offset) / throughput if throughput > 0 else 0
+
+                    logger.info(
+                        "[Migration] Progress: %d/%d (%.1f%%) | Throughput: %.1f records/s | ETA: %.1fs",
+                        offset,
+                        total_records,
+                        progress_pct,
+                        throughput,
+                        eta,
+                    )
+                    last_progress_time = current_time
 
             # Record migration in schema_version
             if not self._dry_run:
@@ -211,7 +293,12 @@ class V2ToV3Migration:
         end_time = datetime.now()
         duration = (end_time - start_time).total_seconds()
 
+        # Update stats with performance metrics
+        self._stats["duration_seconds"] = duration
+        self._stats["throughput"] = self._stats["atoms_created"] / duration if duration > 0 else 0
+
         logger.info("[Migration] Completed in %.2f seconds", duration)
+        logger.info("[Migration] Throughput: %.1f records/second", self._stats["throughput"])
         logger.info("[Migration] Stats: %s", json.dumps(self._stats, indent=2))
 
         return self._stats
@@ -248,6 +335,24 @@ def main():
         help="Batch size for migration (default: 100)",
     )
     parser.add_argument(
+        "--max-concurrent",
+        type=int,
+        default=5,
+        help="Max concurrent tasks for parallel processing (default: 5)",
+    )
+    parser.add_argument(
+        "--auto-tune",
+        action="store_true",
+        default=True,
+        help="Auto-tune batch size based on performance (default: True)",
+    )
+    parser.add_argument(
+        "--no-auto-tune",
+        action="store_false",
+        dest="auto_tune",
+        help="Disable auto-tuning",
+    )
+    parser.add_argument(
         "--rollback",
         action="store_true",
         help="Rollback migration",
@@ -276,6 +381,8 @@ def main():
         database=args.database,
         batch_size=args.batch_size,
         dry_run=not args.execute,
+        max_concurrent=args.max_concurrent,
+        auto_tune_batch=args.auto_tune,
     )
 
     try:

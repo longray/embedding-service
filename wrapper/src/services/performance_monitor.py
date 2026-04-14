@@ -5,6 +5,7 @@
 - 内存使用监控
 - 性能报告生成
 - 上下文管理器支持
+- 数据库持久化
 """
 
 import logging
@@ -45,18 +46,26 @@ class PerformanceMonitor:
         tenant_id: 租户 ID
         metrics: 收集的指标列表
         max_metrics: 最大保留指标数
+        db: 数据库连接（可选，用于持久化）
     """
 
-    def __init__(self, tenant_id: str = "default", max_metrics: int = 1000):
+    def __init__(
+        self,
+        tenant_id: str = "default",
+        max_metrics: int = 1000,
+        db: Any = None,
+    ):
         """初始化性能监控器
 
         Args:
             tenant_id: 租户 ID，默认 "default"
             max_metrics: 最大保留指标数，默认 1000
+            db: 数据库连接（可选），用于持久化
         """
         self._tenant_id = tenant_id
         self._max_metrics = max_metrics
         self._metrics: List[PerformanceMetrics] = []
+        self._db = db
         self._logger = logging.getLogger(f"{__name__}.{tenant_id}")
 
         self._logger.debug(
@@ -273,3 +282,190 @@ class PerformanceMonitor:
     def metrics_count(self) -> int:
         """当前指标数量"""
         return len(self._metrics)
+
+    @property
+    def db(self) -> Any:
+        """数据库连接"""
+        return self._db
+
+    async def save_to_db(self, metric: PerformanceMetrics) -> bool:
+        """保存单个指标到数据库
+
+        Args:
+            metric: 性能指标
+
+        Returns:
+            是否保存成功
+        """
+        if self._db is None:
+            self._logger.warning("[PerformanceMonitor] 数据库连接未设置，无法持久化指标")
+            return False
+
+        try:
+            query = """
+                CREATE performance_log CONTENT {
+                    tenant_id: $tenant_id,
+                    operation: $operation,
+                    duration_ms: $duration_ms,
+                    memory_mb: $memory_mb,
+                    metadata: $metadata,
+                    created_at: time::now()
+                }
+            """
+            await self._db.query(
+                query,
+                {
+                    "tenant_id": self._tenant_id,
+                    "operation": metric.operation,
+                    "duration_ms": metric.duration_ms,
+                    "memory_mb": metric.memory_mb,
+                    "metadata": metric.metadata,
+                },
+            )
+            self._logger.debug(
+                "[PerformanceMonitor] 指标已持久化到 DB: %s=%.2fms",
+                metric.operation,
+                metric.duration_ms,
+            )
+            return True
+        except Exception as e:
+            self._logger.error("[PerformanceMonitor] 保存指标到 DB 失败: %s", e)
+            return False
+
+    async def persist_all_metrics(self) -> Dict[str, int]:
+        """持久化所有内存中的指标到数据库
+
+        Returns:
+            统计信息 {"success": 成功数, "failed": 失败数}
+        """
+        if self._db is None:
+            self._logger.warning("[PerformanceMonitor] 数据库连接未设置，无法持久化指标")
+            return {"success": 0, "failed": 0}
+
+        success_count = 0
+        failed_count = 0
+
+        for metric in self._metrics:
+            result = await self.save_to_db(metric)
+            if result:
+                success_count += 1
+            else:
+                failed_count += 1
+
+        self._logger.info(
+            "[PerformanceMonitor] 批量持久化完成: success=%d, failed=%d",
+            success_count,
+            failed_count,
+        )
+
+        return {"success": success_count, "failed": failed_count}
+
+    async def query_metrics_from_db(
+        self,
+        operation: Optional[str] = None,
+        start_time: Optional[float] = None,
+        end_time: Optional[float] = None,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
+        """从数据库查询历史指标
+
+        Args:
+            operation: 操作名称过滤
+            start_time: 开始时间戳
+            end_time: 结束时间戳
+            limit: 返回数量限制
+
+        Returns:
+            指标列表
+        """
+        if self._db is None:
+            self._logger.warning("[PerformanceMonitor] 数据库连接未设置，无法查询指标")
+            return []
+
+        try:
+            # 构建查询条件
+            conditions = ["tenant_id = $tenant_id"]
+            params: Dict[str, Any] = {"tenant_id": self._tenant_id, "limit": limit}
+
+            if operation:
+                conditions.append("operation = $operation")
+                params["operation"] = operation
+
+            if start_time:
+                conditions.append("created_at >= time::from::unix($start_time)")
+                params["start_time"] = start_time
+
+            if end_time:
+                conditions.append("created_at <= time::from::unix($end_time)")
+                params["end_time"] = end_time
+
+            where_clause = " AND ".join(conditions)
+
+            query = f"""
+                SELECT * FROM performance_log
+                WHERE {where_clause}
+                ORDER BY created_at DESC
+                LIMIT $limit
+            """
+
+            result = await self._db.query(query, params)
+
+            self._logger.debug(
+                "[PerformanceMonitor] 从 DB 查询指标: %d 条",
+                len(result),
+            )
+            return result
+        except Exception as e:
+            self._logger.error("[PerformanceMonitor] 从 DB 查询指标失败: %s", e)
+            return []
+
+    async def get_average_metrics_from_db(
+        self,
+        operation: Optional[str] = None,
+        hours: int = 24,
+    ) -> Dict[str, float]:
+        """从数据库获取平均指标
+
+        Args:
+            operation: 操作名称过滤
+            hours: 查询最近多少小时的数据
+
+        Returns:
+            平均指标 {"avg_duration_ms": ..., "avg_memory_mb": ...}
+        """
+        if self._db is None:
+            return {"avg_duration_ms": 0.0, "avg_memory_mb": 0.0}
+
+        try:
+            conditions = ["tenant_id = $tenant_id"]
+            params: Dict[str, Any] = {
+                "tenant_id": self._tenant_id,
+                "hours": hours,
+            }
+
+            if operation:
+                conditions.append("operation = $operation")
+                params["operation"] = operation
+
+            where_clause = " AND ".join(conditions)
+
+            query = f"""
+                SELECT
+                    math::mean(duration_ms) as avg_duration_ms,
+                    math::mean(memory_mb) as avg_memory_mb
+                FROM performance_log
+                WHERE {where_clause}
+                    AND created_at >= time::now() - $hoursh
+            """
+
+            result = await self._db.query(query, params)
+
+            if result and len(result) > 0:
+                return {
+                    "avg_duration_ms": result[0].get("avg_duration_ms", 0.0) or 0.0,
+                    "avg_memory_mb": result[0].get("avg_memory_mb", 0.0) or 0.0,
+                }
+        except Exception as e:
+            self._logger.error("[PerformanceMonitor] 获取平均指标失败: %s", e)
+
+        return {"avg_duration_ms": 0.0, "avg_memory_mb": 0.0}

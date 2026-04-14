@@ -1,6 +1,7 @@
 """权重计算器
 
 计算调用关系的权重，用于图遍历优先级。
+支持内存缓存和数据库持久化。
 
 权重因子：
 - 调用频率（frequency）
@@ -11,7 +12,7 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -40,12 +41,18 @@ class WeightCalculator:
     权重范围：[0, 1]
 
     Attributes:
-        weights: 权重缓存
+        weights: 权重缓存（内存）
+        db: 数据库连接（可选，用于持久化）
     """
 
-    def __init__(self):
-        """初始化权重计算器"""
+    def __init__(self, db: Any = None):
+        """初始化权重计算器
+
+        Args:
+            db: 数据库连接（SurrealDB 或其他），用于持久化
+        """
         self._weights: Dict[str, float] = {}
+        self._db = db
         self._logger = logging.getLogger(__name__)
 
         self._logger.debug("[WeightCalculator] 初始化")
@@ -128,24 +135,117 @@ class WeightCalculator:
 
         weight = self.calculate_weight(factors)
 
-        # 保存权重
+        # 保存权重到内存
         relation_id = f"{caller}->{callee}"
         self.save_weight(relation_id, weight)
 
         return weight
 
     def save_weight(self, relation_id: str, weight: float) -> None:
-        """保存权重
+        """保存权重到内存
 
         Args:
             relation_id: 关系 ID
             weight: 权重值
         """
         self._weights[relation_id] = weight
-        self._logger.debug("[WeightCalculator] 保存权重: %s=%.2f", relation_id, weight)
+        self._logger.debug("[WeightCalculator] 保存权重到内存: %s=%.2f", relation_id, weight)
+
+    async def save_weight_to_db(
+        self,
+        caller: str,
+        callee: str,
+        weight: float,
+        tenant_id: str = "default",
+    ) -> bool:
+        """保存权重到数据库
+
+        将权重保存到 SurrealDB 的 reference 表中。
+
+        Args:
+            caller: 调用者（entity ID）
+            callee: 被调用者（entity ID）
+            weight: 权重值
+            tenant_id: 租户 ID
+
+        Returns:
+            是否保存成功
+        """
+        if self._db is None:
+            self._logger.warning("[WeightCalculator] 数据库连接未设置，无法持久化权重")
+            return False
+
+        try:
+            # 更新 reference 表的 weight 字段
+            query = """
+                UPDATE reference
+                SET weight = $weight
+                WHERE in = $caller AND out = $callee AND tenant_id = $tenant_id
+            """
+            await self._db.query(
+                query,
+                {
+                    "weight": weight,
+                    "caller": caller,
+                    "callee": callee,
+                    "tenant_id": tenant_id,
+                },
+            )
+            self._logger.debug(
+                "[WeightCalculator] 权重已持久化到 DB: %s->%s=%.2f",
+                caller,
+                callee,
+                weight,
+            )
+            return True
+        except Exception as e:
+            self._logger.error("[WeightCalculator] 保存权重到 DB 失败: %s", e)
+            return False
+
+    async def persist_all_weights(self, tenant_id: str = "default") -> Dict[str, int]:
+        """持久化所有内存中的权重到数据库
+
+        Args:
+            tenant_id: 租户 ID
+
+        Returns:
+            统计信息 {"success": 成功数, "failed": 失败数}
+        """
+        if self._db is None:
+            self._logger.warning("[WeightCalculator] 数据库连接未设置，无法持久化权重")
+            return {"success": 0, "failed": 0}
+
+        success_count = 0
+        failed_count = 0
+
+        for relation_id, weight in self._weights.items():
+            # 解析 relation_id (格式: "caller->callee")
+            if "->" not in relation_id:
+                continue
+
+            parts = relation_id.split("->", 1)
+            if len(parts) != 2:
+                continue
+
+            caller, callee = parts
+
+            # 保存到 DB
+            result = await self.save_weight_to_db(caller, callee, weight, tenant_id)
+            if result:
+                success_count += 1
+            else:
+                failed_count += 1
+
+        self._logger.info(
+            "[WeightCalculator] 批量持久化完成: success=%d, failed=%d",
+            success_count,
+            failed_count,
+        )
+
+        return {"success": success_count, "failed": failed_count}
 
     def get_weight(self, relation_id: str) -> Optional[float]:
-        """获取权重
+        """获取权重（从内存）
 
         Args:
             relation_id: 关系 ID
@@ -155,8 +255,52 @@ class WeightCalculator:
         """
         return self._weights.get(relation_id)
 
+    async def get_weight_from_db(
+        self,
+        caller: str,
+        callee: str,
+        tenant_id: str = "default",
+    ) -> Optional[float]:
+        """从数据库获取权重
+
+        Args:
+            caller: 调用者（entity ID）
+            callee: 被调用者（entity ID）
+            tenant_id: 租户 ID
+
+        Returns:
+            权重值，如果不存在返回 None
+        """
+        if self._db is None:
+            return None
+
+        try:
+            query = """
+                SELECT weight FROM reference
+                WHERE in = $caller AND out = $callee AND tenant_id = $tenant_id
+                LIMIT 1
+            """
+            result = await self._db.query(
+                query,
+                {"caller": caller, "callee": callee, "tenant_id": tenant_id},
+            )
+
+            if result and len(result) > 0:
+                weight = result[0].get("weight")
+                self._logger.debug(
+                    "[WeightCalculator] 从 DB 获取权重: %s->%s=%.2f",
+                    caller,
+                    callee,
+                    weight,
+                )
+                return weight
+        except Exception as e:
+            self._logger.error("[WeightCalculator] 从 DB 获取权重失败: %s", e)
+
+        return None
+
     def remove_weight(self, relation_id: str) -> bool:
-        """删除权重
+        """删除权重（从内存）
 
         Args:
             relation_id: 关系 ID
@@ -171,12 +315,12 @@ class WeightCalculator:
         return False
 
     def clear_weights(self) -> None:
-        """清除所有权重"""
+        """清除所有权重（内存）"""
         self._weights.clear()
         self._logger.debug("[WeightCalculator] 清除所有权重")
 
     def get_all_weights(self) -> Dict[str, float]:
-        """获取所有权重
+        """获取所有权重（内存）
 
         Returns:
             关系 ID -> 权重的映射
@@ -185,7 +329,7 @@ class WeightCalculator:
 
     @property
     def weight_count(self) -> int:
-        """权重数量"""
+        """权重数量（内存）"""
         return len(self._weights)
 
     def get_top_relations(self, n: int = 10) -> Dict[str, float]:
@@ -203,3 +347,52 @@ class WeightCalculator:
             reverse=True,
         )
         return dict(sorted_weights[:n])
+
+    async def load_weights_from_db(
+        self,
+        tenant_id: str = "default",
+        limit: int = 1000,
+    ) -> int:
+        """从数据库加载权重到内存
+
+        Args:
+            tenant_id: 租户 ID
+            limit: 最大加载数量
+
+        Returns:
+            加载的权重数量
+        """
+        if self._db is None:
+            self._logger.warning("[WeightCalculator] 数据库连接未设置，无法加载权重")
+            return 0
+
+        try:
+            query = """
+                SELECT in, out, weight FROM reference
+                WHERE tenant_id = $tenant_id AND weight IS NOT NULL
+                LIMIT $limit
+            """
+            result = await self._db.query(
+                query,
+                {"tenant_id": tenant_id, "limit": limit},
+            )
+
+            loaded_count = 0
+            for record in result:
+                caller = record.get("in")
+                callee = record.get("out")
+                weight = record.get("weight")
+
+                if caller and callee and weight is not None:
+                    relation_id = f"{caller}->{callee}"
+                    self._weights[relation_id] = float(weight)
+                    loaded_count += 1
+
+            self._logger.info(
+                "[WeightCalculator] 从 DB 加载权重: %d 条",
+                loaded_count,
+            )
+            return loaded_count
+        except Exception as e:
+            self._logger.error("[WeightCalculator] 从 DB 加载权重失败: %s", e)
+            return 0

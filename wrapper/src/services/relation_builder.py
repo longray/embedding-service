@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 from .cycle_detector import CycleDetector, Cycle
+from .weight_calculator import WeightCalculator, WeightFactors
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,7 @@ class RelationBuilder:
         self._relations: List[CallRelation] = []
         self._logger = logging.getLogger(__name__)
         self._cycle_detector = CycleDetector()
+        self._weight_calculator = WeightCalculator(db=db)  # 传入 db 用于持久化
         self._skip_cycles = skip_cycles
         self._cycles: List[Cycle] = []
 
@@ -217,10 +219,7 @@ class RelationBuilder:
     def _calculate_weight(self, caller: str, callee: str, file_path: str) -> float:
         """计算关系权重
 
-        基础权重计算：
-        - 同一文件内调用：1.0
-        - 跨文件调用：0.8
-        - 递归调用：0.5
+        使用 WeightCalculator 计算权重。
 
         Args:
             caller: 调用者
@@ -234,11 +233,20 @@ class RelationBuilder:
         if caller == callee:
             return 0.5
 
-        # 基础权重
-        weight = 1.0
+        # 使用 WeightCalculator 计算权重
+        # 目前使用默认因子，后续可以从 AST 中提取更多信息
+        factors = WeightFactors(
+            frequency=1,  # 基础频率
+            complexity=1,  # 基础复杂度
+            param_count=0,  # 未知参数数量
+            is_cross_file=False,  # 暂时无法检测跨文件
+        )
 
-        # TODO: 跨文件调用检测（需要更多上下文）
-        # 暂时返回基础权重
+        weight = self._weight_calculator.calculate_weight(factors)
+
+        # 保存权重
+        relation_id = f"{caller}->{callee}"
+        self._weight_calculator.save_weight(relation_id, weight)
 
         return weight
 
@@ -332,6 +340,11 @@ class RelationBuilder:
     def skip_cycles(self, value: bool) -> None:
         """设置是否跳过循环关系"""
         self._skip_cycles = value
+
+    @property
+    def weight_calculator(self) -> WeightCalculator:
+        """权重计算器"""
+        return self._weight_calculator
 
     @property
     def relation_count(self) -> int:

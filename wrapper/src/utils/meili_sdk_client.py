@@ -2,8 +2,10 @@
 
 使用官方 meilisearch SDK 替代 httpx REST 调用。
 提供索引配置、文档管理和全文搜索功能。
+支持同步和异步 API。
 """
 
+import asyncio
 import logging
 from typing import Any, ClassVar
 
@@ -66,6 +68,7 @@ class MeilisearchSDKClient:
         "localizedAttributes": [{"locales": ["zho"], "attributePatterns": ["*_zh"]}],
         "typoTolerance": {"enabled": True, "disableOnAttributes": ["file_path", "version", "email", "ip_address"]},
         "dictionary": [
+            # 版本前缀
             "v1",
             "v2",
             "v3",
@@ -76,6 +79,7 @@ class MeilisearchSDKClient:
             "rc",
             "release",
             "snapshot",
+            # 编程语言
             "python",
             "java",
             "javascript",
@@ -89,6 +93,7 @@ class MeilisearchSDKClient:
             "swift",
             "kotlin",
             "scala",
+            # 网络协议
             "http",
             "https",
             "api",
@@ -100,11 +105,13 @@ class MeilisearchSDKClient:
             "net",
             "io",
             "dev",
+            # HTTP 方法
             "get",
             "post",
             "put",
             "delete",
             "patch",
+            # 代码术语
             "class",
             "interface",
             "enum",
@@ -125,6 +132,7 @@ class MeilisearchSDKClient:
             "await",
             "promise",
             "callback",
+            # 框架/库
             "django",
             "flask",
             "fastapi",
@@ -137,6 +145,7 @@ class MeilisearchSDKClient:
             "tensorflow",
             "pytorch",
             "sklearn",
+            # ID 前缀
             "ID",
             "NO",
             "NUM",
@@ -147,10 +156,12 @@ class MeilisearchSDKClient:
             "TRK",
             "INV",
             "USR",
+            # 年份
             "2025",
             "2026",
             "2027",
             "2028",
+            # 月份
             "Jan",
             "Feb",
             "Mar",
@@ -163,6 +174,7 @@ class MeilisearchSDKClient:
             "Oct",
             "Nov",
             "Dec",
+            # IP 段
             "192",
             "168",
             "172",
@@ -170,6 +182,284 @@ class MeilisearchSDKClient:
             "127",
             "0",
             "1",
+        ],
+    }
+
+    # code_search_index 专用配置
+    CODE_SEARCH_INDEX_SETTINGS: ClassVar[dict[str, Any]] = {
+        "searchableAttributes": [
+            "file_path",
+            "code_content",
+            "code_symbols",
+            "function_names",
+            "class_names",
+            "variable_names",
+            "comments",
+            "docstrings",
+        ],
+        "filterableAttributes": [
+            "tenant_id",
+            "project_id",
+            "file_path",
+            "code_language",
+            "code_complexity",
+            "function_count",
+            "class_count",
+            "line_count",
+            "has_exports",
+            "is_test_file",
+            "is_config_file",
+        ],
+        "sortableAttributes": [
+            "code_complexity",
+            "function_count",
+            "class_count",
+            "line_count",
+            "created_at",
+            "updated_at",
+        ],
+        "nonSeparatorTokens": [".", "-", "@", ":", "/", "_", "::", "->"],
+        "typoTolerance": {
+            "enabled": True,
+            "disableOnAttributes": [
+                "file_path",
+                "function_names",
+                "class_names",
+                "variable_names",
+            ],
+        },
+        "dictionary": [
+            # 版本前缀
+            "v1",
+            "v2",
+            "v3",
+            "v4",
+            "v5",
+            "v6",
+            "v7",
+            "v8",
+            "v9",
+            "alpha",
+            "beta",
+            "rc",
+            "release",
+            "snapshot",
+            "stable",
+            # 编程语言（扩展）
+            "python",
+            "java",
+            "javascript",
+            "typescript",
+            "go",
+            "golang",
+            "rust",
+            "cpp",
+            "c++",
+            "csharp",
+            "c#",
+            "ruby",
+            "php",
+            "swift",
+            "kotlin",
+            "scala",
+            "r",
+            "matlab",
+            "julia",
+            "dart",
+            "flutter",
+            # 前端框架
+            "react",
+            "vue",
+            "angular",
+            "svelte",
+            "solid",
+            "preact",
+            "next",
+            "nuxt",
+            "gatsby",
+            "remix",
+            "astro",
+            # 后端框架
+            "django",
+            "flask",
+            "fastapi",
+            "tornado",
+            "bottle",
+            "spring",
+            "springboot",
+            "express",
+            "nestjs",
+            "koa",
+            "rails",
+            "laravel",
+            "symfony",
+            "gin",
+            "echo",
+            # 数据库
+            "mysql",
+            "postgresql",
+            "postgres",
+            "sqlite",
+            "mongodb",
+            "redis",
+            "elasticsearch",
+            "cassandra",
+            "dynamodb",
+            # 工具/平台
+            "docker",
+            "kubernetes",
+            "k8s",
+            "jenkins",
+            "gitlab",
+            "github",
+            "aws",
+            "azure",
+            "gcp",
+            "terraform",
+            "ansible",
+            # 代码术语
+            "class",
+            "interface",
+            "enum",
+            "struct",
+            "trait",
+            "impl",
+            "function",
+            "method",
+            "procedure",
+            "lambda",
+            "closure",
+            "property",
+            "attribute",
+            "field",
+            "member",
+            "variable",
+            "const",
+            "let",
+            "var",
+            "static",
+            "final",
+            "mutable",
+            "import",
+            "export",
+            "require",
+            "include",
+            "using",
+            "from",
+            "as",
+            "default",
+            "namespace",
+            "module",
+            "public",
+            "private",
+            "protected",
+            "internal",
+            "external",
+            "async",
+            "await",
+            "promise",
+            "callback",
+            "future",
+            "try",
+            "catch",
+            "finally",
+            "throw",
+            "raise",
+            "error",
+            "if",
+            "else",
+            "elif",
+            "switch",
+            "case",
+            "match",
+            "for",
+            "while",
+            "loop",
+            "break",
+            "continue",
+            "return",
+            "true",
+            "false",
+            "null",
+            "nil",
+            "none",
+            "undefined",
+            # 测试相关
+            "test",
+            "spec",
+            "describe",
+            "it",
+            "expect",
+            "assert",
+            "mock",
+            "stub",
+            "spy",
+            "fixture",
+            "setup",
+            "teardown",
+            # 类型系统
+            "string",
+            "int",
+            "integer",
+            "float",
+            "double",
+            "bool",
+            "boolean",
+            "array",
+            "list",
+            "dict",
+            "map",
+            "set",
+            "tuple",
+            "vector",
+            "optional",
+            "nullable",
+            "generic",
+            "template",
+            # 设计模式
+            "factory",
+            "singleton",
+            "observer",
+            "strategy",
+            "decorator",
+            "adapter",
+            "bridge",
+            "composite",
+            "facade",
+            "proxy",
+            # 其他常用
+            "utils",
+            "utils",
+            "helpers",
+            "common",
+            "shared",
+            "config",
+            "configuration",
+            "settings",
+            "options",
+            "main",
+            "init",
+            "start",
+            "run",
+            "execute",
+            "handle",
+            "process",
+            "transform",
+            "convert",
+            "validate",
+            "sanitize",
+            "escape",
+            "encode",
+            "decode",
+            "serialize",
+            "deserialize",
+            "parse",
+            "stringify",
+            "encode",
+            "decode",
+            "hash",
+            "encrypt",
+            "decrypt",
         ],
     }
 
@@ -467,3 +757,261 @@ class MeilisearchSDKClient:
         task = index.reset_settings()
         self.client.wait_for_task(task.task_uid)
         logger.info("[Meilisearch SDK] 索引设置已重置: %s", self._index_name)
+
+    def configure_code_search_index(self, index_name: str = "code_search_index") -> None:
+        """配置代码搜索索引
+
+        使用 CODE_SEARCH_INDEX_SETTINGS 配置专门的代码搜索索引。
+
+        Args:
+            index_name: 代码搜索索引名称，默认 "code_search_index"
+        """
+        try:
+            # 确保索引存在
+            try:
+                self.client.create_index(
+                    uid=index_name,
+                    options={"primaryKey": "id"},
+                )
+                logger.info("[Meilisearch SDK] 代码搜索索引已创建: %s", index_name)
+            except Exception as e:
+                if "already exists" in str(e).lower():
+                    logger.info("[Meilisearch SDK] 代码搜索索引已存在: %s", index_name)
+                else:
+                    raise
+
+            # 配置索引设置
+            index = self.client.index(index_name)
+            index.update_settings(self.CODE_SEARCH_INDEX_SETTINGS)
+            logger.info(
+                "[Meilisearch SDK] 代码搜索索引配置已更新: %s, settings=%s",
+                index_name,
+                list(self.CODE_SEARCH_INDEX_SETTINGS.keys()),
+            )
+        except Exception as e:
+            raise MeilisearchSDKError(f"配置代码搜索索引失败: {e}") from e
+
+    def search_code(
+        self,
+        query: str,
+        *,
+        language: str | None = None,
+        file_path: str | None = None,
+        limit: int = 10,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        """代码搜索
+
+        在代码搜索索引中搜索代码。
+
+        Args:
+            query: 搜索查询
+            language: 编程语言过滤
+            file_path: 文件路径过滤
+            limit: 返回结果数量
+            offset: 结果偏移量
+
+        Returns:
+            搜索结果
+        """
+        index = self.client.index("code_search_index")
+
+        search_params: dict[str, Any] = {
+            "limit": limit,
+            "offset": offset,
+            "showRankingScore": True,
+        }
+
+        # 构建过滤条件
+        filters = []
+        if language:
+            filters.append(f"code_language = '{language}'")
+        if file_path:
+            filters.append(f"file_path = '{file_path}'")
+
+        if filters:
+            search_params["filter"] = " AND ".join(filters)
+
+        result = index.search(query, search_params)
+
+        return {
+            "hits": result.get("hits", []),
+            "estimatedTotalHits": result.get("estimatedTotalHits"),
+            "totalHits": result.get("totalHits"),
+            "limit": result.get("limit"),
+            "offset": result.get("offset"),
+            "processingTimeMs": result.get("processingTimeMs"),
+            "query": result.get("query"),
+        }
+
+
+class AsyncMeilisearchSDKClient:
+    """异步 Meilisearch SDK 客户端
+
+    使用 asyncio.to_thread() 包装同步 SDK 调用，提供异步 API。
+    保持与同步客户端相同的接口。
+
+    Usage:
+        client = AsyncMeilisearchSDKClient(url="http://localhost:7700", api_key="your_api_key")
+        await client.connect()
+        await client.ensure_index()
+        await client.configure_index({...})
+        results = await client.search("query")
+        await client.close()
+    """
+
+    def __init__(
+        self,
+        url: str = "http://localhost:7700",
+        api_key: str | None = None,
+        index_name: str = "memories",
+        timeout: int = 30,
+    ):
+        self._sync_client = MeilisearchSDKClient(
+            url=url,
+            api_key=api_key,
+            index_name=index_name,
+            timeout=timeout,
+        )
+
+    async def connect(self) -> None:
+        """异步初始化 SDK 客户端"""
+        await asyncio.to_thread(self._sync_client.connect)
+
+    async def close(self) -> None:
+        """异步关闭 SDK 客户端"""
+        await asyncio.to_thread(self._sync_client.close)
+
+    @property
+    def client(self) -> Client:
+        """获取 SDK 客户端"""
+        return self._sync_client.client
+
+    async def ensure_index(self, primary_key: str = "id") -> None:
+        """异步确保索引存在"""
+        await asyncio.to_thread(self._sync_client.ensure_index, primary_key)
+
+    async def configure_index(self, settings: dict[str, Any] | None = None) -> None:
+        """异步配置索引设置"""
+        await asyncio.to_thread(self._sync_client.configure_index, settings)
+
+    async def add_documents(
+        self,
+        documents: list[dict[str, Any]],
+        primary_key: str = "id",
+        *,
+        wait: bool = True,
+    ) -> dict[str, Any]:
+        """异步添加或更新文档"""
+        return await asyncio.to_thread(
+            self._sync_client.add_documents,
+            documents,
+            primary_key,
+            wait=wait,
+        )
+
+    async def batch_add_documents(
+        self,
+        documents: list[dict[str, Any]],
+        primary_key: str = "id",
+        batch_size: int = 100,
+        *,
+        wait: bool = True,
+    ) -> dict[str, Any]:
+        """异步批量添加文档"""
+        return await asyncio.to_thread(
+            self._sync_client.batch_add_documents,
+            documents,
+            primary_key,
+            batch_size,
+            wait=wait,
+        )
+
+    async def batch_delete_documents(
+        self,
+        document_ids: list[str],
+        batch_size: int = 100,
+        *,
+        wait: bool = True,
+    ) -> dict[str, Any]:
+        """异步批量删除文档"""
+        return await asyncio.to_thread(
+            self._sync_client.batch_delete_documents,
+            document_ids,
+            batch_size,
+            wait=wait,
+        )
+
+    async def delete_all_documents(self) -> None:
+        """异步删除所有文档"""
+        await asyncio.to_thread(self._sync_client.delete_all_documents)
+
+    async def delete_document(self, document_id: str) -> None:
+        """异步删除单个文档"""
+        await asyncio.to_thread(self._sync_client.delete_document, document_id)
+
+    async def delete_documents_by_filter(self, filter_expr: str) -> None:
+        """异步通过过滤条件批量删除文档"""
+        await asyncio.to_thread(self._sync_client.delete_documents_by_filter, filter_expr)
+
+    async def search(
+        self,
+        query: str,
+        *,
+        filter_expr: str | None = None,
+        limit: int = 10,
+        offset: int = 0,
+        sort: list[str] | None = None,
+        attributes_to_retrieve: list[str] | None = None,
+        show_ranking_score: bool = True,
+    ) -> dict[str, Any]:
+        """异步全文搜索"""
+        return await asyncio.to_thread(
+            self._sync_client.search,
+            query,
+            filter_expr=filter_expr,
+            limit=limit,
+            offset=offset,
+            sort=sort,
+            attributes_to_retrieve=attributes_to_retrieve,
+            show_ranking_score=show_ranking_score,
+        )
+
+    async def health(self) -> dict[str, Any]:
+        """异步检查健康状态"""
+        return await asyncio.to_thread(self._sync_client.health)
+
+    async def get_stats(self) -> dict[str, Any]:
+        """异步获取索引统计信息"""
+        return await asyncio.to_thread(self._sync_client.get_stats)
+
+    async def get_settings(self) -> dict[str, Any]:
+        """异步获取索引设置"""
+        return await asyncio.to_thread(self._sync_client.get_settings)
+
+    async def reset_settings(self) -> None:
+        """异步重置索引设置为默认值"""
+        await asyncio.to_thread(self._sync_client.reset_settings)
+
+    async def configure_code_search_index(self, index_name: str = "code_search_index") -> None:
+        """异步配置代码搜索索引"""
+        await asyncio.to_thread(self._sync_client.configure_code_search_index, index_name)
+
+    async def search_code(
+        self,
+        query: str,
+        *,
+        language: str | None = None,
+        file_path: str | None = None,
+        limit: int = 10,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        """异步代码搜索"""
+        return await asyncio.to_thread(
+            self._sync_client.search_code,
+            query,
+            language=language,
+            file_path=file_path,
+            limit=limit,
+            offset=offset,
+        )

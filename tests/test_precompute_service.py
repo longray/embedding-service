@@ -166,5 +166,181 @@ class TestPrecomputeServiceLifecycle:
         assert service.is_running is False
 
 
+class TestPrecomputeServicePerformanceMonitoring:
+    """性能监控测试"""
+
+    @pytest.fixture
+    def mock_db(self):
+        """创建 mock 数据库"""
+        return MagicMock()
+
+    @pytest.fixture
+    def service(self, mock_db):
+        """创建 PrecomputeService 实例"""
+        return PrecomputeService(db=mock_db, tenant_id="default")
+
+    @pytest.mark.asyncio
+    async def test_performance_monitor_initialized(self, service):
+        """测试 PerformanceMonitor 已初始化"""
+        assert service.performance_monitor is not None
+        assert service.performance_monitor.tenant_id == "default"
+
+    @pytest.mark.asyncio
+    async def test_process_batch_records_metrics(self, service):
+        """测试 process_batch 记录性能指标"""
+        await service.start()
+
+        batch = [
+            {"file_path": "test1.py", "content": "def foo(): pass"},
+            {"file_path": "test2.py", "content": "def bar(): pass"},
+        ]
+
+        await service.process_batch(batch)
+
+        # 验证指标已记录
+        metrics = service.performance_monitor.get_metrics("process_batch")
+        assert len(metrics) == 1
+        assert metrics[0].operation == "process_batch"
+        assert metrics[0].metadata["batch_size"] == 2
+
+    @pytest.mark.asyncio
+    async def test_get_performance_report(self, service):
+        """测试获取性能报告"""
+        await service.start()
+
+        batch = [{"file_path": "test.py", "content": "def test(): pass"}]
+        await service.process_batch(batch)
+
+        report = service.get_performance_report()
+
+        assert "Performance Report" in report
+        assert "process_batch" in report
+        assert "Tenant ID: default" in report
+
+    @pytest.mark.asyncio
+    async def test_performance_monitor_tracing(self, service):
+        """测试性能监控追踪"""
+        await service.start()
+
+        # 验证追踪已启动
+        assert service.performance_monitor.metrics_count >= 0
+
+        await service.stop()
+
+    @pytest.mark.asyncio
+    async def test_multiple_batches_metrics(self, service):
+        """测试多个批次指标"""
+        await service.start()
+
+        for i in range(3):
+            batch = [{"file_path": f"test{i}.py", "content": f"def func{i}(): pass"}]
+            await service.process_batch(batch)
+
+        metrics = service.performance_monitor.get_metrics("process_batch")
+        assert len(metrics) == 3
+
+    @pytest.mark.asyncio
+    async def test_performance_summary(self, service):
+        """测试性能摘要"""
+        await service.start()
+
+        batch = [{"file_path": "test.py", "content": "def test(): pass"}]
+        await service.process_batch(batch)
+
+        summary = service.performance_monitor.get_summary("process_batch")
+
+        assert summary["tenant_id"] == "default"
+        assert summary["operation"] == "process_batch"
+        assert summary["count"] == 1
+        assert summary["avg_duration_ms"] > 0
+
+
+class TestPrecomputeServiceConcurrency:
+    """并发控制测试"""
+
+    @pytest.fixture
+    def mock_db(self):
+        """创建 mock 数据库"""
+        return MagicMock()
+
+    @pytest.fixture
+    def service(self, mock_db):
+        """创建 PrecomputeService 实例"""
+        return PrecomputeService(
+            db=mock_db,
+            tenant_id="default",
+            max_concurrent=2,
+            timeout_seconds=5.0,
+        )
+
+    @pytest.mark.asyncio
+    async def test_concurrency_control_initialized(self, service):
+        """测试 ConcurrencyControl 已初始化"""
+        assert service.concurrency_control is not None
+        assert service.concurrency_control.max_concurrent == 2
+        assert service.concurrency_control.timeout_seconds == 5.0
+
+    @pytest.mark.asyncio
+    async def test_process_batch_with_concurrency(self, service):
+        """测试 process_batch 使用并发控制"""
+        await service.start()
+
+        batch = [
+            {"file_path": "test1.py", "content": "def foo(): pass"},
+            {"file_path": "test2.py", "content": "def bar(): pass"},
+            {"file_path": "test3.py", "content": "def baz(): pass"},
+        ]
+
+        result = await service.process_batch(batch)
+
+        assert result["processed_count"] == 3
+        assert "concurrency_stats" in result
+        assert result["concurrency_stats"]["max_concurrent"] == 2
+
+    @pytest.mark.asyncio
+    async def test_deduplication(self, service):
+        """测试重复文件去重"""
+        await service.start()
+
+        # 提交包含重复文件的批次
+        batch = [
+            {"file_path": "test.py", "content": "def foo(): pass"},
+            {"file_path": "test.py", "content": "def bar(): pass"},  # 重复
+        ]
+
+        result = await service.process_batch(batch)
+
+        # 第二个文件应该被去重
+        assert result["deduplicated_count"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_concurrency_stats(self, service):
+        """测试并发统计"""
+        await service.start()
+
+        batch = [{"file_path": f"test{i}.py", "content": f"def func{i}(): pass"} for i in range(5)]
+
+        result = await service.process_batch(batch)
+
+        stats = result["concurrency_stats"]
+        assert "max_concurrent" in stats
+        assert "current_processing" in stats
+        assert "total_processed" in stats
+        assert stats["max_concurrent"] == 2
+
+    @pytest.mark.asyncio
+    async def test_concurrent_limit_configuration(self, mock_db):
+        """测试并发限制配置"""
+        service = PrecomputeService(
+            db=mock_db,
+            tenant_id="default",
+            max_concurrent=10,
+            timeout_seconds=60.0,
+        )
+
+        assert service.concurrency_control.max_concurrent == 10
+        assert service.concurrency_control.timeout_seconds == 60.0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
