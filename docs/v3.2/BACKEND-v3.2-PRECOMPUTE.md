@@ -648,7 +648,220 @@ async def test_precompute_performance():
     assert result["memory_mb"] < 100  # < 100MB
 ```
 
-### 4.3 关系创建测试
+### 4.3 关系创建实现
+
+#### 4.3.1 关系创建算法
+
+**调用关系提取流程**
+
+```
+1. AST 解析
+   Source Code ──► tree-sitter ──► AST
+
+2. 符号提取
+   AST ──► Query ──► Symbols (functions, classes)
+
+3. 调用识别
+   AST Walk ──► call_expression ──► callee name
+
+4. 关系构建
+   caller + callee ──► CallRelation
+
+5. 过滤处理
+   - 自调用过滤（caller == callee）
+   - 循环检测（可选）
+   - 权重计算
+
+6. 批量创建
+   RELATE caller->reference->callee
+```
+
+**核心算法代码**
+
+```python
+# wrapper/src/services/relation_builder.py
+
+class RelationBuilder:
+    """关系构建器"""
+
+    def extract_calls(self, ast: Dict, file_path: str) -> List[CallRelation]:
+        """从 AST 提取调用关系"""
+        relations = []
+        root_node = ast.get("root_node")
+        
+        # 提取当前文件的函数定义
+        current_functions = self._extract_function_names(ast)
+        
+        # 遍历 AST 查找调用表达式
+        for node in self._walk_tree(root_node):
+            if node.get("type") in ("call_expression", "call"):
+                callee = self._extract_callee_name(node)
+                if callee:
+                    for caller in current_functions:
+                        relation = CallRelation(
+                            caller=caller,
+                            callee=callee,
+                            weight=self._calculate_weight(caller, callee, file_path),
+                            relation_type="calls",
+                            file_path=file_path,
+                        )
+                        relations.append(relation)
+        
+        return relations
+
+    def create_relations(self, relations: List[CallRelation]) -> Dict[str, Any]:
+        """创建关系"""
+        # 过滤自调用
+        filtered = [r for r in relations if r.caller != r.callee]
+        
+        # 过滤循环（如果启用）
+        if self._skip_cycles:
+            non_cycle, cycle_rels = self.filter_cycle_relations(filtered)
+            filtered = non_cycle
+        
+        # 批量创建
+        return self.batch_relate(filtered)
+
+    def batch_relate(
+        self,
+        relations: List[CallRelation],
+        batch_size: int = 100,
+    ) -> Dict[str, Any]:
+        """批量创建关系"""
+        total = len(relations)
+        created = 0
+        failed = 0
+        batches = (total + batch_size - 1) // batch_size
+        
+        for i in range(0, total, batch_size):
+            batch = relations[i : i + batch_size]
+            try:
+                self._create_batch(batch)
+                created += len(batch)
+            except Exception as e:
+                failed += len(batch)
+        
+        return {
+            "total": total,
+            "created": created,
+            "failed": failed,
+            "batches": batches,
+        }
+```
+
+#### 4.3.2 循环检测算法
+
+**DFS 三色标记法**
+
+```
+白色：未访问
+灰色：正在访问（在递归栈中）
+黑色：已访问完成
+
+检测原理：
+- 遇到灰色节点 = 发现循环
+- 时间复杂度: O(V+E)
+```
+
+**实现代码**
+
+```python
+# wrapper/src/services/cycle_detector.py
+
+class CycleDetector:
+    """循环检测器"""
+
+    def detect_cycles(self, relations: List[CallRelation]) -> List[Cycle]:
+        """检测循环"""
+        # 构建有向图
+        graph = self._build_graph(relations)
+        
+        # 初始化
+        self._cycles = []
+        visited: Set[str] = set()
+        rec_stack: Set[str] = set()
+        path: List[str] = []
+        
+        # 对每个未访问的节点进行 DFS
+        for node in graph:
+            if node not in visited:
+                self._dfs(node, graph, visited, rec_stack, path)
+        
+        return self._cycles
+
+    def _dfs(
+        self,
+        node: str,
+        graph: Dict[str, List[str]],
+        visited: Set[str],
+        rec_stack: Set[str],
+        path: List[str],
+    ) -> None:
+        """深度优先搜索"""
+        visited.add(node)
+        rec_stack.add(node)
+        path.append(node)
+        
+        for neighbor in graph.get(node, []):
+            if neighbor not in visited:
+                self._dfs(neighbor, graph, visited, rec_stack, path)
+            elif neighbor in rec_stack:
+                # 发现循环
+                cycle_start = path.index(neighbor)
+                cycle_path = path[cycle_start:] + [neighbor]
+                self._cycles.append(Cycle(path=cycle_path, length=len(cycle_path)))
+        
+        path.pop()
+        rec_stack.remove(node)
+```
+
+#### 4.3.3 权重计算说明
+
+**权重因子**
+
+| 因子 | 说明 | 权重范围 |
+|------|------|----------|
+| frequency | 调用频率 | 0.1 - 0.3 |
+| complexity | 代码复杂度 | 0.1 - 0.4 |
+| param_count | 参数数量 | 0.0 - 0.2 |
+| is_cross_file | 是否跨文件 | 0.0 - 0.1 |
+
+**计算公式**
+
+```python
+# wrapper/src/services/weight_calculator.py
+
+@dataclass
+class WeightFactors:
+    frequency: int = 1      # 调用频率
+    complexity: int = 1     # 代码复杂度
+    param_count: int = 0    # 参数数量
+    is_cross_file: bool = False  # 是否跨文件
+
+class WeightCalculator:
+    """权重计算器"""
+
+    def calculate_weight(self, factors: WeightFactors) -> float:
+        """计算权重"""
+        # 频率权重 (10% - 30%)
+        freq_weight = min(0.1 + factors.frequency * 0.02, 0.3)
+        
+        # 复杂度权重 (10% - 40%)
+        comp_weight = min(0.1 + factors.complexity * 0.03, 0.4)
+        
+        # 参数权重 (0% - 20%)
+        param_weight = min(factors.param_count * 0.05, 0.2)
+        
+        # 跨文件权重 (0% 或 10%)
+        cross_weight = 0.1 if factors.is_cross_file else 0.0
+        
+        # 总权重
+        total = freq_weight + comp_weight + param_weight + cross_weight
+        
+        return min(total, 1.0)
+```
+
+#### 4.3.4 关系创建测试
 
 ```python
 # tests/unit/test_precompute_relations.py
