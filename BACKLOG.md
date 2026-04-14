@@ -1588,12 +1588,20 @@ BL-B-10~B-12 实现完成
 BL-B-8 基础架构完成
 
 **完成标准**  
-- [ ] 批处理参数统一
-- [ ] 文档更新
-- [ ] 配置说明
+- [x] 批处理参数统一
+- [x] 文档更新
+- [x] 配置说明
 
 **验证方式**  
 文档评审通过
+
+**实际完成**  
+- ✅ 在 `docs/v3.2/BACKEND-v3.2-PRECOMPUTE.md` 第 4.2.1 节补充批处理参数统一文档
+- ✅ 批处理参数表格：PrecomputeConfig、RelationBuilder、MeilisearchSDKClient、AsyncMeilisearchSDKClient
+- ✅ 统一默认值：BATCH_SIZE = 100
+- ✅ 使用示例代码
+- ✅ 参数调优建议表格
+- ✅ 动态批处理大小计算函数
 
 ---
 

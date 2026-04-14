@@ -593,6 +593,21 @@ async def on_file_save(file_path: str, source_code: str, tenant_id: str = "defau
 
 ### 4.2 配置
 
+#### 4.2.1 批处理参数统一
+
+**默认批处理大小: 100**
+
+所有批处理操作统一使用 `BATCH_SIZE = 100` 作为默认值：
+
+| 组件 | 参数名 | 默认值 | 说明 |
+|------|--------|--------|------|
+| **PrecomputeConfig** | `BATCH_SIZE` | 100 | 预计算批处理大小 |
+| **RelationBuilder** | `batch_size` | 100 | 关系创建批处理大小 |
+| **MeilisearchSDKClient** | `batch_size` | 100 | 文档批量添加大小 |
+| **AsyncMeilisearchSDKClient** | `batch_size` | 100 | 异步文档批量添加大小 |
+
+**配置代码**
+
 ```python
 # config.py
 class PrecomputeConfig:
@@ -601,12 +616,72 @@ class PrecomputeConfig:
     # 并发
     MAX_CONCURRENT = 5
 
-    # 批量
+    # 批量（统一默认值）
     BATCH_SIZE = 100
 
     # 性能
     MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
     TIMEOUT = 300  # 5分钟
+```
+
+**使用示例**
+
+```python
+# 1. PrecomputeService 批处理
+async def process_batch(self, items: List[Dict]) -> Dict:
+    batch_size = PrecomputeConfig.BATCH_SIZE  # 100
+    for i in range(0, len(items), batch_size):
+        batch = items[i:i + batch_size]
+        await self._process_batch(batch)
+
+# 2. RelationBuilder 批处理
+builder = RelationBuilder(db)
+result = builder.batch_relate(relations, batch_size=100)
+
+# 3. Meilisearch 批处理
+client = MeilisearchSDKClient()
+await client.batch_add_documents(documents, batch_size=100)
+```
+
+**参数调优建议**
+
+| 场景 | 推荐值 | 说明 |
+|------|--------|------|
+| **小数据量 (< 1000)** | 50 | 减少内存占用 |
+| **标准 (默认)** | 100 | 平衡性能和内存 |
+| **大数据量 (> 10000)** | 200-500 | 提高吞吐量 |
+| **超大文件** | 动态计算 | 基于文件大小调整 |
+
+**动态批处理大小计算**
+
+```python
+def calculate_optimal_batch_size(
+    total_items: int,
+    avg_item_size: int,
+    max_memory_mb: int = 100
+) -> int:
+    """计算最优批处理大小
+    
+    Args:
+        total_items: 总项目数
+        avg_item_size: 平均项目大小（字节）
+        max_memory_mb: 最大内存使用（MB）
+    
+    Returns:
+        最优批处理大小
+    """
+    max_memory_bytes = max_memory_mb * 1024 * 1024
+    
+    # 基于内存限制计算
+    memory_based = max_memory_bytes // avg_item_size
+    
+    # 基于总数计算（最多 10 批）
+    count_based = total_items // 10
+    
+    # 取最小值，但不少于 10
+    optimal = max(min(memory_based, count_based, 100), 10)
+    
+    return optimal
 ```
 
 ---
