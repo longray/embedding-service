@@ -468,12 +468,387 @@ python tests/e2e/test_full_flow.py
 
 ---
 
+## 6. 详细实施步骤
+
+### 6.1 环境准备
+
+**步骤 1: 克隆代码库**
+
+```bash
+git clone https://github.com/your-org/embedding_service.git
+cd embedding_service
+```
+
+**步骤 2: 安装 uv 包管理器**
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# Windows: powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+**步骤 3: 创建虚拟环境并安装依赖**
+
+```bash
+uv venv
+uv pip install -e ".[dev]"
+```
+
+**步骤 4: 启动依赖服务**
+
+```bash
+# 使用 Docker Compose 启动 SurrealDB 和 Meilisearch
+docker-compose up -d surrealdb meilisearch
+
+# 等待服务就绪
+sleep 15
+```
+
+**步骤 5: 初始化数据库**
+
+```bash
+uv run python scripts/init_all.py
+```
+
+### 6.2 服务启动
+
+**开发模式启动**
+
+```bash
+# 启动包装服务（端口 18008）
+uv run python -m wrapper.src.main
+
+# 或使用 uvicorn（热重载）
+uv run uvicorn wrapper.src.main:app --reload --port 18008
+```
+
+**生产模式启动**
+
+```bash
+# 设置环境变量
+export SURREAL_URL=ws://localhost:18002/rpc
+export SURREAL_NS=memory_ns
+export SURREAL_DB=memory_db
+export SURREAL_USER=runtime_user
+export SURREAL_PASS=runtime_pass
+export WRAPPER_MEILI_ENABLED=true
+export WRAPPER_MEILI_URL=http://localhost:7700
+
+# 启动服务
+uv run uvicorn wrapper.src.main:app --host 0.0.0.0 --port 18008 --workers 4
+```
+
+### 6.3 验证部署
+
+**健康检查**
+
+```bash
+# 检查服务健康
+curl http://localhost:18008/health
+
+# 预期响应
+{"status": "healthy", "version": "3.2.0"}
+```
+
+**功能测试**
+
+```bash
+# 测试 Embedding 接口
+curl -X POST http://localhost:18008/v1/embeddings \
+  -H "Content-Type: application/json" \
+  -d '{"input": "测试文本", "model": "Qwen3-Embedding-0.6B"}'
+
+# 测试记忆搜索
+curl -X POST http://localhost:18008/api/v1/memories/search \
+  -H "Content-Type: application/json" \
+  -d '{"query": "测试", "mode": "keyword", "tenant_id": "default"}'
+```
+
+---
+
+## 7. 最佳实践
+
+### 7.1 配置管理
+
+**环境变量分层**
+
+```bash
+# .env.development（开发环境）
+DEBUG=true
+LOG_LEVEL=debug
+WRAPPER_AUTH_ENABLED=false
+
+# .env.production（生产环境）
+DEBUG=false
+LOG_LEVEL=warning
+WRAPPER_AUTH_ENABLED=true
+WRAPPER_API_KEYS="your-key:read;write"
+```
+
+**配置加载顺序**
+
+1. 默认值（代码中）
+2. 环境变量
+3. `.env` 文件
+4. 运行时参数
+
+### 7.2 性能优化
+
+**数据库连接池**
+
+```python
+# config.py
+class DatabaseConfig:
+    # 连接池配置
+    POOL_SIZE = 10
+    MAX_OVERFLOW = 20
+    POOL_TIMEOUT = 30
+```
+
+**缓存策略**
+
+```python
+# 嵌入结果缓存
+from functools import lru_cache
+
+@lru_cache(maxsize=1000)
+def get_embedding(text: str) -> List[float]:
+    # 缓存最近 1000 个嵌入结果
+    return embedding_service.encode(text)
+```
+
+**批量处理**
+
+```python
+# 使用批量操作减少数据库往返
+async def batch_create_memories(memories: List[Dict]):
+    batch_size = 100
+    for i in range(0, len(memories), batch_size):
+        batch = memories[i:i + batch_size]
+        await db.query("CREATE memory CONTENT $batch", {"batch": batch})
+```
+
+### 7.3 错误处理
+
+**全局异常处理**
+
+```python
+# main.py
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+
+app = FastAPI()
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal server error", "detail": str(exc)}
+    )
+```
+
+**重试机制**
+
+```python
+# 数据库操作重试
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=4, max=10)
+)
+async def query_with_retry(db, query: str):
+    return await db.query(query)
+```
+
+### 7.4 监控告警
+
+**性能指标收集**
+
+```python
+# 使用 PerformanceMonitor
+from wrapper.src.services.performance_monitor import PerformanceMonitor
+
+monitor = PerformanceMonitor(db=db)
+
+with monitor.monitor("operation_name", {"tenant_id": tenant_id}):
+    # 执行业务逻辑
+    result = await process_data()
+```
+
+**日志规范**
+
+```python
+import structlog
+
+logger = structlog.get_logger()
+
+# 结构化日志
+logger.info(
+    "memory_created",
+    memory_id=memory_id,
+    tenant_id=tenant_id,
+    duration_ms=duration,
+)
+```
+
+---
+
+## 8. FAQ
+
+### Q1: 如何切换回旧端口 17999？
+
+**A**: 修改 `wrapper/src/config.py`：
+
+```python
+class WrapperConfig:
+    PORT = 17999  # 改为 17999
+```
+
+或在启动时指定：
+
+```bash
+uv run uvicorn wrapper.src.main:app --port 17999
+```
+
+### Q2: WebSocket 连接失败怎么办？
+
+**A**: 检查以下几点：
+
+1. **服务是否启动**
+   ```bash
+   curl http://localhost:18008/health
+   ```
+
+2. **防火墙设置**
+   ```bash
+   # 检查端口是否开放
+   netstat -an | grep 18008
+   ```
+
+3. **客户端配置**
+   ```javascript
+   // 确保使用正确的 URL
+   const ws = new WebSocket('ws://localhost:18008/ws/memories/live');
+   ```
+
+### Q3: 如何禁用 Meilisearch？
+
+**A**: 设置环境变量：
+
+```bash
+export WRAPPER_MEILI_ENABLED=false
+```
+
+服务将自动回退到 SurrealDB 的 BM25 搜索。
+
+### Q4: 数据库迁移失败如何处理？
+
+**A**: 
+
+1. **检查数据库连接**
+   ```bash
+   curl http://localhost:18002/health
+   ```
+
+2. **查看迁移日志**
+   ```bash
+   uv run python scripts/migrate_v2_to_v32.py --dry-run
+   ```
+
+3. **手动修复**
+   ```bash
+   # 重新初始化数据库
+   uv run python scripts/init_database.py
+   ```
+
+### Q5: 性能测试失败怎么办？
+
+**A**: 
+
+1. **检查资源使用**
+   ```bash
+   # 监控 CPU 和内存
+   htop
+   ```
+
+2. **调整测试参数**
+   ```bash
+   # 使用快速模式
+   uv run python tests/performance/benchmark.py --quick
+   ```
+
+3. **查看详细日志**
+   ```bash
+   # 启用调试日志
+   export LOG_LEVEL=debug
+   uv run python tests/performance/benchmark.py --report
+   ```
+
+### Q6: 如何添加新的语言支持？
+
+**A**: 
+
+1. **安装语言包**
+   ```bash
+   uv pip install tree-sitter-go
+   ```
+
+2. **注册语言**
+   ```python
+   # wrapper/src/services/code_parser.py
+   from tree_sitter_go import language_go
+   
+   self._languages["go"] = language_go()
+   ```
+
+3. **添加查询规则**
+   ```python
+   # 在 QUERIES 中添加 Go 查询
+   "go": """
+       (function_declaration
+         name: (identifier) @function.name)
+   """
+   ```
+
+### Q7: 如何配置 SSL？
+
+**A**: 参考 [SSL-SETUP.md](../SSL-SETUP.md)：
+
+```bash
+# 使用 Docker Compose 启动带 SSL 的服务
+docker-compose -f docker-compose.ssl.yml up -d
+```
+
+### Q8: 如何排查内存泄漏？
+
+**A**: 
+
+1. **使用内存分析器**
+   ```bash
+   # 安装 memory_profiler
+   uv pip install memory_profiler
+   
+   # 运行分析
+   python -m memory_profiler wrapper/src/main.py
+   ```
+
+2. **检查连接池**
+   ```python
+   # 确保连接正确关闭
+   async with db_pool.acquire() as conn:
+       await conn.query("...")
+   ```
+
+---
+
 ## 参考文档
 
 - [BACKEND-v3.2-WEBSOCKET.md](./BACKEND-v3.2-WEBSOCKET.md)
 - [BACKEND-v3.2-PRECOMPUTE.md](./BACKEND-v3.2-PRECOMPUTE.md)
 - [BACKEND-v3.2-MIGRATION.md](./BACKEND-v3.2-MIGRATION.md)
 - [PLUGIN-v3.2-IMPLEMENTATION.md](./PLUGIN-v3.2-IMPLEMENTATION.md)
+- [SSL-SETUP.md](../SSL-SETUP.md)
 
 ---
 
