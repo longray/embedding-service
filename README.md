@@ -2,6 +2,8 @@
 
 **当前版本**: v2.8.0
 
+> **版本说明**: v2.8.0 为产品版本号。BACKLOG v3.2/v3.3 为内部规划版本，所有 v3.x 任务已合入 v2.8.0 发布。
+
 ## 开发状态
 
 **实施阶段**: P0 + P1 + P2 + Phase 3 + BACKLOG v3.3 已完成
@@ -34,11 +36,11 @@
 | P3-1 | Docker Compose | 一键部署 | ✅ 已完成 |
 | P3-2 | HNSW向量索引 | 搜索10x加速 | ✅ 已完成 |
 | P3-3 | 监控告警 | 自动告警 | ⏳ 待开始 |
-| P3-4 | Kubernetes | 云原生部署 | ⏳ 待开始 |
-| P3-5 | 审计日志 | 合规审计 | 🔄 进行中 |
+| P3-4 | Kubernetes | 云原生部署 | 🚧 基础完成 |
+| P3-5 | 审计日志 | 合规审计 | ⏳ 待开始 |
 | **v3.3** | **PrecomputeService + Stub 端点** | **代码预计算、聚类、预取** | **✅ 已完成** |
 
-查看 [ROADMAP.md](ROADMAP.md) 了解详细计划。
+查看 [ROADMAP.md](docs/ROADMAP.md) 了解详细计划。
 
 ## API端点
 
@@ -148,7 +150,7 @@ export WRAPPER_WEBSOCKET_TOKEN=your_secret_token
 - ✅ **HTTP 连接池**：高效 HTTP 请求
 - ✅ **SurrealDB 长期连接**：避免频繁连接开销
 - ✅ **CI/CD**：GitHub Actions 自动测试
-- ✅ **完整测试套件**：150+ 测试用例
+- ✅ **完整测试套件**：1000+ 测试用例
 - ✅ **Meilisearch 全文搜索**：CJK 中文分词、日期精确匹配、关键词搜索
 - ✅ **Meilisearch 代码搜索优化**：104词代码术语字典、代码标识符搜索、双字段策略
 

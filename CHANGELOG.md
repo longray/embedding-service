@@ -37,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **测试套件增强**: 新增 42 个单元测试，总计 190+ 测试用例
+- **测试套件增强**: 新增 42 个单元测试，总计 1000+ 测试用例
 - **路由模块化**: 新增独立 routers（hnsw.py, cache.py, code_analysis.py, clustering.py, prefetch.py）
 - **tree-sitter 兼容性**: 修复 0.25.x API 兼容性（Parser 初始化方式）
 

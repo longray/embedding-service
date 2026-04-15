@@ -110,13 +110,13 @@
 | BL-B-72 | PrecomputeService — 队列状态持久化 | P2 | 0.5 天 | ✅ | [详情](#bl-b-72-p2-precomputeservice--队列状态持久化) |
 | **文档** |
 | BL-CA-43 | 补充 WebSocket 性能测试基准 | P1 | 0.5 天 | ✅ | [详情](#bl-ca-43-p1-补充-websocket-性能测试基准) |
-| BL-CA-44 | 完善 PrecomputeService 关系创建 | P1 | 1 天 | ⏳ | [详情](#bl-ca-44-p1-完善-precomputeservice-关系创建实现) |
-| BL-CA-45 | 统一预计算批处理大小参数 | P2 | 0.5 天 | ⏳ | [详情](#bl-ca-45-p2-统一预计算批处理大小参数) |
-| BL-CA-46 | 扩充后端实施指南 | P2 | 1 天 | ⏳ | [详情](#bl-ca-46-p2-扩充后端实施指南) |
-| BL-CA-47 | 添加 WebSocket 错误处理示例 | P2 | 0.5 天 | ⏳ | [详情](#bl-ca-47-p2-添加-websocket-错误处理示例) |
-| BL-CA-48 | 添加 Kubernetes 部署配置 | P2 | 1 天 | ⏳ | [详情](#bl-ca-48-p2-添加-kubernetes-部署配置) |
-| BL-CA-49 | 添加数据库 ER 关系图 | P3 | 0.5 天 | ⏳ | [详情](#bl-ca-49-p3-添加数据库-er-关系图) |
-| BL-CA-50 | 添加 SSL 自动续期配置 | P3 | 0.5 天 | ⏳ | [详情](#bl-ca-50-p3-添加-ssl-自动续期配置) |
+| BL-CA-44 | 完善 PrecomputeService 关系创建 | P1 | 1 天 | ✅ | [详情](#bl-ca-44-p1-完善-precomputeservice-关系创建实现) |
+| BL-CA-45 | 统一预计算批处理大小参数 | P2 | 0.5 天 | ✅ | [详情](#bl-ca-45-p2-统一预计算批处理大小参数) |
+| BL-CA-46 | 扩充后端实施指南 | P2 | 1 天 | ✅ | [详情](#bl-ca-46-p2-扩充后端实施指南) |
+| BL-CA-47 | 添加 WebSocket 错误处理示例 | P2 | 0.5 天 | ✅ | [详情](#bl-ca-47-p2-添加-websocket-错误处理示例) |
+| BL-CA-48 | 添加 Kubernetes 部署配置 | P2 | 1 天 | ✅ | [详情](#bl-ca-48-p2-添加-kubernetes-部署配置) |
+| BL-CA-49 | 添加数据库 ER 关系图 | P3 | 0.5 天 | ✅ | [详情](#bl-ca-49-p3-添加数据库-er-关系图) |
+| BL-CA-50 | 添加 SSL 自动续期配置 | P3 | 0.5 天 | ✅ | [详情](#bl-ca-50-p3-添加-ssl-自动续期配置) |
 
 ---
 
@@ -1576,9 +1576,9 @@ BL-B-6~B-7 性能测试完成
 BL-B-10~B-12 实现完成
 
 **完成标准**  
-- [ ] 关系创建算法文档
-- [ ] 权重计算说明
-- [ ] 循环检测算法
+- [x] 关系创建算法文档
+- [x] 权重计算说明
+- [x] 循环检测算法
 
 **验证方式**  
 文档评审通过
@@ -2625,8 +2625,8 @@ uv run python scripts/benchmark_migration.py
 
 | 工作项 | 优先级 | 状态 | 说明 |
 |--------|--------|------|------|
-| PrecomputeService 核心逻辑 | P1 | 🚧 开发中 | 3 个 TODO 待完成 |
-| Stub 端点实现 | P2 | ⏳ 待实现 | 11 个 stub 端点 |
+| PrecomputeService 核心逻辑 | P1 | ✅ 已完成 | BACKLOG-v3.3 已全部完成 |
+| Stub 端点实现 | P2 | ✅ 已完成 | 5 个 stub 端点已实现并测试 |
 | 版本号同步 | P0 | ✅ 已修复 | pyproject.toml 已更新 |
 
 ### 文档索引
@@ -2649,5 +2649,5 @@ uv run python scripts/benchmark_migration.py
 
 ---
 
-**最后更新**: 2026-04-12  
+**最后更新**: 2026-04-15  
 **维护者**: Agent A (后端团队) + Agent B (插件端团队)
