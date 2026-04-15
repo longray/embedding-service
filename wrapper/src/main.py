@@ -35,7 +35,21 @@ from .models import (  # noqa: F401 — re-exported for backward compatibility
     SyncPreviewRequest,
     SyncPreviewResponse,
 )
-from .routers import audit, embeddings, health, lookup, memories, projects, relations, search, stubs, sync, websocket
+from .routers import (
+    audit,
+    clustering,
+    embeddings,
+    health,
+    lookup,
+    memories,
+    prefetch,
+    projects,
+    relations,
+    search,
+    stubs,
+    sync,
+    websocket,
+)
 from .utils.cache import ThreadSafeLRUCache
 from .utils.exceptions import WrapperServiceError
 from .utils.http_pool import close_http_pool, get_http_pool
@@ -307,6 +321,8 @@ app.include_router(projects.router)
 app.include_router(audit.router)
 app.include_router(sync.router)
 app.include_router(websocket.router)
+app.include_router(clustering.router)
+app.include_router(prefetch.router)
 app.include_router(stubs.router)
 
 

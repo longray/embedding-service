@@ -8,14 +8,17 @@
 - 性能监控
 - 并发控制
 - tree-sitter 代码解析
+- 文件指纹和变更检测
 """
 
 import asyncio
 import logging
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .code_parser import CodeParser
 from .concurrency_control import ConcurrencyControl
+from .fingerprint import FingerprintManager
 from .performance_monitor import PerformanceMonitor
 
 logger = logging.getLogger(__name__)
@@ -60,6 +63,8 @@ class PrecomputeService:
             tenant_id=tenant_id,
         )
         self._code_parser: Optional[CodeParser] = None
+
+        self._fingerprint_manager = FingerprintManager()
 
         self._logger.debug(
             "[PrecomputeService] 初始化: tenant_id=%s, max_concurrent=%d",
@@ -113,10 +118,115 @@ class PrecomputeService:
             self._code_parser = None
             self._logger.debug("[PrecomputeService] tree-sitter 解析器已清理")
 
+        await self._cleanup_concurrency_resources()
+
         self._logger.debug("[PrecomputeService] 数据库连接保持（由调用方管理）")
 
         self._running = False
         self._logger.info("[PrecomputeService] 服务已停止")
+
+    async def _process_file(
+        self,
+        file_path: str,
+        item: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """处理单个文件
+
+        读取文件、解析代码、提取符号、计算指纹。
+
+        Args:
+            file_path: 文件路径
+            item: 文件信息
+
+        Returns:
+            处理结果，如果失败返回 None
+        """
+        self._logger.debug("[PrecomputeService] 处理文件: %s", file_path)
+
+        try:
+            content = await self._read_file(file_path)
+            if content is None:
+                return None
+
+            fingerprint = self._fingerprint_manager.calculate_fingerprint(content)
+            if not self._fingerprint_manager.has_changed(file_path, fingerprint):
+                self._logger.debug("[PrecomputeService] 文件未变更，跳过: %s", file_path)
+                return {
+                    "file_path": file_path,
+                    "status": "unchanged",
+                    "fingerprint": fingerprint,
+                }
+
+            if self._code_parser is None:
+                self._logger.error("[PrecomputeService] 代码解析器未初始化")
+                return None
+
+            language = self._code_parser.get_language(file_path)
+            if not language:
+                self._logger.warning("[PrecomputeService] 不支持的文件类型: %s", file_path)
+                return None
+
+            parse_result = self._code_parser.parse(content, language)
+            if not parse_result:
+                self._logger.warning("[PrecomputeService] 解析失败: %s", file_path)
+                return None
+
+            symbols = parse_result.get("symbols", [])
+
+            self._fingerprint_manager.save_fingerprint(file_path, fingerprint)
+
+            return {
+                "file_path": file_path,
+                "status": "processed",
+                "language": language,
+                "fingerprint": fingerprint,
+                "symbols": symbols,
+                "symbol_count": len(symbols),
+            }
+
+        except Exception as e:
+            self._logger.error("[PrecomputeService] 处理文件失败: %s, error=%s", file_path, e)
+            return None
+
+    async def _read_file(self, file_path: str) -> Optional[str]:
+        """读取文件内容"""
+        try:
+            path = Path(file_path)
+            if not path.exists():
+                self._logger.warning("[PrecomputeService] 文件不存在: %s", file_path)
+                return None
+
+            content = path.read_text(encoding="utf-8")
+            return content
+
+        except UnicodeDecodeError:
+            try:
+                path = Path(file_path)
+                content = path.read_text(encoding="gbk")
+                return content
+            except Exception as e:
+                self._logger.error("[PrecomputeService] 读取文件编码错误: %s, error=%s", file_path, e)
+                return None
+        except Exception as e:
+            self._logger.error("[PrecomputeService] 读取文件失败: %s, error=%s", file_path, e)
+            return None
+
+    async def _cleanup_concurrency_resources(self) -> None:
+        """清理并发控制资源"""
+        self._logger.debug("[PrecomputeService] 清理并发控制资源")
+
+        async with self._concurrency_control._lock:
+            processing_count = len(self._concurrency_control._processing)
+            self._concurrency_control._processing.clear()
+            self._logger.debug("[PrecomputeService] 清理 %d 个处理中任务", processing_count)
+
+        queue_size = self._concurrency_control._queue.qsize()
+        while not self._concurrency_control._queue.empty():
+            try:
+                self._concurrency_control._queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+        self._logger.debug("[PrecomputeService] 清理 %d 个队列任务", queue_size)
 
     async def process_batch(self, batch: List[Dict[str, Any]]) -> Dict[str, Any]:
         """处理批次
@@ -204,19 +314,7 @@ class PrecomputeService:
         """
 
         async def process_coro():
-            # TODO: 实现具体的文件处理逻辑（后续任务）
-            # - 解析代码（tree-sitter）
-            # - 提取符号
-            # - 分析调用关系
-            # - 生成指纹
-
-            # 模拟处理时间
-            await asyncio.sleep(0.001)
-
-            return {
-                "file_path": file_path,
-                "status": "processed",
-            }
+            return await self._process_file(file_path, item)
 
         try:
             return await self._concurrency_control.process(file_path, process_coro)

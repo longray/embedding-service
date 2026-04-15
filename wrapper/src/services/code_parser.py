@@ -59,7 +59,15 @@ class CodeParser:
             import importlib
 
             lang_module = importlib.import_module(package)
-            self._parsers[language] = lang_module
+
+            if hasattr(lang_module, "language"):
+                self._parsers[language] = lang_module.language()
+            elif hasattr(lang_module, f"language_{language}"):
+                self._parsers[language] = getattr(lang_module, f"language_{language}")()
+            else:
+                self._logger.debug("[CodeParser] 语言格式不支持: %s", language)
+                return
+
             self._logger.debug("[CodeParser] 加载语言: %s", language)
         except ImportError:
             self._logger.debug("[CodeParser] 语言未安装: %s", language)
@@ -103,10 +111,10 @@ class CodeParser:
             return None
 
         try:
-            from tree_sitter import Parser
+            from tree_sitter import Parser, Language
 
-            parser = Parser()
-            parser.set_language(self._parsers[language])
+            lang = Language(self._parsers[language])
+            parser = Parser(lang)
 
             tree = parser.parse(bytes(content, "utf8"))
 
