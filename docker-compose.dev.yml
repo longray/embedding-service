@@ -18,6 +18,26 @@ services:
       timeout: 5s
       retries: 5
 
+  # Meilisearch 全文搜索引擎（开发环境）
+  meilisearch:
+    image: getmeili/meilisearch:v1.13
+    container_name: embedding-meilisearch-dev
+    ports:
+      - "18003:7700"
+    environment:
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-masterKey_change_in_production}
+      - MEILI_ENV=development
+      - MEILI_NO_ANALYTICS=true
+    volumes:
+      - meili-data-dev:/meili_data
+    networks:
+      - embedding-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Embedding 服务（本地代码挂载，热重载）
   embedding:
     build:
@@ -62,27 +82,39 @@ services:
       timeout: 10s
       retries: 3
 
-  # 包装层服务：依赖同一网络，使用本地代码目录以便热重载
+  # 包装层服务：使用多阶段构建开发目标，本地代码挂载实现热重载
   wrapper:
     build:
-      context: ./wrapper-service
-      dockerfile: Dockerfile
+      context: ./wrapper
+      dockerfile: Dockerfile.multistage
+      target: development
     container_name: wrapper-service-dev
     ports:
-      - "3001:3001"
+      - "18008:18008"
+      - "17999:17999"
     environment:
-      - WRAPPER_PORT=3001
-      - WRAPPER_EMBEDDING_SERVICE_URL=http://embedding-service-dev:18000
-      - WRAPPER_LLM_SERVICE_URL=http://llm-service-dev:18001
+      - WRAPPER_PORT=18008
+      - WRAPPER_LEGACY_PORT=17999
+      - WRAPPER_ENABLE_DUAL_PORT=true
+      - WRAPPER_EMBEDDING_SERVICE_URL=http://embedding:18000
+      - WRAPPER_LLM_SERVICE_URL=http://llm:18001
       - WRAPPER_SURREALDB_URL=ws://surrealdb:18002/rpc
       - WRAPPER_SURREALDB_NAMESPACE=memory_ns
       - WRAPPER_SURREALDB_DATABASE=memory_db
       - WRAPPER_SURREALDB_USERNAME=root
       - WRAPPER_SURREALDB_PASSWORD=root
+      - WRAPPER_SURREALDB_RUNTIME_USERNAME=runtime_user
+      - WRAPPER_SURREALDB_RUNTIME_PASSWORD=change_me_in_production
+      - WRAPPER_SURREALDB_USE_RUNTIME_CREDENTIALS=true
+      - WRAPPER_MEILI_URL=http://meilisearch:7700
+      - WRAPPER_MEILI_API_KEY=${MEILI_MASTER_KEY:-masterKey_change_in_production}
+      - WRAPPER_MEILI_INDEX_NAME=memories
+      - WRAPPER_DEBUG=true
     volumes:
-      - ./wrapper-service:/workspace/wrapper-service
-      - ./src/qwen3_embedding_service:/workspace/src/qwen3_embedding_service
-      - ./models:/models
+      # 热重载：本地代码修改立即反映到容器内
+      - ./wrapper/src:/app/wrapper/src
+      - ./wrapper/pyproject.toml:/app/pyproject.toml
+      - ./wrapper/uv.lock:/app/uv.lock
     depends_on:
       surrealdb:
         condition: service_healthy
@@ -90,17 +122,20 @@ services:
         condition: service_healthy
       llm:
         condition: service_healthy
+      meilisearch:
+        condition: service_healthy
     networks:
       - embedding-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:18008/health"]
       interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 5
+      start_period: 15s
 
 volumes:
   surrealdb-data-dev:
-  model-cache-dev:
+  meili-data-dev:
 
 networks:
   embedding-network:
