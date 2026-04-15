@@ -7,12 +7,14 @@
 - 批量处理
 - 性能监控
 - 并发控制
+- tree-sitter 代码解析
 """
 
 import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 
+from .code_parser import CodeParser
 from .concurrency_control import ConcurrencyControl
 from .performance_monitor import PerformanceMonitor
 
@@ -57,6 +59,7 @@ class PrecomputeService:
             db=db,
             tenant_id=tenant_id,
         )
+        self._code_parser: Optional[CodeParser] = None
 
         self._logger.debug(
             "[PrecomputeService] 初始化: tenant_id=%s, max_concurrent=%d",
@@ -78,10 +81,16 @@ class PrecomputeService:
         # 启动性能监控
         self._performance_monitor.start_tracing()
 
-        # TODO: 初始化资源（后续任务实现）
-        # - 初始化 tree-sitter
-        # - 加载配置
-        # - 建立 DB 连接
+        # 初始化 tree-sitter 代码解析器
+        self._code_parser = CodeParser()
+        self._logger.debug("[PrecomputeService] tree-sitter 解析器初始化完成")
+
+        # 验证数据库连接
+        if self._db is None:
+            raise RuntimeError("数据库连接未提供")
+        self._logger.debug("[PrecomputeService] 数据库连接已建立")
+
+        self._logger.debug("[PrecomputeService] 并发控制器已就绪")
 
         self._running = True
         self._logger.info("[PrecomputeService] 服务已启动")
@@ -100,10 +109,11 @@ class PrecomputeService:
         # 停止性能监控
         self._performance_monitor.stop_tracing()
 
-        # TODO: 清理资源（后续任务实现）
-        # - 关闭 tree-sitter
-        # - 关闭 DB 连接
-        # - 保存状态
+        if self._code_parser is not None:
+            self._code_parser = None
+            self._logger.debug("[PrecomputeService] tree-sitter 解析器已清理")
+
+        self._logger.debug("[PrecomputeService] 数据库连接保持（由调用方管理）")
 
         self._running = False
         self._logger.info("[PrecomputeService] 服务已停止")
