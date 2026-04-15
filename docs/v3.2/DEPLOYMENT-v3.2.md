@@ -1041,6 +1041,126 @@ spec:
               service:
                 name: opencode-memory-api
                 port:
+```
+
+#### 4.6.4 SSL 验证方法
+
+**验证证书状态**
+
+```bash
+# 检查证书信息
+echo | openssl s_client -servername memory.example.com \
+  -connect memory.example.com:443 2>/dev/null | openssl x509 -noout -text
+
+# 检查证书过期时间
+echo | openssl s_client -servername memory.example.com \
+  -connect memory.example.com:443 2>/dev/null | openssl x509 -noout -dates
+
+# 检查证书链
+echo | openssl s_client -servername memory.example.com \
+  -connect memory.example.com:443 2>/dev/null | openssl x509 -noout -chain
+```
+
+**验证 HTTPS 访问**
+
+```bash
+# 测试 HTTPS 连接
+curl -I https://memory.example.com/health
+
+# 测试证书有效性（忽略证书验证）
+curl -k -I https://memory.example.com/health
+
+# 详细 SSL 连接信息
+curl -v https://memory.example.com/health 2>&1 | grep -E "(SSL|TLS|Certificate)"
+```
+
+**验证自动续期**
+
+```bash
+# 测试续期（不实际续期）
+certbot renew --dry-run
+
+# 查看续期日志
+journalctl -u certbot -f
+
+# 检查续期定时任务
+crontab -l | grep certbot
+
+# 手动触发续期
+certbot renew --force-renewal
+```
+
+**监控证书过期**
+
+```bash
+# 创建监控脚本
+#!/bin/bash
+# check_ssl_expiry.sh
+
+domain="memory.example.com"
+days_before_expiry=7
+
+expiry_date=$(echo | openssl s_client -servername $domain -connect $domain:443 2>/dev/null | openssl x509 -noout -enddate | cut -d= -f2)
+expiry_epoch=$(date -d "$expiry_date" +%s)
+current_epoch=$(date +%s)
+days_until_expiry=$(( (expiry_epoch - current_epoch) / 86400 ))
+
+if [ $days_until_expiry -lt $days_before_expiry ]; then
+  echo "WARNING: SSL certificate for $domain expires in $days_until_expiry days"
+  # 发送告警（例如邮件或 Slack）
+  # mail -s "SSL Certificate Expiry Warning" admin@example.com
+fi
+```
+
+**自动续期脚本**
+
+```bash
+#!/bin/bash
+# auto_renew_ssl.sh
+
+# 日志文件
+LOG_FILE="/var/log/ssl-renewal.log"
+
+# 续期函数
+renew_ssl() {
+    echo "$(date): Starting SSL renewal check..." >> $LOG_FILE
+    
+    # 执行续期
+    certbot renew --quiet --deploy-hook "systemctl reload nginx"
+    
+    if [ $? -eq 0 ]; then
+        echo "$(date): SSL renewal successful" >> $LOG_FILE
+    else
+        echo "$(date): SSL renewal failed" >> $LOG_FILE
+        # 发送告警
+        mail -s "SSL Renewal Failed" admin@example.com < $LOG_FILE
+    fi
+}
+
+# 执行续期
+renew_ssl
+```
+
+**Docker 自动续期**
+
+```yaml
+# docker-compose.ssl.yml 续期服务
+services:
+  certbot-renew:
+    image: certbot/certbot
+    volumes:
+      - ./certbot:/etc/letsencrypt
+      - ./www:/var/www/html
+    entrypoint: "/bin/sh -c"
+    command: >
+      "trap exit TERM;
+      while :; do
+        certbot renew --quiet --deploy-hook 'nginx -s reload';
+        sleep 12h;
+      done"
+    depends_on:
+      - nginx
+```
                   number: 18008
 ```
 

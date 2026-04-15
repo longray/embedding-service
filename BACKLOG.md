@@ -1757,12 +1757,20 @@ BL-B-18~B-21 Schema 完成
 BL-B-25 SSL 配置完成
 
 **完成标准**  
-- [ ] Certbot 配置说明
-- [ ] 自动续期脚本
-- [ ] 验证方法
+- [x] Certbot 配置说明
+- [x] 自动续期脚本
+- [x] 验证方法
 
 **验证方式**  
 文档评审通过
+
+**实际完成**  
+- ✅ 在 `docs/v3.2/DEPLOYMENT-v3.2.md` 第 4.6.4 节补充 SSL 验证方法
+- ✅ Certbot 配置说明（裸机、Docker、Kubernetes）
+- ✅ 自动续期脚本（shell 脚本、Docker Compose）
+- ✅ 验证方法（证书状态、HTTPS 访问、自动续期、监控脚本）
+- ✅ 证书过期监控脚本
+- ✅ Docker 自动续期配置
 
 ---
 
