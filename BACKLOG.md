@@ -117,6 +117,13 @@
 | BL-CA-48 | 添加 Kubernetes 部署配置 | P2 | 1 天 | ✅ | [详情](#bl-ca-48-p2-添加-kubernetes-部署配置) |
 | BL-CA-49 | 添加数据库 ER 关系图 | P3 | 0.5 天 | ✅ | [详情](#bl-ca-49-p3-添加数据库-er-关系图) |
 | BL-CA-50 | 添加 SSL 自动续期配置 | P3 | 0.5 天 | ✅ | [详情](#bl-ca-50-p3-添加-ssl-自动续期配置) |
+| **测试补充 (v3.4)** |
+| BL-T-1 | Audit 日志端点测试 | P1 | 1 天 | ⏳ | [详情](#bl-t-1-p1-audit-日志端点测试) |
+| BL-T-2 | Projects API 测试 | P1 | 1 天 | ⏳ | [详情](#bl-t-2-p1-projects-api-测试) |
+| BL-T-3 | Lookup API 测试 | P1 | 0.5 天 | ⏳ | [详情](#bl-t-3-p1-lookup-api-测试) |
+| BL-T-4 | 并发压力测试 | P2 | 1 天 | ⏳ | [详情](#bl-t-4-p2-并发压力测试) |
+| BL-T-5 | 故障恢复测试 | P2 | 1 天 | ⏳ | [详情](#bl-t-5-p2-故障恢复测试) |
+| BL-T-6 | E2E 测试套件整合 | P2 | 0.5 天 | ⏳ | [详情](#bl-t-6-p2-e2e-测试套件整合) |
 
 ---
 
@@ -2651,3 +2658,188 @@ uv run python scripts/benchmark_migration.py
 
 **最后更新**: 2026-04-15  
 **维护者**: Agent A (后端团队) + Agent B (插件端团队)
+
+---
+
+## 测试补充 (v3.4)
+
+### BL-T-1 [P1] Audit 日志端点测试
+
+**目标**  
+为 Audit 日志端点补充完整的单元测试和集成测试，确保审计功能稳定可靠。
+
+**涉及范围**  
+- 文件: `wrapper/src/routers/audit.py`（被测对象）
+- 文件: `tests/test_audit_endpoints.py`（新建）
+- 文件: `tests/integration/test_audit_integration.py`（新建）
+
+**前置依赖**  
+- Audit router 已实现
+- MemoryManager 已集成 audit 方法
+- SurrealDB 连接可用
+
+**完成标准**  
+- [ ] `POST /api/v1/audit/log` 单元测试（5+ 场景）
+- [ ] `GET /api/v1/audit/logs` 单元测试（6+ 场景）
+- [ ] `DELETE /api/v1/audit/logs` 单元测试（2+ 场景）
+- [ ] 集成测试（2+ 场景）
+
+**验证方式**  
+```bash
+uv run pytest tests/test_audit_endpoints.py -v
+uv run pytest tests/integration/test_audit_integration.py -v
+```
+
+---
+
+### BL-T-2 [P1] Projects API 测试
+
+**目标**  
+为 Projects 端点（代码地图、统计信息）补充测试，确保项目级代码分析功能正确。
+
+**涉及范围**  
+- 文件: `wrapper/src/routers/projects.py`（被测对象）
+- 文件: `tests/test_projects_api.py`（新建）
+
+**前置依赖**  
+- Projects router 已实现
+- MemoryManager.get_project_map() 已实现
+- MemoryManager.get_project_stats() 已实现
+
+**完成标准**  
+- [ ] `GET /api/v1/projects/{project_id}/map` 测试（5+ 场景）
+- [ ] `GET /api/v1/projects/{project_id}/stats` 测试（5+ 场景）
+- [ ] 错误处理测试（3+ 场景）
+
+**验证方式**  
+```bash
+uv run pytest tests/test_projects_api.py -v
+```
+
+---
+
+### BL-T-3 [P1] Lookup API 测试
+
+**目标**  
+为 Lookup 端点（source_id/hash/file_path 查询）补充测试，确保多设备同步查询功能正确。
+
+**涉及范围**  
+- 文件: `wrapper/src/routers/lookup.py`（被测对象）
+- 文件: `tests/test_lookup_api.py`（新建）
+
+**前置依赖**  
+- Lookup router 已实现
+- MemoryManager lookup 方法已实现
+
+**完成标准**  
+- [ ] source_id 查询测试（4+ 场景）
+- [ ] hash 查询测试（4+ 场景）
+- [ ] file_path + project_id 查询测试（3+ 场景）
+- [ ] 参数优先级测试（2+ 场景）
+- [ ] 错误处理测试（3+ 场景）
+- [ ] 多租户隔离测试（2+ 场景）
+
+**验证方式**  
+```bash
+uv run pytest tests/test_lookup_api.py -v
+```
+
+---
+
+### BL-T-4 [P2] 并发压力测试
+
+**目标**  
+建立并发压力测试套件，验证系统在高并发场景下的稳定性和性能。
+
+**涉及范围**  
+- 文件: `tests/performance/test_concurrency.py`（新建）
+- 文件: `tests/performance/test_load.py`（新建）
+
+**前置依赖**  
+- 核心 API 端点已实现
+- Docker Compose 开发环境可用
+
+**完成标准**  
+- [ ] 并发连接测试（3+ 场景）
+- [ ] 并发写入测试（3+ 场景）
+- [ ] 并发搜索测试（3+ 场景）
+- [ ] 资源监控（2+ 指标）
+- [ ] 性能基准（2+ 指标）
+
+**验证方式**  
+```bash
+uv run pytest tests/performance/test_concurrency.py -v
+```
+
+---
+
+### BL-T-5 [P2] 故障恢复测试
+
+**目标**  
+建立故障恢复测试套件，验证系统在依赖服务故障时的恢复能力。
+
+**涉及范围**  
+- 文件: `tests/resilience/test_service_recovery.py`（新建）
+- 文件: `tests/resilience/test_db_reconnect.py`（新建）
+
+**前置依赖**  
+- Docker Compose 环境可用
+- 服务健康检查端点已实现
+
+**完成标准**  
+- [ ] SurrealDB 故障恢复（4+ 场景）
+- [ ] Meilisearch 故障恢复（3+ 场景）
+- [ ] Embedding 服务故障（3+ 场景）
+- [ ] Wrapper 服务重启（3+ 场景）
+- [ ] 网络分区测试（2+ 场景）
+
+**验证方式**  
+```bash
+uv run pytest tests/resilience/ -v
+```
+
+---
+
+### BL-T-6 [P2] E2E 测试套件整合
+
+**目标**  
+整合现有 E2E 测试，建立完整的端到端测试套件，覆盖核心用户场景。
+
+**涉及范围**  
+- 文件: `tests/e2e/test_complete_workflow.py`（新建）
+- 文件: `tests/e2e/test_multi_device_sync.py`（新建）
+
+**前置依赖**  
+- Docker Compose 完整环境可用
+- 所有核心 API 端点已实现
+
+**完成标准**  
+- [ ] 完整工作流测试（3+ 场景）
+- [ ] 多设备同步场景（3+ 场景）
+- [ ] WebSocket 实时推送场景（2+ 场景）
+- [ ] 性能基准场景（2+ 场景）
+- [ ] 测试报告生成
+
+**验证方式**  
+```bash
+uv run pytest tests/e2e/ -v --html=report.html
+```
+
+---
+
+## 统计汇总
+
+| 分类 | 总数 | P1 | P2 | P3 | 工时 |
+|------|------|----|----|----|------|
+| Phase 1: 依赖升级 | 1 | 1 | 0 | 0 | 1 天 |
+| Phase 2: WebSocket 重写 | 9 | 3 | 5 | 1 | 5.5 天 |
+| Phase 3: PrecomputeService | 8 | 5 | 3 | 0 | 4 天 |
+| Phase 4: Meilisearch SDK | 5 | 1 | 3 | 1 | 2.5 天 |
+| Phase 5: Schema 升级 | 6 | 2 | 3 | 1 | 2.5 天 |
+| Phase 6: 端口迁移 | 5 | 1 | 3 | 1 | 2.5 天 |
+| Phase 7: 测试 | 5 | 2 | 2 | 1 | 3 天 |
+| WebSocket 后续 | 12 | 8 | 4 | 0 | 6.5 天 |
+| PrecomputeService 后续 | 9 | 6 | 3 | 0 | 4.5 天 |
+| 文档 | 8 | 2 | 4 | 2 | 5.5 天 |
+| **测试补充 (v3.4)** | **6** | **3** | **3** | **0** | **5 天** |
+| **总计** | **74** | **34** | **33** | **7** | **42 天** |
