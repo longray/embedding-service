@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] - 2026-04-15
+
+### Added
+
+- **BACKLOG v3.3: PrecomputeService 完善 + Stub 端点实现**
+  - **PrecomputeService 核心功能**
+    - 初始化资源实现（tree-sitter、配置加载、数据库连接）
+    - 资源清理实现（并发控制、队列清理、性能监控停止）
+    - 文件处理逻辑（AST 解析、指纹计算、符号提取）
+  - **HNSW 索引管理端点**
+    - `GET /api/v1/hnsw/stats` - HNSW 索引统计
+    - `POST /api/v1/hnsw/optimize` - 自动优化 HNSW 参数
+    - `POST /api/v1/hnsw/rebuild` - 重建 HNSW 索引
+  - **缓存管理端点**
+    - `GET /api/v1/cache/stats` - 缓存统计
+    - `POST /api/v1/cache/clear` - 清空缓存
+    - `POST /api/v1/cache/warmup` - 预热缓存
+  - **代码分析端点**
+    - `POST /api/v1/memories/{id}/analyze/code` - 分析记忆内容中的代码
+    - 支持 Python、JavaScript、TypeScript、Go
+    - 返回代码复杂度、函数、类等信息
+  - **记忆聚类端点**
+    - `POST /api/v1/memories/cluster/leiden` - Leiden 算法聚类
+    - 基于向量相似度的连通分量聚类
+    - 支持自定义相似度阈值和最大簇数量
+  - **预取功能端点**
+    - `POST /api/v1/prefetch/related` - 预取相关记忆（基于关系图）
+    - `POST /api/v1/prefetch/popular` - 预取热门记忆（基于访问统计）
+    - 支持深度遍历（1-3层）
+
+### Changed
+
+- **测试套件增强**: 新增 42 个单元测试，总计 190+ 测试用例
+- **路由模块化**: 新增独立 routers（hnsw.py, cache.py, code_analysis.py, clustering.py, prefetch.py）
+- **tree-sitter 兼容性**: 修复 0.25.x API 兼容性（Parser 初始化方式）
+
+### Technical
+
+- **ClusteringService**: 基于 NumPy 的连通分量聚类算法（无需 leidenalg 依赖）
+- **PrefetchService**: 关系图遍历 + 最近活跃度排序
+- **FingerprintManager**: SHA256 指纹计算和变更检测
+- **ConcurrencyControl**: Semaphore-based 并发控制
+
 ## [2.7.2] - 2026-04-09
 
 ### Added

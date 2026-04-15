@@ -16,6 +16,7 @@
 - [产品文档](./PRODUCT.md) - 面向终端用户
 - [开发文档](./DEVELOPMENT.md) - 面向开发人员
 - [v3.2 设计文档](./v3.2/) - 详细设计规范
+- [BACKLOG v3.3](./BACKLOG-v3.3.md) - PrecomputeService + Stub 端点（8 个任务，100% 完成）
 
 ---
 

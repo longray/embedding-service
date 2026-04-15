@@ -1,10 +1,10 @@
 # Embedding Service (OpenCode Memory Stack)
 
-**当前版本**: v2.7.1
+**当前版本**: v2.8.0
 
 ## 开发状态
 
-**实施阶段**: P0 + P1 + P2 + Phase 3 + Polyglot 搜索架构 + 同步冲突解决 + SQL 优化 + embedding 优化 已完成
+**实施阶段**: P0 + P1 + P2 + Phase 3 + BACKLOG v3.3 已完成
 
 ### 已完成 ✅
 
@@ -25,6 +25,7 @@
 - ✅ **v2.6.0** 质量治理（memory_manager Mixin 拆分 + main.py 路由模块化 + 35 个单元测试 + 文档归档对齐）
 - ✅ **v2.7.0** 多设备同步（指纹查询/同步预览/全量同步/冲突解决）+ 测试架构优化
 - ✅ **v2.7.1** SQL 查询优化（RecordID 统一、分批处理、embedding 字段优化）+ 安全性修复
+- ✅ **v2.8.0** PrecomputeService 完善 + Stub 端点实现（BACKLOG v3.3 全部完成）
 
 ### P3 优化路线图 🚀
 
@@ -35,6 +36,7 @@
 | P3-3 | 监控告警 | 自动告警 | ⏳ 待开始 |
 | P3-4 | Kubernetes | 云原生部署 | ⏳ 待开始 |
 | P3-5 | 审计日志 | 合规审计 | 🔄 进行中 |
+| **v3.3** | **PrecomputeService + Stub 端点** | **代码预计算、聚类、预取** | **✅ 已完成** |
 
 查看 [ROADMAP.md](ROADMAP.md) 了解详细计划。
 
@@ -65,16 +67,16 @@
 | `/api/v1/memories/clear` | DELETE | 清空所有记忆（调试专用） | 🔐 API Key |
 | `/api/v1/access-log` | POST | 上报访问日志 | 🌍 公开 |
 | `/ws/memories/live` | WebSocket | 实时推送记忆变更 | 🔓 可选 |
-| `/api/v1/hnsw/stats` | GET | HNSW 索引统计 ✅ 已实现 | 🌍 公开 |
-| `/api/v1/hnsw/optimize` | POST | 优化 HNSW 参数 ⏳ 计划中 | 🌍 公开 |
-| `/api/v1/hnsw/rebuild` | POST | 重建 HNSW 索引 ⏳ 计划中 | 🌍 公开 |
-| `/api/v1/cache/stats` | GET | 缓存统计 ✅ 已实现 | 🌍 公开 |
-| `/api/v1/cache/clear` | POST | 清空缓存 ⏳ 计划中 | 🌍 公开 |
-| `/api/v1/cache/warmup` | POST | 预热缓存 ⏳ 计划中 | 🌍 公开 |
-| `/api/v1/prefetch/related` | POST | 预取关联记忆 ⏳ 计划中 | 🌍 公开 |
-| `/api/v1/prefetch/popular` | POST | 预取热门记忆 ⏳ 计划中 | 🌍 公开 |
-| `/api/v1/memories/{id}/analyze/code` | POST | 代码分析 ⏳ 计划中 | 🌍 公开 |
-| `/api/v1/memories/cluster/leiden` | POST | Leiden 聚类 ⏳ 计划中 | 🌍 公开 |
+| `/api/v1/hnsw/stats` | GET | HNSW 索引统计 ✅ | 🌍 公开 |
+| `/api/v1/hnsw/optimize` | POST | 优化 HNSW 参数 ✅ | 🌍 公开 |
+| `/api/v1/hnsw/rebuild` | POST | 重建 HNSW 索引 ✅ | 🌍 公开 |
+| `/api/v1/cache/stats` | GET | 缓存统计 ✅ | 🌍 公开 |
+| `/api/v1/cache/clear` | POST | 清空缓存 ✅ | 🌍 公开 |
+| `/api/v1/cache/warmup` | POST | 预热缓存 ✅ | 🌍 公开 |
+| `/api/v1/prefetch/related` | POST | 预取关联记忆 ✅ | 🌍 公开 |
+| `/api/v1/prefetch/popular` | POST | 预取热门记忆 ✅ | 🌍 公开 |
+| `/api/v1/memories/{id}/analyze/code` | POST | 代码分析 ✅ | 🌍 公开 |
+| `/api/v1/memories/cluster/leiden` | POST | Leiden 聚类 ✅ | 🌍 公开 |
 | `/api/v1/sync/preview` | POST | 同步预览（差异分析） | 🌍 公开 |
 | `/api/v1/sync/incremental` | POST | 同步预览（兼容别名） | 🌍 公开 |
 | `/api/v1/sync/full` | POST | 全量同步 | 🌍 公开 |
