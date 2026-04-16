@@ -4,7 +4,7 @@
 
 前置条件：
 - SurrealDB 运行在 ws://localhost:18002
-- Wrapper 服务运行在 http://localhost:17999
+- Wrapper 服务运行在 http://localhost:18008
 
 运行方式：
     uv run pytest tests/test_websocket.py -v
@@ -17,7 +17,7 @@ from websockets.exceptions import InvalidStatusCode
 pytestmark = pytest.mark.e2e
 
 
-WRAPPER_WS_URL = "ws://localhost:17999/ws/memories/live"
+WRAPPER_WS_URL = "ws://localhost:18008/ws/memories/live"
 
 
 class TestWebSocketConnection:

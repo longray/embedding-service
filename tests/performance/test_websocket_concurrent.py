@@ -375,7 +375,7 @@ def main():
     parser.add_argument(
         "--url",
         type=str,
-        default="ws://localhost:17999/ws/memories/live",
+        default="ws://localhost:18008/ws/memories/live",
         help="WebSocket URL",
     )
 

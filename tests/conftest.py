@@ -46,8 +46,8 @@ from typing import AsyncGenerator
 # 服务配置
 EMBEDDING_SERVICE_URL = "http://localhost:18000"
 LLM_SERVICE_URL = "http://localhost:18001"
-WRAPPER_SERVICE_URL = "http://localhost:17999"
-WRAPPER_MINIMAL_URL = "http://localhost:17999"
+WRAPPER_SERVICE_URL = "http://localhost:18008"
+WRAPPER_MINIMAL_URL = "http://localhost:18008"
 
 # 超时配置
 DEFAULT_TIMEOUT = 30.0
@@ -84,7 +84,7 @@ async def wrapper_client() -> AsyncGenerator[httpx.AsyncClient, None]:
 
 @pytest_asyncio.fixture(scope="session")
 async def wrapper_minimal_client() -> AsyncGenerator[httpx.AsyncClient, None]:
-    """最小化包装服务客户端（端口17999）"""
+    """最小化包装服务客户端（端口18008）"""
     async with httpx.AsyncClient(base_url=WRAPPER_MINIMAL_URL, timeout=DEFAULT_TIMEOUT) as client:
         yield client
 

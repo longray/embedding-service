@@ -79,12 +79,9 @@ services:
       target: production
     container_name: wrapper-service
     ports:
-      - "18008:18008"  # v3.2: 新默认端口
-      - "17999:17999"  # v3.2: 旧端口（并行期支持）
+      - "18008:18008"
     environment:
       - WRAPPER_PORT=18008
-      - WRAPPER_LEGACY_PORT=17999
-      - WRAPPER_ENABLE_DUAL_PORT=true
       - WRAPPER_EMBEDDING_SERVICE_URL=http://embedding:18000
       - WRAPPER_SURREALDB_URL=ws://surrealdb:18002/rpc
       - WRAPPER_SURREALDB_NAMESPACE=memory_ns

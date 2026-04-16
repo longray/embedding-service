@@ -7,7 +7,7 @@ import pytest
 pytestmark = pytest.mark.e2e
 
 
-BASE_URL = "http://localhost:17999"
+BASE_URL = "http://localhost:18008"
 
 
 def get_unique_tenant_id():

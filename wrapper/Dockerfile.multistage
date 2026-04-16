@@ -86,12 +86,10 @@ USER appuser
 
 # Environment variables
 ENV WRAPPER_PORT=18008 \
-    WRAPPER_HOST=0.0.0.0 \
-    WRAPPER_LEGACY_PORT=17999 \
-    WRAPPER_ENABLE_DUAL_PORT=true
+    WRAPPER_HOST=0.0.0.0
 
-# Expose ports
-EXPOSE 18008 17999
+# Expose port
+EXPOSE 18008
 
 # Health check
 HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=5 \
@@ -105,8 +103,6 @@ FROM builder AS development
 
 ENV WRAPPER_PORT=18008 \
     WRAPPER_HOST=0.0.0.0 \
-    WRAPPER_LEGACY_PORT=17999 \
-    WRAPPER_ENABLE_DUAL_PORT=true \
     WRAPPER_DEBUG=true \
     PYTHONPATH=/app
 
@@ -119,7 +115,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     ruff \
     "uvicorn[standard]>=0.30"
 
-EXPOSE 18008 17999
+EXPOSE 18008
 
 # Use uvicorn with reload for hot-reload development
 CMD ["uvicorn", "wrapper.src.main:app", "--host", "0.0.0.0", "--port", "18008", "--reload", "--reload-dir", "/app/wrapper/src"]

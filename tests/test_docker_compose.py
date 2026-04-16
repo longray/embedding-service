@@ -27,14 +27,15 @@ class TestDockerComposeConfig:
         except (FileNotFoundError, KeyError):
             pytest.skip("docker-compose.yml not found or invalid")
 
-    def test_wrapper_service_exposes_legacy_port(self):
-        """Test wrapper service exposes legacy port 17999"""
+    def test_wrapper_service_uses_port_18008(self):
+        """Test wrapper service exposes port 18008"""
         try:
             with open("docker-compose.yml", "r") as f:
                 config = yaml.safe_load(f)
             wrapper = config["services"]["wrapper"]
             ports = wrapper.get("ports", [])
-            assert any("17999" in str(p) for p in ports)
+            assert any("18008" in str(p) for p in ports)
+            assert not any("17999" in str(p) for p in ports)
         except (FileNotFoundError, KeyError):
             pytest.skip("docker-compose.yml not found or invalid")
 
@@ -80,7 +81,7 @@ class TestDockerComposeConfig:
                 config = yaml.safe_load(f)
             wrapper = config["services"]["wrapper"]
             depends_on = wrapper.get("depends_on", {})
-            required_services = ["surrealdb", "embedding", "llm", "meilisearch"]
+            required_services = ["surrealdb", "embedding", "meilisearch"]
             for service in required_services:
                 assert service in depends_on
                 condition = depends_on[service].get("condition", "")
@@ -101,8 +102,8 @@ class TestDockerComposeConfig:
                     key, value = e.split("=", 1)
                     env_dict[key] = value
             assert env_dict.get("WRAPPER_PORT") == "18008"
-            assert env_dict.get("WRAPPER_LEGACY_PORT") == "17999"
-            assert env_dict.get("WRAPPER_ENABLE_DUAL_PORT") == "true"
+            assert "WRAPPER_LEGACY_PORT" not in env_dict
+            assert "WRAPPER_ENABLE_DUAL_PORT" not in env_dict
         except (FileNotFoundError, KeyError):
             pytest.skip("docker-compose.yml not found or invalid")
 
@@ -112,7 +113,7 @@ class TestDockerComposeConfig:
             with open("docker-compose.yml", "r") as f:
                 config = yaml.safe_load(f)
             services = config.get("services", {})
-            required_services = ["surrealdb", "meilisearch", "embedding", "llm", "wrapper"]
+            required_services = ["surrealdb", "meilisearch", "embedding", "wrapper"]
             for service_name in required_services:
                 service = services.get(service_name, {})
                 assert "healthcheck" in service, f"{service_name} missing healthcheck"

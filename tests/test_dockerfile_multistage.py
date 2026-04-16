@@ -73,12 +73,12 @@ class TestDockerfileMultistage:
         except FileNotFoundError:
             pytest.skip("Dockerfile.multistage not found")
 
-    def test_exposes_legacy_port(self):
-        """Test Dockerfile exposes legacy port 17999"""
+    def test_no_legacy_port(self):
+        """Test Dockerfile does not expose legacy port 17999"""
         try:
             with open("wrapper/Dockerfile.multistage", "r") as f:
                 content = f.read()
-            assert "EXPOSE 18008 17999" in content or "EXPOSE 17999" in content
+            assert "17999" not in content
         except FileNotFoundError:
             pytest.skip("Dockerfile.multistage not found")
 
@@ -116,8 +116,8 @@ class TestDockerfileMultistage:
             with open("wrapper/Dockerfile.multistage", "r") as f:
                 content = f.read()
             assert "WRAPPER_PORT=18008" in content
-            assert "WRAPPER_LEGACY_PORT=17999" in content
-            assert "WRAPPER_ENABLE_DUAL_PORT=true" in content
+            assert "WRAPPER_LEGACY_PORT" not in content
+            assert "WRAPPER_ENABLE_DUAL_PORT" not in content
         except FileNotFoundError:
             pytest.skip("Dockerfile.multistage not found")
 

@@ -90,11 +90,8 @@ services:
     container_name: wrapper-service-dev
     ports:
       - "18008:18008"
-      - "17999:17999"
     environment:
       - WRAPPER_PORT=18008
-      - WRAPPER_LEGACY_PORT=17999
-      - WRAPPER_ENABLE_DUAL_PORT=true
       - WRAPPER_EMBEDDING_SERVICE_URL=http://embedding:18000
       - WRAPPER_LLM_SERVICE_URL=http://llm:18001
       - WRAPPER_SURREALDB_URL=ws://surrealdb:18002/rpc

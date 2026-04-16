@@ -9,7 +9,7 @@
 前置条件：
 - Embedding服务运行在 http://localhost:18000
 - SurrealDB运行在 ws://localhost:18002
-- Wrapper服务运行在 http://localhost:17999
+- Wrapper服务运行在 http://localhost:18008
 
 运行方式：
     uv run pytest tests/test_wrapper_api.py -v
@@ -25,7 +25,7 @@ import pytest_asyncio
 
 pytestmark = pytest.mark.e2e
 
-WRAPER_MINIMAL_URL = "http://localhost:17999"
+WRAPER_MINIMAL_URL = "http://localhost:18008"
 DEFAULT_TIMEOUT = 60.0
 
 
