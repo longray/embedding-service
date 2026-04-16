@@ -37,7 +37,7 @@
 
 ```bash
 # 搜索所有认证相关代码
-curl -X POST http://localhost:17999/api/v1/memories/search \
+curl -X POST http://localhost:18008/api/v1/memories/search \
   -d '{"query": "authentication", "type": "code"}'
 ```
 
@@ -46,7 +46,7 @@ curl -X POST http://localhost:17999/api/v1/memories/search \
 
 ```bash
 # 搜索 TypeScript 中高复杂度的函数
-curl -X POST http://localhost:17999/api/v1/memories/search \
+curl -X POST http://localhost:18008/api/v1/memories/search \
   -d '{
     "query": "validate",
     "type": "code",
@@ -74,7 +74,7 @@ curl -X POST http://localhost:17999/api/v1/memories/search \
 
 ```bash
 # 查询某函数被哪些代码调用
-curl http://localhost:17999/api/v1/memories/mem_xxx/references
+curl http://localhost:18008/api/v1/memories/mem_xxx/references
 
 # 返回:
 # {
@@ -98,7 +98,7 @@ curl http://localhost:17999/api/v1/memories/mem_xxx/references
 
 ```bash
 # 获取项目代码地图
-curl http://localhost:17999/api/v1/projects/github.com/user/repo/map
+curl http://localhost:18008/api/v1/projects/github.com/user/repo/map
 
 # 返回:
 # {
@@ -127,7 +127,7 @@ curl http://localhost:17999/api/v1/projects/github.com/user/repo/map
 
 ```bash
 # 搜索"用户认证逻辑"
-curl -X POST http://localhost:17999/api/v1/memories/search \
+curl -X POST http://localhost:18008/api/v1/memories/search \
   -d '{
     "semantic_query": "用户认证逻辑",
     "type": "code"
@@ -240,7 +240,7 @@ curl -X POST http://localhost:17999/api/v1/memories/search \
 ```bash
 # 1. 找到 auth.ts 的记忆 ID
 # 2. 查询引用关系（开发中）
-curl http://localhost:17999/api/v1/memories/mem_auth/references
+curl http://localhost:18008/api/v1/memories/mem_auth/references
 ```
 
 ### 场景 2: PR 代码审查 ✅ 已实现
@@ -250,7 +250,7 @@ curl http://localhost:17999/api/v1/memories/mem_auth/references
 **解决**:
 
 ```bash
-curl -X POST http://localhost:17999/api/v1/memories/search \
+curl -X POST http://localhost:18008/api/v1/memories/search \
   -d '{
     "type": "code",
     "code_filter": {
@@ -268,7 +268,7 @@ curl -X POST http://localhost:17999/api/v1/memories/search \
 
 ```bash
 # 获取项目代码地图
-curl http://localhost:17999/api/v1/projects/github.com/user/repo/map
+curl http://localhost:18008/api/v1/projects/github.com/user/repo/map
 ```
 
 ---

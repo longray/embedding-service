@@ -57,7 +57,7 @@
 
 - Embedding 服务（Qwen3-Embedding-0.6B）
 - LLM 服务（MiniCPM4-0.5B）
-- 最小化包装服务（端口 17999）
+- 最小化包装服务（端口 18008）
   - LRU 缓存
   - HTTP 连接池
   - SurrealDB 长期连接
@@ -108,7 +108,7 @@
 
 - Embedding 服务（Qwen3-Embedding-0.6B）
 - LLM 服务（MiniCPM4-0.5B）
-- 最小化包装服务（端口 17999，无熔断器）
+- 最小化包装服务（端口 18008，无熔断器）
   - LRU 缓存
   - HTTP 连接池
   - SurrealDB 长期连接
@@ -131,7 +131,7 @@
 
 - Embedding 服务（Qwen3-Embedding-0.6B）
 - LLM 服务（MiniCPM4-0.5B）
-- 最小化包装服务（端口 17999，无熔断器）
+- 最小化包装服务（端口 18008，无熔断器）
   - LRU 缓存
   - HTTP 连接池
   - SurrealDB 长期连接

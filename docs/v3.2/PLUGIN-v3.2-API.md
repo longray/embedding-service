@@ -28,8 +28,8 @@ export const config = {
   API_BASE: "http://localhost:18008/api/v1",
   WS_BASE: "ws://localhost:18008/api/v1/ws",
 
-  // 向后兼容
-  LEGACY_API_BASE: "http://localhost:17999/api/v1",
+  // 向后兼容（已废弃）
+  LEGACY_API_BASE: "http://localhost:18008/api/v1",
 
   // 认证
   API_KEY: process.env.OPENCODE_API_KEY,

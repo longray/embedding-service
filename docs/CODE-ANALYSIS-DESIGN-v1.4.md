@@ -469,19 +469,19 @@ Request:
     {
       "name": "code_search",
       "description": "搜索代码记忆，支持自然语言和代码符号",
-      "command": "curl -X POST http://localhost:17999/api/v1/tools/code_search",
+      "command": "curl -X POST http://localhost:18008/api/v1/tools/code_search",
       "args": ["query", "language", "max_complexity"]
     },
     {
       "name": "code_context",
       "description": "获取代码文件的完整上下文（函数、类、依赖）",
-      "command": "curl http://localhost:17999/api/v1/tools/code_context",
+      "command": "curl http://localhost:18008/api/v1/tools/code_context",
       "args": ["file_path", "line_number"]
     },
     {
       "name": "code_impact",
       "description": "分析修改某文件的影响范围",
-      "command": "curl -X POST http://localhost:17999/api/v1/tools/code_impact",
+      "command": "curl -X POST http://localhost:18008/api/v1/tools/code_impact",
       "args": ["file_path"]
     }
   ]

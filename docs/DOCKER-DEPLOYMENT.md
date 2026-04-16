@@ -110,7 +110,7 @@ curl -X POST http://localhost:27999/v1/embeddings \
 
 | 服务 | 容器内端口 | 宿主机端口 | 访问地址 |
 |------|-----------|-----------|----------|
-| Wrapper | 17999 | 27999 | http://localhost:27999 |
+| Wrapper | 18008 | 27999 | http://localhost:27999 |
 | Embedding | 18000 | 28000 | http://localhost:28000 |
 | SurrealDB | 18002 | 28002 | ws://localhost:28002/rpc |
 | Meilisearch | 7700 | 28003 | http://localhost:28003 |
@@ -306,7 +306,7 @@ WRAPPER_OTEL_ENABLED=false
 | 环境隔离 | 无 | 完全隔离 |
 | GPU 支持 | 直接使用 | 需配置 NVIDIA Container Toolkit |
 | 数据持久化 | 本地目录 | docker-data/ 目录 |
-| 端口 | 17999/18000/18002/18003 | +10000（27999/28000/28002/28003） |
+| 端口 | 18008/18000/18002/18003 | +10000（28008/28000/28002/28003） |
 | 启动顺序 | 串行等待健康检查 | depends_on + healthcheck 自动保证 |
 | 适用场景 | 开发调试 | 生产部署 / 长期运行 |
 

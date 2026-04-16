@@ -8,7 +8,7 @@ setlocal EnableDelayedExpansion
 set "PROJECT_DIR=D:\embedding_service"
 set "UV_PATH=C:\Users\Longray\.local\bin\uv.exe"
 set "EMBEDDING_PORT=18000"
-set "WRAPPER_PORT=17999"
+set "WRAPPER_PORT=18008"
 set "SURREALDB_PORT=18002"
 set "HEALTH_TIMEOUT=3"
 

@@ -19,12 +19,12 @@ RUN uv pip install --system \
 # 注意：代码通过卷挂载提供，不需要 COPY
 # 开发模式：docker-compose.yml 中挂载 ./wrapper/src:/app/wrapper/src
 
-ENV WRAPPER_PORT=17999 \
+ENV WRAPPER_PORT=18008 \
     WRAPPER_HOST=0.0.0.0
 
-EXPOSE 17999
+EXPOSE 18008
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=5 \
-    CMD curl -f http://localhost:17999/health || exit 1
+    CMD curl -f http://localhost:18008/health || exit 1
 
 CMD ["python", "-m", "wrapper.src.main"]

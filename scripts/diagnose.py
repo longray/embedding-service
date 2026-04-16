@@ -7,7 +7,7 @@
     uv run python scripts/diagnose.py
 
 环境变量:
-    WRAPPER_URL          Wrapper 服务地址 (默认: http://localhost:17999)
+    WRAPPER_URL          Wrapper 服务地址 (默认: http://localhost:18008)
     EMBEDDING_URL        Embedding 服务地址 (默认: http://localhost:18000)
     SURREALDB_URL        SurrealDB 地址 (默认: ws://localhost:18002)
     MEILISEARCH_URL      Meilisearch 地址 (默认: http://localhost:18003)
@@ -216,7 +216,7 @@ async def main():
     print_header("🔍 Embedding Service 系统诊断")
 
     # 获取配置
-    wrapper_url = "http://localhost:17999"
+    wrapper_url = "http://localhost:18008"
     embedding_url = "http://localhost:18000"
     meilisearch_url = "http://localhost:18003"
 

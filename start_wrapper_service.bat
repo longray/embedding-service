@@ -8,7 +8,7 @@ setlocal EnableDelayedExpansion
 set "PROJECT_DIR=D:\embedding_service"
 set "UV_PATH=C:\Users\Longray\.local\bin\uv.exe"
 set "PYTHON_PATH=%PROJECT_DIR%\.venv\Scripts\python.exe"
-set "PORT=17999"
+set "PORT=18008"
 set "HEALTH_URL=http://localhost:%PORT%/health"
 set "HEALTH_TIMEOUT=3"
 

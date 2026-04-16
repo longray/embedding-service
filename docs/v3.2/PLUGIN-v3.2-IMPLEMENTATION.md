@@ -71,8 +71,8 @@ export const config = {
   // 日志
   LOG_LEVEL: process.env.LOG_LEVEL || "info",
 
-  // 向后兼容
-  LEGACY_PORT: 17999,
+  // 向后兼容（已废弃，统一使用 18008）
+  LEGACY_PORT: 18008,
 };
 ```
 

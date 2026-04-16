@@ -242,7 +242,7 @@ async def auto_sync_workflow(base_url: str, tenant_id: str, local_memories: list
 
 # 使用示例
 asyncio.run(auto_sync_workflow(
-    base_url="http://localhost:17999",
+    base_url="http://localhost:18008",
     tenant_id="default",
     local_memories=[
         {"source_id": "entry-001", "hash": "abc123", "content": "本地内容"}
@@ -378,7 +378,7 @@ def hash_content(content: str) -> str:
 # 使用示例
 async def main():
     manager = OfflineSyncManager(
-        base_url="http://localhost:17999",
+        base_url="http://localhost:18008",
         tenant_id="default",
         local_dir=Path("./notes")
     )
@@ -404,7 +404,7 @@ from typing import Optional
 class CollaborationSession:
     user_id: str
     project_id: str
-    base_url: str = "http://localhost:17999"
+    base_url: str = "http://localhost:18008"
 
     @property
     def tenant_id(self) -> str:
@@ -577,7 +577,7 @@ class BackupManager:
 # 使用示例
 async def backup_restore_workflow():
     manager = BackupManager(
-        base_url="http://localhost:17999",
+        base_url="http://localhost:18008",
         tenant_id="default",
         backup_dir=Path("./backups")
     )

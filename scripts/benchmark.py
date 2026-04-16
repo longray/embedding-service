@@ -12,7 +12,7 @@ Embedding Service 性能基准测试
 使用方式：
     uv run python scripts/benchmark.py
     uv run python scripts/benchmark.py --iterations 10
-    uv run python scripts/benchmark.py --url http://localhost:17999
+    uv run python scripts/benchmark.py --url http://localhost:18008
 """
 
 import argparse
@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 
 import httpx
 
-BASE_URL = "http://localhost:17999"
+BASE_URL = "http://localhost:18008"
 TENANT_ID = "bench-tenant"
 TIMEOUT = 60.0
 
@@ -421,7 +421,7 @@ async def run_benchmark(url: str, iterations: int):
 
 def main():
     parser = argparse.ArgumentParser(description="Embedding Service 性能基准测试")
-    parser.add_argument("--url", default="http://localhost:17999", help="服务地址")
+    parser.add_argument("--url", default="http://localhost:18008", help="服务地址")
     parser.add_argument("--iterations", type=int, default=5, help="每项测试迭代次数")
     args = parser.parse_args()
 

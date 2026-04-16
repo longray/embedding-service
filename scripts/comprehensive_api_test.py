@@ -16,7 +16,7 @@ from typing import Any
 import httpx
 
 # 配置
-BASE_URL = "http://localhost:17999"
+BASE_URL = "http://localhost:18008"
 TENANT_ID = "test-tenant-001"
 TEST_TIMEOUT = 30.0
 

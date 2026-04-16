@@ -9,7 +9,7 @@
 
 运行示例：
     uv run python scripts/demo_wrapper.py
-    uv run python scripts/demo_wrapper.py --base-url http://localhost:17999 --pretty-json
+    uv run python scripts/demo_wrapper.py --base-url http://localhost:18008 --pretty-json
 """
 
 from __future__ import annotations
@@ -280,7 +280,7 @@ async def step_search_memories(client: httpx.AsyncClient, cfg: DemoConfig) -> bo
 
 def parse_args() -> DemoConfig:
     parser = argparse.ArgumentParser(description="包装层核心功能演示脚本（详细输出）")
-    parser.add_argument("--base-url", default="http://localhost:17999", help="包装层服务地址")
+    parser.add_argument("--base-url", default="http://localhost:18008", help="包装层服务地址")
     parser.add_argument("--timeout", type=float, default=20.0, help="HTTP 请求超时时间（秒）")
     parser.add_argument("--pretty-json", action="store_true", help="以多行缩进格式输出 JSON")
     parser.add_argument("--search-limit", type=int, default=5, help="搜索接口 limit 参数")

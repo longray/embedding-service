@@ -6,7 +6,7 @@ import pytest
 from datetime import datetime, timedelta
 
 
-BASE_URL = "http://localhost:17999"
+BASE_URL = "http://localhost:18008"
 
 
 class TestAuditLogAPI:

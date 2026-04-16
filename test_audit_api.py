@@ -6,7 +6,7 @@ import httpx
 
 async def test_audit_api():
     """测试审计日志 API"""
-    base_url = "http://localhost:17999"
+    base_url = "http://localhost:18008"
 
     print("=" * 60)
     print("测试审计日志 API (P3-5)")

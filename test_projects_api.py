@@ -7,7 +7,7 @@ import sys
 
 async def test_project_endpoints():
     """测试项目地图和统计端点"""
-    base_url = "http://localhost:17999"
+    base_url = "http://localhost:18008"
     project_id = "test-project"
     tenant_id = "default"
 

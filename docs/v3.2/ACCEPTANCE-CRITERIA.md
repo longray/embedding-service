@@ -129,7 +129,6 @@ npm run test:performance:websocket
 | Precompute | `PRECOMPUTE_INTERVAL` | 300 | 配置读取 |
 | Precompute | `PRECOMPUTE_MAX_CONCURRENT` | 5 | 配置读取 |
 | Port | `PORT` | 18008 | 配置读取 |
-| Port | `LEGACY_PORT` | 17999 | 配置读取 |
 | ... | ... | ... | ... |
 
 **验证方式**:

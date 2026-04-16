@@ -32,7 +32,7 @@ uv run python start_services.py --with-llm --no-wrapper
    └── 等待就绪（约10-30秒）
 
 3. 启动包装层服务（推荐）
-   ├── 端口：18008（旧端口 17999 并行支持）
+   ├── 端口：18008
    └── 等待就绪（<5秒）
 
 ```text

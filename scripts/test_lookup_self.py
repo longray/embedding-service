@@ -4,7 +4,7 @@ import asyncio
 import hashlib
 import httpx
 
-BASE_URL = "http://localhost:17999"
+BASE_URL = "http://localhost:18008"
 TEST_TENANT = "default"
 TEST_PROJECT = "self-test-project"
 

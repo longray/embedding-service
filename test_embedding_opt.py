@@ -5,7 +5,7 @@ import asyncio
 import httpx
 import json
 
-BASE_URL = "http://localhost:17999"
+BASE_URL = "http://localhost:18008"
 
 
 async def test():

@@ -26,7 +26,7 @@ def main():
 
     services = [
         ("Embedding服务", "http://localhost:18000/health"),
-        ("包装层服务", "http://localhost:17999/health"),
+        ("包装层服务", "http://localhost:18008/health"),
     ]
 
     results = []

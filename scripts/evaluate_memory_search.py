@@ -52,7 +52,7 @@ class QueryEval:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="评估 memory search 准确性")
-    parser.add_argument("--base-url", default="http://localhost:17999", help="wrapper 服务地址")
+    parser.add_argument("--base-url", default="http://localhost:18008", help="wrapper 服务地址")
     parser.add_argument("--topk", type=int, default=5, help="评估 top-k")
     parser.add_argument("--threshold", type=float, default=0.7, help="兼容参数：统一阈值（若未指定分模式阈值则使用）")
     parser.add_argument("--vector-threshold", type=float, default=None, help="vector 模式阈值")

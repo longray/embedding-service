@@ -9,7 +9,7 @@ import httpx
 from datetime import datetime
 
 
-BASE_URL = "http://localhost:17999"
+BASE_URL = "http://localhost:18008"
 
 
 async def create_test_memories():
