@@ -334,4 +334,39 @@ DEFINE INDEX IF NOT EXISTS idx_memory_content_hash ON memory FIELDS content_hash
 
 -- file_path + project_id 复合索引（用于路径查询）
 DEFINE INDEX IF NOT EXISTS idx_memory_file_path_project ON memory FIELDS file_path, project_id;
+
+-- ==================== Code Fingerprint 表 (BL-B-80) ====================
+
+DEFINE TABLE IF NOT EXISTS file_fingerprint TYPE NORMAL SCHEMAFULL;
+    -- 代码文件指纹表，用于增量同步
+
+-- 核心字段
+DEFINE FIELD IF NOT EXISTS file_path ON file_fingerprint TYPE string;
+    -- 文件路径（唯一标识）
+
+DEFINE FIELD IF NOT EXISTS content_hash ON file_fingerprint TYPE string;
+    -- 文件内容哈希（SHA256）
+
+DEFINE FIELD IF NOT EXISTS symbols_hash ON file_fingerprint TYPE string;
+    -- 符号哈希（函数名+参数哈希）
+
+DEFINE FIELD IF NOT EXISTS tenant_id ON file_fingerprint TYPE string DEFAULT 'default';
+    -- 租户ID
+
+DEFINE FIELD IF NOT EXISTS project_id ON file_fingerprint TYPE string DEFAULT 'global';
+    -- 项目ID
+
+DEFINE FIELD IF NOT EXISTS updated_at ON file_fingerprint TYPE datetime DEFAULT time::now();
+    -- 更新时间
+
+-- 复合唯一索引（文件路径 + 租户 + 项目）
+DEFINE INDEX IF NOT EXISTS idx_fingerprint_unique ON file_fingerprint FIELDS file_path, tenant_id, project_id UNIQUE;
+    -- 唯一约束：同一项目内文件路径唯一
+
+-- 查询索引
+DEFINE INDEX IF NOT EXISTS idx_fingerprint_tenant_project ON file_fingerprint FIELDS tenant_id, project_id;
+    -- 按租户和项目查询（最常用的查询模式）
+
+DEFINE INDEX IF NOT EXISTS idx_fingerprint_content_hash ON file_fingerprint FIELDS content_hash;
+    -- 按内容哈希查询（用于去重）
     -- 按 file_path + project_id 组合查询（lookup API）

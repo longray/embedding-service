@@ -156,6 +156,82 @@ class ConflictResolutionRequest(BaseModel):
     tenant_id: str = Field(default="default", description="租户ID")
 
 
+# ==================== Code Fingerprint Sync Models (BL-B-80) ====================
+
+
+class CodeFingerprintItem(BaseModel):
+    """代码文件指纹项"""
+
+    file: str = Field(..., description="文件路径")
+    content_hash: str = Field(..., description="文件内容哈希（SHA256）")
+    symbols_hash: str = Field(..., description="符号哈希（函数名+参数哈希）")
+
+
+class CodeFingerprintRequest(BaseModel):
+    """代码指纹同步请求"""
+
+    fingerprints: list[CodeFingerprintItem] = Field(..., description="文件指纹列表")
+    tenant_id: str = Field(default="default", description="租户ID")
+    project_id: str = Field(default="global", description="项目ID")
+
+
+class CodeFingerprintResponse(BaseModel):
+    """代码指纹同步响应"""
+
+    changed_files: list[str] = Field(default_factory=list, description="变更文件列表")
+    unchanged_files: list[str] = Field(default_factory=list, description="未变更文件列表")
+    new_files: list[str] = Field(default_factory=list, description="新增文件列表")
+    deleted_files: list[str] = Field(default_factory=list, description="已删除文件列表")
+
+
+# ==================== Precompute Analysis Models (BL-B-81) ====================
+
+
+class FileInfo(BaseModel):
+    """文件信息"""
+
+    path: str = Field(..., description="文件路径")
+    content: str = Field(..., description="文件内容")
+
+
+class SymbolInfo(BaseModel):
+    """符号信息"""
+
+    name: str = Field(..., description="符号名称")
+    type: str = Field(..., description="符号类型: function, class, interface, variable")
+    location: str = Field(..., description="位置: file:line")
+    signature: str | None = Field(default=None, description="函数签名")
+
+
+class RelationInfo(BaseModel):
+    """调用关系信息"""
+
+    from_symbol: str = Field(..., description="调用方符号")
+    to_symbol: str = Field(..., description="被调用方符号")
+    type: str = Field(default="calls", description="关系类型")
+    line: int | None = Field(default=None, description="调用行号")
+
+
+class PrecomputeAnalysisRequest(BaseModel):
+    """代码分析预计算请求"""
+
+    project_id: str = Field(..., description="项目ID")
+    files: list[FileInfo] = Field(default_factory=list, description="文件列表")
+    symbols: list[SymbolInfo] = Field(default_factory=list, description="符号列表")
+    relations: list[RelationInfo] = Field(default_factory=list, description="调用关系列表")
+    tenant_id: str = Field(default="default", description="租户ID")
+
+
+class PrecomputeAnalysisResponse(BaseModel):
+    """代码分析预计算响应"""
+
+    memory_ids: dict[str, str] = Field(default_factory=dict, description="文件/符号到 memory_id 的映射")
+    status: str = Field(..., description="处理状态: success, partial, failed")
+    processed_count: int = Field(default=0, description="成功处理数量")
+    failed_count: int = Field(default=0, description="失败数量")
+    errors: list[str] = Field(default_factory=list, description="错误列表")
+
+
 # ==================== Access Log Models ====================
 
 

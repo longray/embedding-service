@@ -4,6 +4,8 @@ from fastapi import APIRouter, HTTPException
 
 from .. import state
 from ..models import (
+    CodeFingerprintRequest,
+    CodeFingerprintResponse,
     ConflictResolutionRequest,
     SyncFullRequest,
     SyncFullResponse,
@@ -12,6 +14,7 @@ from ..models import (
     SyncPreviewRequest,
     SyncPreviewResponse,
 )
+from ..services.code_fingerprint_service import CodeFingerprintService
 
 router = APIRouter(prefix="/api/v1", tags=["sync"])
 
@@ -82,3 +85,48 @@ async def resolve_conflict_endpoint(conflict_id: str, request: ConflictResolutio
         return {"resolved": True, "action": request.resolution, "result": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"解决冲突失败: {e!s}") from e
+
+
+# ==================== Code Fingerprint Sync (BL-B-80) ====================
+
+
+@router.post("/sync/code-fingerprints", response_model=CodeFingerprintResponse)
+async def sync_code_fingerprints(request: CodeFingerprintRequest):
+    """代码指纹增量同步：比对文件指纹，返回变更文件列表"""
+    if not state.memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        # 通过 memory_manager 获取 SurrealDB 连接
+        db = state.memory_manager._db
+        service = CodeFingerprintService(db)
+
+        # 比对指纹
+        result = await service.compare_fingerprints(
+            fingerprints=[f.model_dump() for f in request.fingerprints],
+            tenant_id=request.tenant_id,
+            project_id=request.project_id,
+        )
+
+        # 更新数据库中的指纹（只更新变更和新增的文件）
+        files_to_update = result["changed_files"] + result["new_files"]
+        fingerprints_to_update = [f.model_dump() for f in request.fingerprints if f.file in files_to_update]
+        if fingerprints_to_update:
+            await service.update_fingerprints(
+                fingerprints=fingerprints_to_update,
+                tenant_id=request.tenant_id,
+                project_id=request.project_id,
+            )
+
+        # 删除已删除文件的指纹
+        if result["deleted_files"]:
+            await service.delete_fingerprints(
+                file_paths=result["deleted_files"],
+                tenant_id=request.tenant_id,
+                project_id=request.project_id,
+            )
+
+        return CodeFingerprintResponse(**result)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"指纹同步失败: {e!s}") from e

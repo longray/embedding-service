@@ -124,6 +124,11 @@
 | BL-T-4 | 并发压力测试 | P2 | 1 天 | ⏳ | [详情](#bl-t-4-p2-并发压力测试) |
 | BL-T-5 | 故障恢复测试 | P2 | 1 天 | ⏳ | [详情](#bl-t-5-p2-故障恢复测试) |
 | BL-T-6 | E2E 测试套件整合 | P2 | 0.5 天 | ⏳ | [详情](#bl-t-6-p2-e2e-测试套件整合) |
+| **Phase 8** |
+| BL-B-80 | 代码指纹增量同步 API | P0 | 2 天 | 🆕 | [详情](#bl-b-80-p0-代码指纹增量同步-api) |
+| BL-B-81 | PrecomputeService 代码分析 API | P0 | 2 天 | 🆕 | [详情](#bl-b-81-p0-precomputeservice-代码分析-api) |
+| BL-B-82 | 集成测试环境部署 | P1 | 1 天 | 🆕 | [详情](#bl-b-82-p1-集成测试环境部署) |
+| BL-B-83 | 符号查询 API | P3 | 3-5 天 | ⏸️ | [详情](#bl-b-83-p3-符号查询-api) |
 
 ---
 
@@ -2827,6 +2832,226 @@ uv run pytest tests/e2e/ -v --html=report.html
 
 ---
 
+## Phase 8: 插件端 API 支持（v3.2 新增）
+
+> **背景**: 支持插件端 v3.2 开发，提供代码指纹增量同步、PrecomputeService、集成测试环境和符号查询 API
+
+---
+
+### BL-B-80 [P0] 代码指纹增量同步 API
+
+**目标**  
+实现代码指纹增量同步 API，支持插件端只上传变更文件，减少 90% 数据传输。
+
+**涉及范围**  
+- 文件: `wrapper/src/routers/sync.py` — 新增 `POST /api/v1/sync/code-fingerprints` 端点
+- 文件: `wrapper/src/services/code_fingerprint_service.py` — 指纹比对服务（新建）
+- 文件: `wrapper/src/models/sync.py` — CodeFingerprintRequest/Response 模型
+- 数据库: SurrealDB — 存储文件指纹表 `file_fingerprint`
+
+**前置依赖**  
+- BL-B-22 完成（端口迁移 17999→18008）
+- BL-B-18 完成（Schema v3.2 核心表创建）
+- 插件端 BL-P-4 完成（端口迁移）
+
+**完成标准**  
+- [ ] `POST /api/v1/sync/code-fingerprints` 端点实现
+- [ ] 接收文件指纹列表（file_path, content_hash, symbols_hash）
+- [ ] 与数据库现有指纹比对，返回变更/未变更/新增文件列表
+- [ ] 支持 tenant_id 隔离
+- [ ] 支持 project_id 过滤
+- [ ] 错误处理：后端失败返回 500，插件端回退到全量上传
+- [ ] 单元测试覆盖率 > 80%
+
+**验证方式**  
+```bash
+# 1. API 测试
+curl -X POST http://localhost:18008/api/v1/sync/code-fingerprints \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fingerprints": [
+      {"file": "src/main.js", "content_hash": "abc123", "symbols_hash": "def456"}
+    ],
+    "tenant_id": "default",
+    "project_id": "test-project"
+  }'
+
+# 2. 预期响应
+{
+  "changed_files": ["src/main.js"],
+  "unchanged_files": [],
+  "new_files": [],
+  "deleted_files": []
+}
+
+# 3. 运行测试
+uv run pytest tests/test_sync_code_fingerprints.py -v
+```
+
+**工时**: 2 天  
+**状态**: 🆕 新建
+
+---
+
+### BL-B-81 [P0] PrecomputeService 代码分析 API
+
+**目标**  
+实现 PrecomputeService 代码分析 API，支持插件端上传代码分析结果（文件、符号、调用关系）。
+
+**涉及范围**  
+- 文件: `wrapper/src/routers/precompute.py` — 新增 `POST /api/v1/precompute/analysis` 端点
+- 文件: `wrapper/src/services/precompute_service.py` — 预计算服务（新建/扩展）
+- 文件: `wrapper/src/models/precompute.py` — PrecomputeAnalysisRequest/Response 模型
+- 数据库: SurrealDB — 存储 atom/entity/reference 表
+- 集成: tree-sitter — 代码解析（如需要后端二次解析）
+
+**前置依赖**  
+- BL-B-8 完成（PrecomputeService 基础架构）
+- BL-B-9 完成（tree-sitter 集成）
+- BL-B-10 完成（调用关系创建）
+- 插件端 BL-P-6 完成（指纹同步）
+
+**完成标准**  
+- [ ] `POST /api/v1/precompute/analysis` 端点实现
+- [ ] 接收项目 ID、文件列表、符号列表、调用关系列表
+- [ ] 创建 memory 条目（atom 类型）
+- [ ] 创建 entity 条目（函数/类/接口）
+- [ ] 创建 reference 条目（调用关系）
+- [ ] 返回 memory_id 映射表
+- [ ] 支持批量处理（100 条/批次）
+- [ ] 支持并发控制（Semaphore 5）
+- [ ] 单元测试覆盖率 > 80%
+
+**验证方式**  
+```bash
+# 1. API 测试
+curl -X POST http://localhost:18008/api/v1/precompute/analysis \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id": "test-project",
+    "files": [{"path": "src/main.js", "content": "..."}],
+    "symbols": [{"name": "main", "type": "function", "location": "src/main.js:10"}],
+    "relations": [{"from": "main", "to": "helper", "type": "calls"}],
+    "tenant_id": "default"
+  }'
+
+# 2. 预期响应
+{
+  "memory_ids": {"src/main.js": "mem-xxx", "main": "mem-yyy"},
+  "status": "success",
+  "processed_count": 3
+}
+
+# 3. 运行测试
+uv run pytest tests/test_precompute_analysis.py -v
+```
+
+**工时**: 2 天  
+**状态**: 🆕 新建
+
+---
+
+### BL-B-82 [P1] 集成测试环境部署
+
+**目标**  
+部署完整的集成测试环境，供插件端进行端到端测试。
+
+**涉及范围**  
+- 文件: `docker-compose.test.yml` — 测试环境配置（新建）
+- 文件: `scripts/init_test_data.py` — 测试数据初始化脚本
+- 文件: `.env.test` — 测试环境变量配置
+- 服务: Docker Compose — wrapper + embedding + surrealdb + meilisearch
+- 数据: 测试租户 `test-tenant`，测试项目 `test-project-v3.2`
+
+**前置依赖**  
+- BL-B-22 完成（端口迁移）
+- BL-B-23 完成（Docker 多阶段构建）
+- BL-B-24 完成（docker-compose 健康检查）
+- BL-B-80 完成（指纹同步 API）
+- BL-B-81 完成（Precompute API）
+
+**完成标准**  
+- [ ] `docker-compose.test.yml` 可一键启动完整环境
+- [ ] 端口 18008 可访问（wrapper 服务）
+- [ ] 端口 18000 可访问（embedding 服务）
+- [ ] 端口 18002 可访问（surrealdb）
+- [ ] 端口 18003 可访问（meilisearch）
+- [ ] 包含测试数据（tenant、project、sample memories）
+- [ ] 包含测试 API Key
+- [ ] 健康检查全部通过
+- [ ] 插件端可成功连接并执行基本操作
+
+**验证方式**  
+```bash
+# 1. 启动测试环境
+docker-compose -f docker-compose.test.yml up -d
+
+# 2. 健康检查
+curl http://localhost:18008/health
+# 预期: {"status": "healthy", "port": 18008}
+
+# 3. 测试数据验证
+curl http://localhost:18008/api/v1/memories/search \
+  -H "X-API-Key: test-api-key" \
+  -d '{"query": "test", "tenant_id": "test-tenant"}'
+
+# 4. 插件端连接测试（在插件端目录）
+npm run test:integration
+```
+
+**工时**: 1 天  
+**状态**: 🆕 新建
+
+---
+
+### BL-B-83 [P3] 符号查询 API（推迟到 v3.3）
+
+**目标**  
+实现符号查询 API，支持按符号名查找定义位置、符号类型过滤、模糊搜索。
+
+**涉及范围**  
+- 文件: `wrapper/src/routers/symbols.py` — 新增 `GET /api/v1/symbols/search` 端点
+- 文件: `wrapper/src/services/symbol_service.py` — 符号查询服务（新建）
+- 文件: `wrapper/src/models/symbols.py` — SymbolSearchRequest/Response 模型
+- 数据库: SurrealDB — entity 表索引优化
+- 集成: Meilisearch — 符号名称全文索引（可选）
+
+**前置依赖**  
+- BL-B-81 完成（PrecomputeService API，创建 entity 数据）
+- BL-B-18 完成（Schema 核心表）
+- 插件端 BL-P-8 完成（Code Analysis 适配）
+
+**完成标准**  
+- [ ] `GET /api/v1/symbols/search` 端点实现
+- [ ] 支持按符号名精确查询
+- [ ] 支持符号类型过滤（function/class/interface）
+- [ ] 支持模糊搜索（前缀匹配）
+- [ ] 支持项目范围过滤
+- [ ] 返回符号定义位置（文件路径 + 行号）
+- [ ] 单元测试覆盖率 > 80%
+
+**验证方式**  
+```bash
+# 1. API 测试
+curl "http://localhost:18008/api/v1/symbols/search?query=main&type=function&project_id=test-project"
+
+# 2. 预期响应
+{
+  "symbols": [
+    {"name": "main", "type": "function", "file": "src/main.js", "line": 10, "memory_id": "mem-xxx"}
+  ],
+  "total": 1
+}
+
+# 3. 运行测试
+uv run pytest tests/test_symbol_search.py -v
+```
+
+**工时**: 3-5 天  
+**状态**: ⏸️ **推迟到 v3.3**（低优先级，依赖 entity 数据积累）
+
+---
+
 ## 统计汇总
 
 | 分类 | 总数 | P1 | P2 | P3 | 工时 |
@@ -2842,4 +3067,5 @@ uv run pytest tests/e2e/ -v --html=report.html
 | PrecomputeService 后续 | 9 | 6 | 3 | 0 | 4.5 天 |
 | 文档 | 8 | 2 | 4 | 2 | 5.5 天 |
 | **测试补充 (v3.4)** | **6** | **3** | **3** | **0** | **5 天** |
-| **总计** | **74** | **34** | **33** | **7** | **42 天** |
+| **Phase 8: 插件端 API** | **4** | **2** | **1** | **1** | **8 天** |
+| **总计** | **78** | **36** | **34** | **8** | **50 天** |
