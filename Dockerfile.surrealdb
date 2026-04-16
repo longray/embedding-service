@@ -1,0 +1,16 @@
+# Custom SurrealDB image with health check support
+# Based on official surrealdb/surrealdb:v3.0.5 + microcheck
+
+FROM ghcr.io/tarampampam/microcheck:1 AS healthcheck
+
+FROM surrealdb/surrealdb:v3.0.5
+
+# Copy microcheck binary (75KB)
+COPY --from=healthcheck /bin/httpcheck /bin/httpcheck
+
+# Health check using microcheck
+HEALTHCHECK --interval=10s --timeout=5s --retries=5 --start-period=30s \
+    CMD ["/bin/httpcheck", "http://localhost:18002/health"]
+
+# Default command (same as official image)
+ENTRYPOINT ["/surreal"]

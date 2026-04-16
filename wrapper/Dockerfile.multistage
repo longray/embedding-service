@@ -107,16 +107,19 @@ ENV WRAPPER_PORT=18008 \
     WRAPPER_HOST=0.0.0.0 \
     WRAPPER_LEGACY_PORT=17999 \
     WRAPPER_ENABLE_DUAL_PORT=true \
-    WRAPPER_DEBUG=true
+    WRAPPER_DEBUG=true \
+    PYTHONPATH=/app
 
-# Install development dependencies
+# Install development dependencies including uvicorn with reload
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install \
     pytest \
     pytest-asyncio \
     black \
-    ruff
+    ruff \
+    "uvicorn[standard]>=0.30"
 
 EXPOSE 18008 17999
 
-CMD ["python", "-m", "wrapper.src.main"]
+# Use uvicorn with reload for hot-reload development
+CMD ["uvicorn", "wrapper.src.main:app", "--host", "0.0.0.0", "--port", "18008", "--reload", "--reload-dir", "/app/wrapper/src"]

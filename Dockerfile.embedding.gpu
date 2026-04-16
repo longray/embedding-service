@@ -1,0 +1,77 @@
+# GPU-enabled Embedding Service Dockerfile
+# 使用 CUDA 12.1 运行时基础镜像
+
+# 阶段1: 构建阶段
+FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04 as builder
+
+WORKDIR /app
+
+# 安装 Python 3.11 和构建依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+    curl \
+    build-essential \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get install -y python3.11 python3.11-venv python3.11-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置 python3 指向 python3.11
+RUN ln -sf /usr/bin/python3.11 /usr/bin/python3
+
+# 安装 uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
+
+# 复制依赖文件
+COPY pyproject.toml uv.lock ./
+
+# 安装依赖（使用阿里云镜像）
+RUN uv pip install --system -e "." \
+    --index-url https://mirrors.aliyun.com/pypi/simple/
+
+# 安装 PyTorch CUDA 版本（从阿里云镜像）
+RUN uv pip install --system \
+    torch==2.4.0+cu121 \
+    torchvision==0.19.0+cu121 \
+    --find-links https://mirrors.aliyun.com/pytorch-wheels/cu121/
+
+# 阶段2: 运行阶段
+FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
+
+WORKDIR /app
+
+# 安装 Python 3.11 和运行时依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+    curl \
+    ca-certificates \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get install -y python3.11 python3.11-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置 python3 指向 python3.11
+RUN ln -sf /usr/bin/python3.11 /usr/bin/python3
+
+# 从构建阶段复制Python包
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# 复制应用代码
+COPY src/qwen3_embedding_service ./src/qwen3_embedding_service
+
+# 环境变量
+ENV EMB_PORT=18000 \
+    EMB_MODEL_PATH=/app/src/qwen3_embedding_service/models/Qwen/Qwen3-Embedding-0___6B \
+    EMB_MAX_BATCH_SIZE=256 \
+    EMB_CACHE_SIZE=1000 \
+    CUDA_VISIBLE_DEVICES=0
+
+# 暴露端口
+EXPOSE 18000
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python3 -c "import requests; requests.get('http://localhost:18000/health')" || exit 1
+
+# 启动命令
+CMD ["python3", "-m", "src.qwen3_embedding_service.embedding_service"]

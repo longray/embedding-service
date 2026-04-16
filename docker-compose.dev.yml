@@ -48,10 +48,9 @@ services:
       - "18000:18000"
     environment:
       - EMB_PORT=18000
-      - EMB_MODEL_PATH=/models/Qwen3-Embedding-0___6B
+      - EMB_MODEL_PATH=/app/src/qwen3_embedding_service/models/Qwen/Qwen3-Embedding-0___6B
     volumes:
-      - ./src/qwen3_embedding_service:/workspace/src/qwen3_embedding_service
-      - ./models:/models
+      - ./src/qwen3_embedding_service:/app/src/qwen3_embedding_service
     networks:
       - embedding-network
     healthcheck:
@@ -60,27 +59,27 @@ services:
       timeout: 10s
       retries: 3
 
-  # LLM 服务（本地代码挂载，热重载）
-  llm:
-    build:
-      context: .
-      dockerfile: Dockerfile.llm
-    container_name: llm-service-dev
-    ports:
-      - "18001:18001"
-    environment:
-      - LLM_PORT=18001
-      - LLM_MODEL_PATH=/models/OpenBMB/MiniCPM4-0.5B
-    volumes:
-      - ./src/qwen3_embedding_service:/workspace/src/qwen3_embedding_service
-      - ./models:/models
-    networks:
-      - embedding-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:18001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+  # LLM 服务（暂时禁用）
+  # llm:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.llm
+  #   container_name: llm-service-dev
+  #   ports:
+  #     - "18001:18001"
+  #   environment:
+  #     - LLM_PORT=18001
+  #     - LLM_MODEL_PATH=OpenBMB/MiniCPM4-0.5B
+  #   volumes:
+  #     - ./src/qwen3_embedding_service:/workspace/src/qwen3_embedding_service
+  #     - ./models:/models
+  #   networks:
+  #     - embedding-network
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:18001/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
 
   # 包装层服务：使用多阶段构建开发目标，本地代码挂载实现热重载
   wrapper:
@@ -113,14 +112,10 @@ services:
     volumes:
       # 热重载：本地代码修改立即反映到容器内
       - ./wrapper/src:/app/wrapper/src
-      - ./wrapper/pyproject.toml:/app/pyproject.toml
-      - ./wrapper/uv.lock:/app/uv.lock
     depends_on:
       surrealdb:
         condition: service_healthy
       embedding:
-        condition: service_healthy
-      llm:
         condition: service_healthy
       meilisearch:
         condition: service_healthy
