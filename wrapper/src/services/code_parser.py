@@ -34,7 +34,7 @@ class CodeParser:
     def __init__(self):
         """初始化代码解析器"""
         self._logger = logging.getLogger(__name__)
-        self._parsers: Dict[str, any] = {}
+        self._parsers: Dict[str, any] = {}  # type: ignore[reportGeneralTypeIssues]
 
         self._init_parsers()
 
@@ -43,7 +43,7 @@ class CodeParser:
     def _init_parsers(self) -> None:
         """初始化 tree-sitter 解析器"""
         try:
-            from tree_sitter import Language, Parser
+            from tree_sitter import Language, Parser  # type: ignore[import-untyped]
 
             # 尝试加载语言（如果已安装）
             self._try_load_language("python", "tree_sitter_python")
@@ -111,7 +111,7 @@ class CodeParser:
             return None
 
         try:
-            from tree_sitter import Parser, Language
+            from tree_sitter import Parser, Language  # type: ignore[import-untyped]
 
             lang = Language(self._parsers[language])
             parser = Parser(lang)

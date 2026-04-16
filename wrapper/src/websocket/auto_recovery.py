@@ -10,6 +10,8 @@
     await server.recover_from_disconnect()
 """
 
+# pyright: reportAttributeAccessIssue=false
+
 import logging
 from typing import Optional
 

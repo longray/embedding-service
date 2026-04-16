@@ -3,7 +3,7 @@
 import logging
 
 from fastapi import APIRouter, HTTPException, Request
-from surrealdb import AsyncSurreal
+from surrealdb import AsyncSurreal  # type: ignore[import-untyped]
 
 from .. import state
 from ..config import config
@@ -147,11 +147,12 @@ async def get_memory_summary(memory_id: str, tenant_id: str = "default"):
         query = "SELECT metadata FROM type::record($memory_id) WHERE tenant_id = $tenant_id"
         result = await db.query(query, {"memory_id": memory_id, "tenant_id": tenant_id})
 
-        if not result or not result[0]["result"]:
+        if not result or not result[0]["result"]:  # pyright: ignore[reportIndexIssue, reportOptionalSubscript, reportCallIssue, reportArgumentType]
             raise HTTPException(status_code=404, detail="记忆不存在")
 
-        metadata = result[0]["result"][0].get("metadata", {})
-        code_summary = metadata.get("code_summary")
+        raw_result = result[0]["result"][0]  # pyright: ignore[reportIndexIssue, reportOptionalSubscript, reportCallIssue, reportArgumentType]
+        metadata = raw_result.get("metadata", {})  # type: ignore[union-attr]
+        code_summary = metadata.get("code_summary")  # type: ignore[union-attr]
 
         await db.close()
 

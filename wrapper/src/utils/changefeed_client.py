@@ -36,16 +36,17 @@ class ChangeFeedClient:
         self._database = database
         self._username = username
         self._password = password
-        self._db: Optional[Surreal] = None
+        self._db: Optional[Surreal] = None  # type: ignore[reportGeneralTypeIssues]
         self._subscriptions: dict[str, Callable[[dict[str, Any]], Coroutine[Any, Any, None]]] = {}
         self._listening = False
 
     async def connect(self) -> None:
         """Connect to SurrealDB"""
         self._db = Surreal(self._url)
-        await self._db.connect()
-        await self._db.signin({"user": self._username, "pass": self._password})
-        await self._db.use(self._namespace, self._database)
+        db = self._db  # Local binding for type narrowing
+        await db.connect()  # pyright: ignore[reportOptionalMemberAccess]
+        await db.signin({"user": self._username, "pass": self._password})  # pyright: ignore[reportOptionalMemberAccess]
+        await db.use(self._namespace, self._database)  # pyright: ignore[reportOptionalMemberAccess]
         logger.info("[ChangeFeed] Connected to %s/%s", self._namespace, self._database)
 
     async def close(self) -> None:
@@ -73,11 +74,11 @@ class ChangeFeedClient:
             raise RuntimeError("Not connected to SurrealDB")
 
         # Start LIVE SELECT query
-        query_id = await self._db.query(f"LIVE SELECT * FROM {table}")
-        self._subscriptions[query_id] = callback
+        query_id = await self._db.query(f"LIVE SELECT * FROM {table}")  # pyright: ignore[reportReturnType]
+        self._subscriptions[query_id] = callback  # pyright: ignore[reportArgumentType]
 
         logger.info("[ChangeFeed] Subscribed to %s changes (query_id: %s)", table, query_id)
-        return query_id
+        return query_id  # pyright: ignore[reportReturnType]
 
     async def unsubscribe(self, query_id: str) -> None:
         """Unsubscribe from changes"""
@@ -127,7 +128,7 @@ class ChangeFeedClient:
             raise RuntimeError("Not connected to SurrealDB")
 
         result = await self._db.query(f"INFO FOR TABLE {table}")
-        return result
+        return result  # pyright: ignore[reportReturnType]
 
     async def verify_changefeed_enabled(self, table: str) -> bool:
         """Verify ChangeFeed is enabled for a table

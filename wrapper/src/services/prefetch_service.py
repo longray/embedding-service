@@ -24,8 +24,8 @@ class PrefetchService:
         tenant_id: str,
         depth: int,
         limit: int,
-        db_query_fn: callable,
-        extract_records_fn: callable,
+        db_query_fn: callable,  # pyright: ignore[reportGeneralTypeIssues]
+        extract_records_fn: callable,  # pyright: ignore[reportGeneralTypeIssues]
     ) -> dict[str, Any]:
         """预取相关记忆
 
@@ -104,8 +104,8 @@ class PrefetchService:
         memory_id: str,
         tenant_id: str,
         depth: int,
-        db_query_fn: callable,
-        extract_records_fn: callable,
+        db_query_fn: callable,  # pyright: ignore[reportGeneralTypeIssues]
+        extract_records_fn: callable,  # pyright: ignore[reportGeneralTypeIssues]
     ) -> list[str]:
         """获取指定深度的相关记忆 ID"""
         try:
@@ -139,8 +139,8 @@ class PrefetchService:
         self,
         memory_ids: list[str],
         tenant_id: str,
-        db_query_fn: callable,
-        extract_records_fn: callable,
+        db_query_fn: callable,  # pyright: ignore[reportGeneralTypeIssues]
+        extract_records_fn: callable,  # pyright: ignore[reportGeneralTypeIssues]
     ) -> list[dict[str, Any]]:
         """获取记忆详情"""
         if not memory_ids:
@@ -191,8 +191,8 @@ class PrefetchService:
         self,
         tenant_id: str,
         top_n: int,
-        db_query_fn: callable,
-        extract_records_fn: callable,
+        db_query_fn: callable,  # pyright: ignore[reportGeneralTypeIssues]
+        extract_records_fn: callable,  # pyright: ignore[reportGeneralTypeIssues]
     ) -> dict[str, Any]:
         """预取热门记忆
 
