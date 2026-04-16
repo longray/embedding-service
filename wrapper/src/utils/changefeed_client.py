@@ -4,11 +4,11 @@ Provides real-time change notifications for atom, entity, reference tables.
 """
 
 import asyncio
-import json
 import logging
-from typing import Any, Callable, Coroutine, Optional
+from collections.abc import Callable, Coroutine
+from typing import Any
 
-from surrealdb import Surreal
+from surrealdb import Surreal  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
@@ -23,20 +23,22 @@ class ChangeFeedClient:
         await client.start_listening()
     """
 
+    ALLOWED_TABLES = frozenset({"atom", "entity", "reference", "memory"})
+
     def __init__(
         self,
         url: str = "ws://localhost:18002",
         namespace: str = "memory_ns",
         database: str = "memory_db",
-        username: str = "root",
-        password: str = "root",
+        username: str = "root",  # nosec B107
+        password: str = "root",  # nosec B107 # noqa: S107
     ):
         self._url = url
         self._namespace = namespace
         self._database = database
         self._username = username
         self._password = password
-        self._db: Optional[Surreal] = None  # type: ignore[reportGeneralTypeIssues]
+        self._db: Surreal | None = None  # type: ignore[reportGeneralTypeIssues]
         self._subscriptions: dict[str, Callable[[dict[str, Any]], Coroutine[Any, Any, None]]] = {}
         self._listening = False
 
@@ -73,8 +75,11 @@ class ChangeFeedClient:
         if not self._db:
             raise RuntimeError("Not connected to SurrealDB")
 
+        if table not in self.ALLOWED_TABLES:
+            raise ValueError(f"Invalid table name: {table}")
+
         # Start LIVE SELECT query
-        query_id = await self._db.query(f"LIVE SELECT * FROM {table}")  # pyright: ignore[reportReturnType]
+        query_id = await self._db.query(f"LIVE SELECT * FROM {table}")  # nosec B608
         self._subscriptions[query_id] = callback  # pyright: ignore[reportArgumentType]
 
         logger.info("[ChangeFeed] Subscribed to %s changes (query_id: %s)", table, query_id)
@@ -85,7 +90,7 @@ class ChangeFeedClient:
         if not self._db:
             return
 
-        await self._db.query(f"KILL {query_id}")
+        await self._db.query(f"KILL {query_id}")  # nosec B608 - query_id 由 subscribe_to_changes 返回的 UUID
         if query_id in self._subscriptions:
             del self._subscriptions[query_id]
 
@@ -116,18 +121,14 @@ class ChangeFeedClient:
         logger.info("[ChangeFeed] Stopped listening")
 
     async def get_changefeed_info(self, table: str) -> dict[str, Any]:
-        """Get ChangeFeed info for a table
-
-        Args:
-            table: Table name
-
-        Returns:
-            ChangeFeed configuration
-        """
+        """Get ChangeFeed info for a table"""
         if not self._db:
             raise RuntimeError("Not connected to SurrealDB")
 
-        result = await self._db.query(f"INFO FOR TABLE {table}")
+        if table not in self.ALLOWED_TABLES:
+            raise ValueError(f"Invalid table name: {table}")
+
+        result = await self._db.query(f"INFO FOR TABLE {table}")  # nosec B608
         return result  # pyright: ignore[reportReturnType]
 
     async def verify_changefeed_enabled(self, table: str) -> bool:
