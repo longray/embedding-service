@@ -3587,6 +3587,184 @@ uv run ruff check tests/
 
 ---
 
+### BL-B-90 [P0] 修复 WebSocket diff 模式订阅
+
+**目标**  
+修复 `LiveDiffHandler` 只获取 query_id 但未订阅变更通知流的 Bug。
+
+**涉及范围**  
+
+- 文件: `wrapper/src/websocket/live_diff_handler.py` — 添加订阅循环
+
+**前置依赖**  
+无
+
+**完成标准**  
+
+- [ ] 在 `LiveDiffHandler` 中增加类似 `_forward_notifications` 的订阅循环
+- [ ] 在订阅回调中调用 `handle_change()` 处理变更
+- [ ] diff 模式下 HTTP 上传能触发 WebSocket 推送
+
+**验证方式**  
+
+```bash
+uv run pytest tests/test_websocket_diff.py -v
+```
+
+**工时**: 1 天  
+**状态**: 🆕 新建（插件端阻塞问题）
+
+---
+
+### BL-B-91 [P0] 集成 MessageQueue 到消息流
+
+**目标**  
+将 `MessageQueue` 集成到实际消息发送流程中。
+
+**涉及范围**  
+
+- 文件: `wrapper/src/websocket/reliable_server.py` — 发送消息时调用 `enqueue()`
+- 文件: `wrapper/src/websocket/state_recovery.py` — 恢复时重放消息
+
+**前置依赖**  
+无
+
+**完成标准**  
+
+- [ ] 发送变更消息时同步调用 `message_queue.enqueue()`
+- [ ] `restore_session()` 后自动重放 `from_offset` 的消息
+- [ ] 消息保留 7 天，最大 10000 条
+
+**验证方式**  
+
+```bash
+uv run pytest tests/test_websocket_message_queue.py -v
+```
+
+**工时**: 1 天  
+**状态**: 🆕 新建（插件端阻塞问题）
+
+---
+
+### BL-B-92 [P0] 实现 sync_request 处理
+
+**目标**  
+实现 `sync_request` 消息类型处理，支持从指定 offset 同步丢失消息。
+
+**涉及范围**  
+
+- 文件: `wrapper/src/websocket/reliable_server.py` — 处理 `"sync_request"` 消息
+
+**前置依赖**  
+- BL-B-91 完成（MessageQueue 集成）
+
+**完成标准**  
+
+- [ ] 在 `_receive_loop()` 中增加 `"sync_request"` 消息类型处理
+- [ ] 调用 `message_queue.get_messages_from_offset(from_offset)` 获取消息
+- [ ] 将丢失的消息推送给客户端
+
+**验证方式**  
+
+```bash
+uv run pytest tests/test_websocket_sync_request.py -v
+```
+
+**工时**: 1 天  
+**状态**: 🆕 新建（插件端阻塞问题）
+
+---
+
+### BL-B-93 [P1] 添加 WebSocket 首次连接快照
+
+**目标**  
+在 DIFF 模式下，首次连接时发送已有数据的完整快照。
+
+**涉及范围**  
+
+- 文件: `wrapper/src/websocket/live_diff_handler.py` — 添加 `send_snapshot()`
+- 文件: `wrapper/src/websocket/diff_manager.py` — 初始化状态
+
+**前置依赖**  
+无
+
+**完成标准**  
+
+- [ ] 在 `LiveDiffHandler.start()` 后查询当前数据
+- [ ] 发送 `{"type": "snapshot", "data": [...], "offset": N}`
+- [ ] 客户端收到 snapshot 后更新本地状态
+
+**验证方式**  
+
+```bash
+uv run pytest tests/test_websocket_snapshot.py -v
+```
+
+**工时**: 1 天  
+**状态**: 🆕 新建
+
+---
+
+### BL-B-94 [P1] 实现 subscribe 过滤器
+
+**目标**  
+支持 `subscribe` 消息，按条件过滤推送的变更。
+
+**涉及范围**  
+
+- 文件: `wrapper/src/websocket/reliable_server.py` — 处理 `"subscribe"` 消息
+- 文件: `wrapper/src/websocket/live_diff_handler.py` — 添加过滤逻辑
+
+**前置依赖**  
+无
+
+**完成标准**  
+
+- [ ] 在 `_receive_loop()` 中增加 `"subscribe"` 消息类型处理
+- [ ] 支持按 `tenant_id`、`type`、`tags`、`project_id` 过滤
+- [ ] 维护每个连接的订阅过滤器状态
+
+**验证方式**  
+
+```bash
+uv run pytest tests/test_websocket_subscribe.py -v
+```
+
+**工时**: 1 天  
+**状态**: 🆕 新建
+
+---
+
+### BL-B-95 [P1] 修复 session TTL 校验
+
+**目标**  
+修复 session 过期不自动清理 + 恢复时不校验过期的问题。
+
+**涉及范围**  
+
+- 文件: `wrapper/src/websocket/state_recovery.py` — `restore_state()` 增加 TTL 检查
+- 文件: `wrapper/src/websocket/reliable_server.py` — 定期调用 `cleanup_expired()`
+
+**前置依赖**  
+无
+
+**完成标准**  
+
+- [ ] `restore_state()` 中检查 TTL，过期返回 None
+- [ ] 过期时返回 `{"type": "error", "code": "SESSION_EXPIRED"}`
+- [ ] WebSocket 连接处理中定期清理过期 session
+
+**验证方式**  
+
+```bash
+uv run pytest tests/test_websocket_session_ttl.py -v
+```
+
+**工时**: 0.5 天  
+**状态**: 🆕 新建
+
+---
+
 ## 统计汇总
 
 | 分类 | 总数 | P1 | P2 | P3 | 工时 |
@@ -3604,4 +3782,5 @@ uv run ruff check tests/
 | **测试补充 (v3.4)** | **6** | **3** | **3** | **0** | **5 天** |
 | **Phase 8: 插件端 API** | **4** | **2** | **1** | **1** | **8 天** |
 | **Phase 9: 代码审查修复** | **6** | **3** | **2** | **1** | **4 天** |
-| **总计** | **84** | **39** | **36** | **9** | **54 天** |
+| **Phase 10: WebSocket 修复** | **6** | **3** | **3** | **0** | **4.5 天** |
+| **总计** | **90** | **42** | **39** | **9** | **58.5 天** |
