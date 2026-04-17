@@ -29,7 +29,7 @@ async def check_embedding_service_health():
 
 async def check_surrealdb_health():
     try:
-        if state.memory_manager and state.memory_manager._db:
+        if state.memory_manager and state.memory_manager.db:
             return {"status": "connected"}
         return {"status": "unhealthy", "error": "数据库未初始化"}
     except Exception as e:

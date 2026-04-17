@@ -13,16 +13,16 @@ from aiocache.serializers import JsonSerializer
 from ..code_analyzer import CodeAnalyzer
 from ..http_pool import get_http_pool
 from ..meili_client import MeilisearchClient
-from .stubs import StubsMixin
-from .crud import CrudMixin
-from .search import SearchMixin
-from .sync import SyncMixin
-from .relations import RelationsMixin
-from .dedup import DedupMixin
-from .meili_sync import MeiliSyncMixin
-from .code_analysis import CodeAnalysisMixin
 from .audit import AuditMixin
+from .code_analysis import CodeAnalysisMixin
+from .crud import CrudMixin
+from .dedup import DedupMixin
 from .lookup import LookupMixin
+from .meili_sync import MeiliSyncMixin
+from .relations import RelationsMixin
+from .search import SearchMixin
+from .stubs import StubsMixin
+from .sync import SyncMixin
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +93,11 @@ class MemoryManager(
                 "daily": 1.0,
             },
         )
+
+    @property
+    def db(self) -> Any:
+        """SurrealDB 数据库连接（公开属性）"""
+        return self._db
 
         # Code analyzer instance
         self.code_analyzer = CodeAnalyzer()

@@ -349,7 +349,7 @@ class TestSymbolSearchRouter:
                 )
             )
             mm = MagicMock()
-            mm._db = mock_db
+            mm.db = mock_db
             mock_state.memory_manager = mm
 
             from fastapi import FastAPI
@@ -377,7 +377,7 @@ class TestSymbolSearchRouter:
             mock_db = MagicMock()
             mock_db.query = AsyncMock(return_value=_make_db_result([]))
             mm = MagicMock()
-            mm._db = mock_db
+            mm.db = mock_db
             mock_state.memory_manager = mm
 
             from fastapi import FastAPI
@@ -398,7 +398,7 @@ class TestSymbolSearchRouter:
             mock_db = MagicMock()
             mock_db.query = AsyncMock(return_value=_make_db_result([]))
             mm = MagicMock()
-            mm._db = mock_db
+            mm.db = mock_db
             mock_state.memory_manager = mm
 
             from fastapi import FastAPI
@@ -419,7 +419,7 @@ class TestSymbolSearchRouter:
             mock_db = MagicMock()
             mock_db.query = AsyncMock(return_value=_make_db_result([]))
             mm = MagicMock()
-            mm._db = mock_db
+            mm.db = mock_db
             mock_state.memory_manager = mm
 
             from fastapi import FastAPI
@@ -440,7 +440,7 @@ class TestSymbolSearchRouter:
             mock_db = MagicMock()
             mock_db.query = AsyncMock(return_value=_make_db_result([]))
             mm = MagicMock()
-            mm._db = mock_db
+            mm.db = mock_db
             mock_state.memory_manager = mm
 
             from fastapi import FastAPI
@@ -461,7 +461,7 @@ class TestSymbolSearchRouter:
             mock_db = MagicMock()
             mock_db.query = AsyncMock(side_effect=RuntimeError("DB connection lost"))
             mm = MagicMock()
-            mm._db = mock_db
+            mm.db = mock_db
             mock_state.memory_manager = mm
 
             from fastapi import FastAPI

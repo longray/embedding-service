@@ -31,7 +31,7 @@ async def precompute_analysis(request: PrecomputeAnalysisRequest):
 
     try:
         # 获取数据库连接
-        db = state.memory_manager._db
+        db = state.memory_manager.db
 
         # 创建 PrecomputeService 实例
         service = PrecomputeService(

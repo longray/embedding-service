@@ -98,7 +98,7 @@ async def sync_code_fingerprints(request: CodeFingerprintRequest):
 
     try:
         # 通过 memory_manager 获取 SurrealDB 连接
-        db = state.memory_manager._db
+        db = state.memory_manager.db
         service = CodeFingerprintService(db)
 
         # 比对指纹

@@ -25,7 +25,7 @@ async def search_symbols(
 
     from ..services.symbol_service import SymbolService
 
-    service = SymbolService(db=state.memory_manager._db)
+    service = SymbolService(db=state.memory_manager.db)
 
     try:
         result = await service.search(
