@@ -3597,7 +3597,7 @@ uv run ruff check tests/
 - 文件: `wrapper/src/websocket/live_diff_handler.py` — 添加订阅循环
 
 **前置依赖**  
-无
+- BL-B-56 完成（LIVE SELECT DIFF 订阅基础实现）
 
 **完成标准**  
 
@@ -3627,7 +3627,8 @@ uv run pytest tests/test_websocket_diff.py -v
 - 文件: `wrapper/src/websocket/state_recovery.py` — 恢复时重放消息
 
 **前置依赖**  
-无
+- BL-B-54 完成（消息持久化基础实现）
+- BL-B-90 完成（diff 模式订阅修复，确保有消息可入队）
 
 **完成标准**  
 
@@ -3686,7 +3687,7 @@ uv run pytest tests/test_websocket_sync_request.py -v
 - 文件: `wrapper/src/websocket/diff_manager.py` — 初始化状态
 
 **前置依赖**  
-无
+- BL-B-90 完成（diff 模式订阅修复，确保能正常获取数据）
 
 **完成标准**  
 
@@ -3716,7 +3717,8 @@ uv run pytest tests/test_websocket_snapshot.py -v
 - 文件: `wrapper/src/websocket/live_diff_handler.py` — 添加过滤逻辑
 
 **前置依赖**  
-无
+- BL-B-91 完成（MessageQueue 集成，确保消息流可用）
+- BL-B-90 完成（diff 模式订阅修复）
 
 **完成标准**  
 
@@ -3746,7 +3748,7 @@ uv run pytest tests/test_websocket_subscribe.py -v
 - 文件: `wrapper/src/websocket/reliable_server.py` — 定期调用 `cleanup_expired()`
 
 **前置依赖**  
-无
+- BL-B-58 完成（StateRecoveryManager 集成基础实现）
 
 **完成标准**  
 
