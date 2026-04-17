@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException
 
 from .. import state
 from ..models import PrecomputeAnalysisRequest, PrecomputeAnalysisResponse
-from ..services.precompute import PrecomputeService
+from ..utils.precompute_pool import get_precompute_service
 
 router = APIRouter(prefix="/api/v1", tags=["precompute"])
 
@@ -33,16 +33,8 @@ async def precompute_analysis(request: PrecomputeAnalysisRequest):
         # 获取数据库连接
         db = state.memory_manager.db
 
-        # 创建 PrecomputeService 实例
-        service = PrecomputeService(
-            db=db,
-            tenant_id=request.tenant_id,
-            max_concurrent=5,
-            timeout_seconds=30.0,
-        )
-
-        # 启动服务
-        await service.start()
+        # 获取 PrecomputeService 单例（按 tenant 缓存）
+        service = await get_precompute_service(request.tenant_id, db)
 
         try:
             # 准备批次数据
@@ -82,8 +74,8 @@ async def precompute_analysis(request: PrecomputeAnalysisRequest):
             )
 
         finally:
-            # 停止服务
-            await service.stop()
+            # 注意：服务在 lifespan 关闭时统一停止，不在此处停止
+            pass
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"预计算分析失败: {e!s}") from e

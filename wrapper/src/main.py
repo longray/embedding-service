@@ -59,6 +59,7 @@ from .utils.exceptions import WrapperServiceError
 from .utils.http_pool import close_http_pool, get_http_pool
 from .utils.meili_client import MeilisearchClient
 from .utils.memory_manager import MemoryManager
+from .utils.precompute_pool import close_precompute_services
 from .utils.tracing import init_tracing, shutdown_tracing
 
 logger = logging.getLogger(__name__)
@@ -305,6 +306,7 @@ async def lifespan(app: FastAPI):
 
     print("[Shutdown] 关闭服务...")
     shutdown_tracing()
+    await close_precompute_services()
     if state.meili_client:
         await state.meili_client.close()
     await close_http_pool()
