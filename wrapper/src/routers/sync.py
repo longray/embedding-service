@@ -1,5 +1,7 @@
 """同步端点 (Phase B)"""
 
+import logging
+
 from fastapi import APIRouter, HTTPException
 
 from .. import state
@@ -16,6 +18,7 @@ from ..models import (
 )
 from ..services.code_fingerprint_service import CodeFingerprintService
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["sync"])
 
 
@@ -92,41 +95,69 @@ async def resolve_conflict_endpoint(conflict_id: str, request: ConflictResolutio
 
 @router.post("/sync/code-fingerprints", response_model=CodeFingerprintResponse)
 async def sync_code_fingerprints(request: CodeFingerprintRequest):
-    """代码指纹增量同步：比对文件指纹，返回变更文件列表"""
+    """代码指纹增量同步：比对文件指纹，返回变更文件列表
+
+    使用 SurrealDB 事务确保数据一致性：
+    - 所有更新和删除操作在事务中执行
+    - 失败时自动回滚
+    """
     if not state.memory_manager:
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
 
-    try:
-        # 通过 memory_manager 获取 SurrealDB 连接
-        db = state.memory_manager.db
-        service = CodeFingerprintService(db)
+    db = state.memory_manager.db
+    service = CodeFingerprintService(db)
 
-        # 比对指纹
+    try:
+        # 比对指纹（在事务外执行，因为是只读操作）
         result = await service.compare_fingerprints(
             fingerprints=[f.model_dump() for f in request.fingerprints],
             tenant_id=request.tenant_id,
             project_id=request.project_id,
         )
 
-        # 更新数据库中的指纹（只更新变更和新增的文件）
+        # 准备更新和删除的数据
         files_to_update = result["changed_files"] + result["new_files"]
         fingerprints_to_update = [f.model_dump() for f in request.fingerprints if f.file in files_to_update]
-        if fingerprints_to_update:
-            await service.update_fingerprints(
-                fingerprints=fingerprints_to_update,
-                tenant_id=request.tenant_id,
-                project_id=request.project_id,
-            )
+        files_to_delete = result["deleted_files"]
 
-        # 删除已删除文件的指纹
-        if result["deleted_files"]:
-            await service.delete_fingerprints(
-                file_paths=result["deleted_files"],
-                tenant_id=request.tenant_id,
-                project_id=request.project_id,
-            )
+        # 如果没有需要修改的数据，直接返回
+        if not fingerprints_to_update and not files_to_delete:
+            return CodeFingerprintResponse(**result)
+
+        # 使用事务执行写操作
+        try:
+            # 开始事务
+            await db.query("BEGIN TRANSACTION")
+
+            # 更新指纹
+            if fingerprints_to_update:
+                await service.update_fingerprints(
+                    fingerprints=fingerprints_to_update,
+                    tenant_id=request.tenant_id,
+                    project_id=request.project_id,
+                )
+
+            # 删除指纹
+            if files_to_delete:
+                await service.delete_fingerprints(
+                    file_paths=files_to_delete,
+                    tenant_id=request.tenant_id,
+                    project_id=request.project_id,
+                )
+
+            # 提交事务
+            await db.query("COMMIT TRANSACTION")
+
+        except Exception as tx_error:
+            # 回滚事务
+            try:
+                await db.query("CANCEL TRANSACTION")
+            except Exception as cancel_error:
+                logger.error("[sync_code_fingerprints] 事务回滚失败: %s", cancel_error)
+            raise tx_error
 
         return CodeFingerprintResponse(**result)
 
     except Exception as e:
+        logger.error("[sync_code_fingerprints] 指纹同步失败: %s", e)
         raise HTTPException(status_code=500, detail=f"指纹同步失败: {e!s}") from e
