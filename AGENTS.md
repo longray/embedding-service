@@ -125,10 +125,19 @@ docker-compose up -d
    - ❌ 错误：`**验证方式**` 紧跟 ` ```bash`
    - ✅ 正确：`**验证方式**` 后空一行，再写 ` ```bash`
    - 关闭 ` ``` ` 后也必须空一行再写其他内容
-2. **MD040 (code-block-style)**：所有 fenced code block 必须显式声明语言（如 ` ```python`、` ```bash`）。
-3. **MD001 (heading-increment)**：标题级别必须逐级递增（`h1` → `h2` → `h3`，不可跳级）。
-4. **MD032/MD033**：列表和代码块前后必须空行；允许使用 `<br>` 等内联 HTML。
-5. **验证**：提交前运行 `uvx pre-commit run markdownlint-cli2 --all-files` 确认无新增错误。
+2. **MD032 (blanks-around-lists)**：列表（`- ` 或 `* ` 开头）的**前后必须各有一个空行**。
+   - ❌ 错误：文本后直接跟列表
+   - ✅ 正确：文本后空一行，再开始列表
+3. **MD037 (no-space-in-emphasis)**：强调标记（`**` 或 `_`）内**不能有空格**。
+   - ❌ 错误：`_handle_messages` 中的 `_` 被识别为强调标记
+   - ✅ 正确：使用反引号包裹代码 `_handle_messages`
+4. **MD058 (blanks-around-tables)**：表格的**前后必须各有一个空行**。
+   - ❌ 错误：文本后直接跟表格
+   - ✅ 正确：文本后空一行，再开始表格
+5. **MD040 (code-block-style)**：所有 fenced code block 必须显式声明语言（如 ` ```python`、` ```bash`）。
+6. **MD001 (heading-increment)**：标题级别必须逐级递增（`h1` → `h2` → `h3`，不可跳级）。
+7. **MD033**：允许使用 `<br>` 等内联 HTML。
+8. **验证**：提交前运行 `uvx pre-commit run markdownlint-cli2 --all-files` 确认无新增错误。
 
 **忽略规则**：MD013(行长度) | MD024(重复标题) | MD056/060(表格)
 
