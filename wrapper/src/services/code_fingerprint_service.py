@@ -106,7 +106,9 @@ class CodeFingerprintService:
         tenant_id: str,
         project_id: str,
     ) -> int:
-        """更新文件指纹到数据库
+        """批量更新文件指纹到数据库
+
+        使用批量 UPSERT 替代循环，减少数据库往返次数。
 
         Args:
             fingerprints: 文件指纹列表
@@ -116,36 +118,43 @@ class CodeFingerprintService:
         Returns:
             更新数量
         """
+        if not fingerprints:
+            return 0
+
         try:
-            count = 0
-            for fp in fingerprints:
-                query = """
+            # 构建批量数据
+            batch_data = [
+                {
+                    "file_path": fp["file"],
+                    "content_hash": fp["content_hash"],
+                    "symbols_hash": fp["symbols_hash"],
+                    "tenant_id": tenant_id,
+                    "project_id": project_id,
+                    "updated_at": "time::now()",
+                }
+                for fp in fingerprints
+            ]
+
+            # 批量 UPSERT
+            query = """
+                FOR $fp IN $fingerprints {
                     UPSERT file_fingerprint CONTENT {
-                        file_path: $file_path,
-                        content_hash: $content_hash,
-                        symbols_hash: $symbols_hash,
-                        tenant_id: $tenant_id,
-                        project_id: $project_id,
+                        file_path: $fp.file_path,
+                        content_hash: $fp.content_hash,
+                        symbols_hash: $fp.symbols_hash,
+                        tenant_id: $fp.tenant_id,
+                        project_id: $fp.project_id,
                         updated_at: time::now()
                     }
-                """
-                await self._db.query(
-                    query,
-                    {
-                        "file_path": fp["file"],
-                        "content_hash": fp["content_hash"],
-                        "symbols_hash": fp["symbols_hash"],
-                        "tenant_id": tenant_id,
-                        "project_id": project_id,
-                    },
-                )
-                count += 1
+                }
+            """
+            await self._db.query(query, {"fingerprints": batch_data})
 
-            logger.info("[CodeFingerprint] Updated %d fingerprints", count)
-            return count
+            logger.info("[CodeFingerprint] Batch updated %d fingerprints", len(fingerprints))
+            return len(fingerprints)
 
         except Exception as e:
-            logger.error("[CodeFingerprint] Update failed: %s", e)
+            logger.error("[CodeFingerprint] Batch update failed: %s", e)
             raise
 
     async def delete_fingerprints(
@@ -154,7 +163,9 @@ class CodeFingerprintService:
         tenant_id: str,
         project_id: str,
     ) -> int:
-        """删除文件指纹
+        """批量删除文件指纹
+
+        使用批量 DELETE 替代循环，减少数据库往返次数。
 
         Args:
             file_paths: 文件路径列表
@@ -164,28 +175,29 @@ class CodeFingerprintService:
         Returns:
             删除数量
         """
-        try:
-            count = 0
-            for file_path in file_paths:
-                query = """
-                    DELETE FROM file_fingerprint
-                    WHERE file_path = $file_path
-                      AND tenant_id = $tenant_id
-                      AND project_id = $project_id
-                """
-                await self._db.query(
-                    query,
-                    {
-                        "file_path": file_path,
-                        "tenant_id": tenant_id,
-                        "project_id": project_id,
-                    },
-                )
-                count += 1
+        if not file_paths:
+            return 0
 
-            logger.info("[CodeFingerprint] Deleted %d fingerprints", count)
-            return count
+        try:
+            # 批量 DELETE
+            query = """
+                DELETE FROM file_fingerprint
+                WHERE file_path IN $file_paths
+                  AND tenant_id = $tenant_id
+                  AND project_id = $project_id
+            """
+            await self._db.query(
+                query,
+                {
+                    "file_paths": file_paths,
+                    "tenant_id": tenant_id,
+                    "project_id": project_id,
+                },
+            )
+
+            logger.info("[CodeFingerprint] Batch deleted %d fingerprints", len(file_paths))
+            return len(file_paths)
 
         except Exception as e:
-            logger.error("[CodeFingerprint] Delete failed: %s", e)
+            logger.error("[CodeFingerprint] Batch delete failed: %s", e)
             raise
