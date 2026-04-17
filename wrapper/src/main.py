@@ -44,12 +44,13 @@ from .routers import (
     health,
     lookup,
     memories,
-    prefetch,
     precompute,
+    prefetch,
     projects,
     relations,
     search,
     stubs,
+    symbols,
     sync,
     websocket,
 )
@@ -328,6 +329,7 @@ app.include_router(clustering.router)
 app.include_router(prefetch.router)
 app.include_router(precompute.router)
 app.include_router(stubs.router)
+app.include_router(symbols.router)
 
 
 # ==================== 异常处理 ====================

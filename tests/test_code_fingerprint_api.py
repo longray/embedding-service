@@ -82,8 +82,9 @@ class TestCodeFingerprintService:
     @pytest.mark.asyncio
     async def test_compare_fingerprints_new_files(self):
         """测试比对新文件"""
+        from unittest.mock import AsyncMock, MagicMock
+
         from wrapper.src.services.code_fingerprint_service import CodeFingerprintService
-        from unittest.mock import MagicMock, AsyncMock
 
         mock_db = MagicMock()
         mock_db.query = AsyncMock(return_value=[{"result": []}])
@@ -107,8 +108,9 @@ class TestCodeFingerprintService:
     @pytest.mark.asyncio
     async def test_compare_fingerprints_changed_files(self):
         """测试比对变更文件"""
+        from unittest.mock import AsyncMock, MagicMock
+
         from wrapper.src.services.code_fingerprint_service import CodeFingerprintService
-        from unittest.mock import MagicMock, AsyncMock
 
         mock_db = MagicMock()
         # 模拟数据库中已有相同路径但不同哈希的文件
@@ -141,8 +143,9 @@ class TestCodeFingerprintService:
     @pytest.mark.asyncio
     async def test_compare_fingerprints_unchanged_files(self):
         """测试比对未变更文件"""
+        from unittest.mock import AsyncMock, MagicMock
+
         from wrapper.src.services.code_fingerprint_service import CodeFingerprintService
-        from unittest.mock import MagicMock, AsyncMock
 
         mock_db = MagicMock()
         # 模拟数据库中已有相同路径且相同哈希的文件
@@ -175,8 +178,9 @@ class TestCodeFingerprintService:
     @pytest.mark.asyncio
     async def test_update_fingerprints(self):
         """测试更新指纹"""
+        from unittest.mock import AsyncMock, MagicMock
+
         from wrapper.src.services.code_fingerprint_service import CodeFingerprintService
-        from unittest.mock import MagicMock, AsyncMock
 
         mock_db = MagicMock()
         mock_db.query = AsyncMock(return_value=None)
@@ -199,8 +203,9 @@ class TestCodeFingerprintService:
     @pytest.mark.asyncio
     async def test_delete_fingerprints(self):
         """测试删除指纹"""
+        from unittest.mock import AsyncMock, MagicMock
+
         from wrapper.src.services.code_fingerprint_service import CodeFingerprintService
-        from unittest.mock import MagicMock, AsyncMock
 
         mock_db = MagicMock()
         mock_db.query = AsyncMock(return_value=None)

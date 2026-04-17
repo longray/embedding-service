@@ -4,7 +4,6 @@
 """
 
 import pytest
-from fastapi.testclient import TestClient
 
 
 class TestPrecomputeAnalysisAPI:
@@ -128,7 +127,7 @@ class TestPrecomputeModels:
 
     def test_precompute_analysis_request_model(self):
         """测试 PrecomputeAnalysisRequest 模型"""
-        from wrapper.src.models import PrecomputeAnalysisRequest, FileInfo, SymbolInfo
+        from wrapper.src.models import FileInfo, PrecomputeAnalysisRequest, SymbolInfo
 
         request = PrecomputeAnalysisRequest(
             project_id="test-project",

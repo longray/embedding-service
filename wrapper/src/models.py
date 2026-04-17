@@ -246,6 +246,27 @@ class AccessLogRequest(BaseModel):
     tenant_id: str = Field(default="default", description="租户ID")
 
 
+# ==================== Symbol Search Models (BL-B-83) ====================
+
+
+class SymbolMatch(BaseModel):
+    """单个符号匹配结果"""
+
+    name: str = Field(..., description="符号名称")
+    type: str = Field(..., description="符号类型: function, class, interface, variable, method")
+    file: str = Field(..., description="定义所在文件路径")
+    line: int = Field(..., description="定义所在行号")
+    memory_id: str = Field(..., description="关联的记忆 ID")
+    signature: str | None = Field(default=None, description="函数签名（仅 function/method）")
+
+
+class SymbolSearchResponse(BaseModel):
+    """符号搜索响应"""
+
+    symbols: list[SymbolMatch] = Field(default_factory=list, description="匹配的符号列表")
+    total: int = Field(default=0, description="匹配总数")
+
+
 # ==================== Audit Log Models (P3-5) ====================
 
 

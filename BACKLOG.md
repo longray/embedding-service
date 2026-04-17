@@ -129,6 +129,13 @@
 | BL-B-81 | PrecomputeService 代码分析 API | P0 | 2 天 | 🆕 | [详情](#bl-b-81-p0-precomputeservice-代码分析-api) |
 | BL-B-82 | 集成测试环境部署 | P1 | 1 天 | 🆕 | [详情](#bl-b-82-p1-集成测试环境部署) |
 | BL-B-83 | 符号查询 API | P3 | 3-5 天 | ⏸️ | [详情](#bl-b-83-p3-符号查询-api) |
+| **Phase 9** | **代码审查修复 (v3.2.1)** |
+| BL-B-84 | 封装性修复：添加 db 公开属性 | P0 | 0.5 天 | 🆕 | [详情](#bl-b-84-p0-封装性修复添加-db-公开属性) |
+| BL-B-85 | 统一 _extract_records 实现 | P0 | 0.5 天 | 🆕 | [详情](#bl-b-85-p0-统一-extractrecords-实现) |
+| BL-B-86 | PrecomputeService 生命周期管理 | P0 | 1 天 | 🆕 | [详情](#bl-b-86-p0-precomputeservice-生命周期管理) |
+| BL-B-87 | 代码指纹批量 SQL 优化 | P1 | 0.5 天 | 🆕 | [详情](#bl-b-87-p1-代码指纹批量-sql-优化) |
+| BL-B-88 | 添加事务保护 | P1 | 0.5 天 | 🆕 | [详情](#bl-b-88-p1-添加事务保护) |
+| BL-B-89 | 测试质量提升 | P2 | 1 天 | 🆕 | [详情](#bl-b-89-p2-测试质量提升) |
 
 ---
 
@@ -3052,6 +3059,194 @@ uv run pytest tests/test_symbol_search.py -v
 
 ---
 
+### BL-B-84 [P0] 封装性修复：添加 db 公开属性
+
+**目标**  
+修复三个路由直接访问 `memory_manager._db` 私有属性的问题，提高代码封装性。
+
+**涉及范围**  
+- 文件: `wrapper/src/utils/memory_manager/manager.py` — 添加 `db` 公开属性
+- 文件: `wrapper/src/routers/sync.py` — 改用 `memory_manager.db`
+- 文件: `wrapper/src/routers/precompute.py` — 改用 `memory_manager.db`
+- 文件: `wrapper/src/routers/symbols.py` — 改用 `memory_manager.db`
+
+**前置依赖**  
+无
+
+**完成标准**  
+- [ ] `MemoryManager` 添加 `db` 公开属性
+- [ ] 三个路由改为访问 `memory_manager.db`
+- [ ] 所有测试通过
+
+**验证方式**  
+```bash
+uv run pytest tests/ -v
+uv run ruff check wrapper/src/routers/
+```
+
+**工时**: 0.5 天  
+**状态**: 🆕 新建
+
+---
+
+### BL-B-85 [P0] 统一 _extract_records 实现
+
+**目标**  
+统一 `symbol_service` 和 `manager` 中的 `_extract_records` 实现，防止数据丢失 bug。
+
+**涉及范围**  
+- 文件: `wrapper/src/utils/memory_manager/manager.py` — 抽取 `_extract_records` 为工具函数
+- 文件: `wrapper/src/services/symbol_service.py` — 复用统一实现
+- 文件: `wrapper/src/services/code_fingerprint_service.py` — 复用统一实现
+
+**前置依赖**  
+无
+
+**完成标准**  
+- [ ] 创建 `wrapper/src/utils/db_utils.py` 工具模块
+- [ ] 抽取 `_extract_records` 函数
+- [ ] 三个服务都使用统一实现
+- [ ] 边界情况测试（嵌套列表、空结果等）
+
+**验证方式**  
+```bash
+uv run pytest tests/test_symbol_search_api.py -v
+uv run pytest tests/test_code_fingerprint_api.py -v
+```
+
+**工时**: 0.5 天  
+**状态**: 🆕 新建
+
+---
+
+### BL-B-86 [P0] PrecomputeService 生命周期管理
+
+**目标**  
+修复 PrecomputeService 每次请求创建新实例的性能问题，实现单例或连接池管理。
+
+**涉及范围**  
+- 文件: `wrapper/src/main.py` — lifespan 中创建 PrecomputeService 单例
+- 文件: `wrapper/src/routers/precompute.py` — 使用单例而非创建新实例
+- 文件: `wrapper/src/services/precompute.py` — 支持单例模式（如果必要）
+
+**前置依赖**  
+无
+
+**完成标准**  
+- [ ] lifespan 启动时创建 PrecomputeService 单例
+- [ ] 路由使用单例服务
+- [ ] 支持多租户（使用 `dict[str, PrecomputeService]` 缓存）
+- [ ] 性能测试：100 次请求 < 5 秒
+
+**验证方式**  
+```bash
+# 性能测试
+uv run python -c "
+import asyncio
+import time
+from httpx import AsyncClient
+
+async def test():
+    async with AsyncClient() as client:
+        start = time.time()
+        for i in range(100):
+            await client.post('http://localhost:18008/api/v1/precompute/analysis', json={...})
+        print(f'100 requests: {time.time() - start:.2f}s')
+
+asyncio.run(test())
+"
+```
+
+**工时**: 1 天  
+**状态**: 🆕 新建
+
+---
+
+### BL-B-87 [P1] 代码指纹批量 SQL 优化
+
+**目标**  
+优化代码指纹服务的 N+1 查询问题，使用批量 SQL 替代循环查询。
+
+**涉及范围**  
+- 文件: `wrapper/src/services/code_fingerprint_service.py` — `update_fingerprints()` 和 `delete_fingerprints()`
+
+**前置依赖**  
+- BL-B-85 完成（统一 _extract_records）
+
+**完成标准**  
+- [ ] 使用批量 UPSERT 替代循环
+- [ ] 使用批量 DELETE 替代循环
+- [ ] 100 个文件的批量操作 < 1 秒
+
+**验证方式**  
+```bash
+uv run pytest tests/test_code_fingerprint_api.py::TestCodeFingerprintService -v
+```
+
+**工时**: 0.5 天  
+**状态**: 🆕 新建
+
+---
+
+### BL-B-88 [P1] 添加事务保护
+
+**目标**  
+为 code-fingerprints 端点添加事务保护，确保数据一致性。
+
+**涉及范围**  
+- 文件: `wrapper/src/routers/sync.py` — 包裹在 SurrealDB 事务中
+
+**前置依赖**  
+- BL-B-84 完成（db 公开属性）
+
+**完成标准**  
+- [ ] 使用 `BEGIN TRANSACTION` / `COMMIT` / `CANCEL`
+- [ ] 更新和删除操作原子性
+- [ ] 失败时回滚并记录错误日志
+
+**验证方式**  
+```bash
+# 模拟失败场景测试
+uv run pytest tests/test_code_fingerprint_api.py -v
+```
+
+**工时**: 0.5 天  
+**状态**: 🆕 新建
+
+---
+
+### BL-B-89 [P2] 测试质量提升
+
+**目标**  
+提升测试质量，修复断言过于宽松、未使用字段等问题。
+
+**涉及范围**  
+- 文件: `tests/test_precompute_analysis_api.py` — 修复宽松断言
+- 文件: `tests/test_code_fingerprint_api.py` — 添加边界测试
+- 文件: `wrapper/src/models.py` — 添加 `max_length` 约束
+- 文件: `wrapper/src/main.py` — 更新版本号、添加 re-export
+
+**前置依赖**  
+无
+
+**完成标准**  
+- [ ] 修复 `assert response.status_code in [200, 503]` 为精确断言
+- [ ] 添加 `max_length=1000` 到批量操作字段
+- [ ] 更新 `main.py` 版本号到 3.2.0
+- [ ] 添加新模型到 re-export
+- [ ] 添加集成测试 skip 机制（服务不可用时）
+
+**验证方式**  
+```bash
+uv run pytest tests/ -v
+uv run ruff check tests/
+```
+
+**工时**: 1 天  
+**状态**: 🆕 新建
+
+---
+
 ## 统计汇总
 
 | 分类 | 总数 | P1 | P2 | P3 | 工时 |
@@ -3068,4 +3263,5 @@ uv run pytest tests/test_symbol_search.py -v
 | 文档 | 8 | 2 | 4 | 2 | 5.5 天 |
 | **测试补充 (v3.4)** | **6** | **3** | **3** | **0** | **5 天** |
 | **Phase 8: 插件端 API** | **4** | **2** | **1** | **1** | **8 天** |
-| **总计** | **78** | **36** | **34** | **8** | **50 天** |
+| **Phase 9: 代码审查修复** | **6** | **3** | **2** | **1** | **4 天** |
+| **总计** | **84** | **39** | **36** | **9** | **54 天** |

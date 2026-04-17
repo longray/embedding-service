@@ -66,6 +66,9 @@ embedding_service/
 ```text
 
 ## 开发命令
+
+### 本地开发
+```bash
 # 启动服务
 uv run python start_services.py --with-llm
 
@@ -75,11 +78,45 @@ uv run pytest tests/ -v
 # 代码检查
 uv run ruff check .
 uv run pyright
-
-# Markdown 检查
-uv run task lint-md
-uv run task lint-md-stats
 ```
+
+### Docker 开发环境（推荐）
+
+**⚠️ 重要：开发环境支持热重载，无需重建容器**
+
+```bash
+# 1. 启动开发环境（首次或配置变更后）
+docker-compose -f docker-compose.dev.yml up -d
+
+# 2. 修改 wrapper/src/ 代码后，只需重启容器即可生效（无需重建）
+docker-compose -f docker-compose.dev.yml restart wrapper
+
+# 3. 查看日志
+docker logs wrapper-service-dev -f
+
+# 4. 停止环境
+docker-compose -f docker-compose.dev.yml down
+```
+
+**热重载原理**:
+
+- 开发环境使用 `target: development` 构建
+- 挂载 `./wrapper/src:/app/wrapper/src` 卷
+- 修改本地代码后，容器内立即生效
+- **只需重启容器，无需重新构建镜像**
+- 开发环境使用 `target: development` 构建
+- 挂载 `./wrapper/src:/app/wrapper/src` 卷
+- 修改本地代码后，容器内立即生效
+- **只需重启容器，无需重新构建镜像**
+
+**生产环境部署**:
+
+```bash
+# 生产环境使用 production 目标，需要重新构建
+docker-compose build --no-cache
+docker-compose up -d
+```
+
 ## 工具选择规则
 
 **搜索与重构任务的工具优先级**：
