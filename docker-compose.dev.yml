@@ -137,10 +137,6 @@ services:
       retries: 5
       start_period: 15s
 
-volumes:
-  surrealdb-data-dev:
-  meili-data-dev:
-
 networks:
   embedding-network:
     driver: bridge
