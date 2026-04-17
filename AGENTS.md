@@ -117,6 +117,21 @@ docker-compose build --no-cache
 docker-compose up -d
 ```
 
+## Markdown 编写规范
+
+当 AI Agent 或开发者编写/更新 Markdown 文档时，**必须**遵循以下规范：
+
+1. **MD031 (blanks-around-fences)**：代码块（fenced code block）的**前后必须各有一个空行**。
+   - ❌ 错误：`**验证方式**` 紧跟 ` ```bash`
+   - ✅ 正确：`**验证方式**` 后空一行，再写 ` ```bash`
+   - 关闭 ` ``` ` 后也必须空一行再写其他内容
+2. **MD040 (code-block-style)**：所有 fenced code block 必须显式声明语言（如 ` ```python`、` ```bash`）。
+3. **MD001 (heading-increment)**：标题级别必须逐级递增（`h1` → `h2` → `h3`，不可跳级）。
+4. **MD032/MD033**：列表和代码块前后必须空行；允许使用 `<br>` 等内联 HTML。
+5. **验证**：提交前运行 `uvx pre-commit run markdownlint-cli2 --all-files` 确认无新增错误。
+
+**忽略规则**：MD013(行长度) | MD024(重复标题) | MD056/060(表格)
+
 ## 工具选择规则
 
 **搜索与重构任务的工具优先级**：

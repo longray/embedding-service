@@ -13,6 +13,7 @@
 **📊 完成状态**: ✅ **100%** (66/66 任务完成)
 
 **📚 相关文档**:
+
 - [产品文档](./PRODUCT.md) - 面向终端用户
 - [开发文档](./DEVELOPMENT.md) - 面向开发人员
 - [v3.2 设计文档](./v3.2/) - 详细设计规范
@@ -147,6 +148,7 @@
 更新 pyproject.toml 依赖版本，为 v3.2 新功能提供基础支持。
 
 **涉及范围**  
+
 - 文件: `pyproject.toml`
 - 依赖项:
   - surrealdb: `>=1.0.0,<2.0.0` → `>=1.0.8,<1.1.0`
@@ -164,12 +166,14 @@
 无
 
 **完成标准**  
+
 - [ ] pyproject.toml 更新完成
 - [ ] `uv pip install` 无错误
 - [ ] `uv run python -c "import all_new_deps"` 成功
 - [ ] 依赖版本锁定文件更新
 
 **验证方式**  
+
 ```bash
 uv pip install -e .
 uv run python -c "import surrealdb, meilisearch, websockets, tree_sitter"
@@ -186,6 +190,7 @@ uv run python -c "import surrealdb; print(surrealdb.__version__)"
 实现 WebSocket 心跳机制，确保连接存活检测，2 次未响应自动触发重连。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/websocket/reliable_server.py`（新建）
 - 文件: `wrapper/src/websocket/heartbeat.py`（新建）
 - 类: `HeartbeatManager`
@@ -195,6 +200,7 @@ uv run python -c "import surrealdb; print(surrealdb.__version__)"
 BL-B-31 依赖升级完成
 
 **完成标准**  
+
 - [x] 每 30s 发送 ping 消息
 - [x] 5s 内等待 pong 响应
 - [x] 连续 2 次未响应触发 `on_connection_lost`
@@ -202,12 +208,14 @@ BL-B-31 依赖升级完成
 - [x] 可配置参数（interval, timeout, max_missing）
 
 **验证方式**  
+
 ```bash
 # 运行 WebSocket 心跳测试
 uv run pytest tests/test_websocket_heartbeat.py -v
 ```
 
 **实现结果**  
+
 - ✅ `wrapper/src/websocket/heartbeat.py` - HeartbeatManager 类 (151行)
 - ✅ `wrapper/src/websocket/reliable_server.py` - ReliableWebSocketServer 类 (192行)
 - ✅ `wrapper/src/websocket/__init__.py` - 模块导出
@@ -215,6 +223,7 @@ uv run pytest tests/test_websocket_heartbeat.py -v
 - ✅ `wrapper/src/routers/websocket.py` - 迁移到 ReliableWebSocketServer
 
 **测试覆盖**  
+
 - HeartbeatManager 基础功能 (7个测试)
 - ReliableWebSocketServer 集成 (6个测试)
 - 心跳机制集成 (2个测试)
@@ -228,6 +237,7 @@ uv run pytest tests/test_websocket_heartbeat.py -v
 实现指数退避重连机制，避免惊群效应，最大重试 10 次。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/websocket/reconnection.py`（新建）
 - 类: `ReconnectionManager`
 - 方法: `schedule_reconnect()`, `calculate_delay()`, `reset_counter()`
@@ -236,6 +246,7 @@ uv run pytest tests/test_websocket_heartbeat.py -v
 BL-B-1 心跳机制完成
 
 **完成标准**  
+
 - [x] 指数退避序列: 1→2→4→8→16→32→64→128→256→300s
 - [x] 随机抖动: +random.uniform(0, 1)s
 - [x] 最大重试: 10 次
@@ -243,11 +254,13 @@ BL-B-1 心跳机制完成
 - [ ] 重连失败进入降级模式（留待后续定义）
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_websocket_reconnection.py -v
 ```
 
 **实现结果**  
+
 - ✅ `wrapper/src/websocket/reconnection.py` - ReconnectionManager 类 (160行)
 - ✅ `tests/test_websocket_reconnection.py` - 16个测试用例，全部通过
 - ✅ 指数退避序列: BACKOFF_SEQUENCE = [1, 2, 4, 8, 16, 32, 64, 128, 256, 300]
@@ -255,12 +268,14 @@ uv run pytest tests/test_websocket_reconnection.py -v
 - ✅ 核心方法: calculate_delay(), schedule_reconnect(), reset_counter(), cancel_reconnect()
 
 **测试覆盖**  
+
 - ReconnectionManager 基础功能 (11个测试)
 - 指数退避序列测试 (2个测试)
 - 集成测试 (2个测试)
 - 总计: 16/16 测试通过
 
 **未结事项**  
+
 - session 恢复需要调用方实现（集成到 ReliableWebSocketServer 时处理）
 - 降级模式需要定义具体行为（如切换到轮询模式）
 
@@ -272,6 +287,7 @@ uv run pytest tests/test_websocket_reconnection.py -v
 实现消息确认机制，确保消息可靠投递，5s 超时，最多 3 次重试。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/websocket/ack_manager.py`（新建）
 - 类: `AckManager`
 - 方法: `send_with_ack()`, `handle_ack()`, `retry_message()`
@@ -280,6 +296,7 @@ uv run pytest tests/test_websocket_reconnection.py -v
 BL-B-1 心跳机制完成
 
 **完成标准**  
+
 - [x] 消息发送后启动 5s 超时计时器
 - [x] 收到 ACK 后清除超时
 - [x] 超时后自动重试（最多 3 次）
@@ -287,11 +304,13 @@ BL-B-1 心跳机制完成
 - [x] ACK 消息格式: `{"type": "ack", "_ackId": "..."}`
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_websocket_ack.py -v
 ```
 
 **实现结果**  
+
 - ✅ `wrapper/src/websocket/ack_manager.py` - AckManager 类 (166行)
 - ✅ `tests/test_websocket_ack.py` - 12个测试用例，全部通过
 - ✅ 核心方法: send_with_ack(), handle_ack(), is_pending(), get_retry_count()
@@ -299,12 +318,14 @@ uv run pytest tests/test_websocket_ack.py -v
 - ✅ UUID 生成 ackId，自动添加到消息
 
 **测试覆盖**  
+
 - AckManager 基础功能 (8个测试)
 - 并发测试 (1个测试)
 - 配置测试 (2个测试)
 - 总计: 12/12 测试通过
 
 **未结事项（已规划到后续任务）**  
+
 - BL-B-52: 与 ReliableWebSocketServer 集成（将 AckManager 集成到 WebSocket 服务器）
 - BL-B-53: ACK 消息协议定义（定义客户端如何发送 ACK 消息）
 - BL-B-54: 消息持久化（消息队列持久化实现）
@@ -317,6 +338,7 @@ uv run pytest tests/test_websocket_ack.py -v
 实现 DIFF 增量同步模式，使用 JSON Patch（RFC 6902），减少 90% 数据传输。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/websocket/diff_manager.py`（新建）
 - 文件: `wrapper/src/websocket/patch_generator.py`（新建）
 - 类: `DiffManager`, `PatchGenerator`
@@ -325,6 +347,7 @@ uv run pytest tests/test_websocket_ack.py -v
 BL-B-3 ACK 系统完成
 
 **完成标准**  
+
 - [x] 生成 RFC 6902 标准 JSON Patch
 - [x] Patch 操作: replace/add/remove
 - [x] 带宽节省计算
@@ -332,11 +355,13 @@ BL-B-3 ACK 系统完成
 - [ ] 支持 `LIVE SELECT DIFF` 订阅（已规划到 BL-B-56）
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_websocket_diff.py -v
 ```
 
 **实现结果**  
+
 - ✅ `wrapper/src/websocket/patch_generator.py` - PatchGenerator 类 (186行)
 - ✅ `wrapper/src/websocket/diff_manager.py` - DiffManager 类 (212行)
 - ✅ `tests/test_websocket_diff.py` - 23个测试用例，全部通过
@@ -346,12 +371,14 @@ uv run pytest tests/test_websocket_diff.py -v
 - ✅ diff/full 模式切换
 
 **测试覆盖**  
+
 - PatchGenerator 测试 (10个测试)
 - DiffManager 测试 (11个测试)
 - 带宽节省测试 (2个测试)
 - 总计: 23/23 测试通过
 
 **未结事项（已规划到后续任务）**  
+
 - BL-B-55: DiffManager 集成到 ReliableWebSocketServer
 - BL-B-56: LIVE SELECT DIFF 订阅实现
 - BL-B-57: DIFF 客户端配置接口
@@ -364,6 +391,7 @@ uv run pytest tests/test_websocket_diff.py -v
 实现连接断开后状态恢复，支持 session + offset 机制。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/websocket/state_recovery.py`（新建）
 - 类: `StateRecoveryManager`
 - 存储: `.opencode/ws-state.json`
@@ -372,6 +400,7 @@ uv run pytest tests/test_websocket_diff.py -v
 BL-B-2 重连机制完成
 
 **完成标准**  
+
 - [x] Session ID 生成: `sess-{timestamp}-{uuid[:9]}`
 - [x] Offset 持久化到文件
 - [x] 断线重连后恢复 session（核心功能实现，集成待后续）
@@ -379,11 +408,13 @@ BL-B-2 重连机制完成
 - [ ] 同步丢失消息（from_offset）（已规划到 BL-B-59）
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_websocket_state_recovery.py -v
 ```
 
 **实现结果**  
+
 - ✅ `wrapper/src/websocket/state_recovery.py` - StateRecoveryManager 类 (254行)
 - ✅ `tests/test_websocket_state_recovery.py` - 15个测试用例，全部通过
 - ✅ Session ID 生成: `sess-{timestamp}-{uuid[:9]}`
@@ -392,12 +423,14 @@ uv run pytest tests/test_websocket_state_recovery.py -v
 - ✅ TTL 清理（7天过期）
 
 **测试覆盖**  
+
 - StateRecoveryManager 基础功能 (11个测试)
 - TTL 清理测试 (2个测试)
 - 持久化测试 (2个测试)
 - 总计: 15/15 测试通过
 
 **未结事项（已规划到后续任务）**  
+
 - BL-B-58: StateRecoveryManager 集成到 ReliableWebSocketServer
 - BL-B-59: 同步丢失消息 (from_offset) 实现
 - BL-B-60: 断线重连自动恢复（结合 ReconnectionManager）
@@ -410,6 +443,7 @@ uv run pytest tests/test_websocket_state_recovery.py -v
 验证 WebSocket 服务端支持 ≥1000 并发连接。
 
 **涉及范围**  
+
 - 文件: `tests/performance/test_websocket_concurrent.py`（新建）
 - 工具: `locust` 或 `asyncio` 并发测试
 
@@ -417,6 +451,7 @@ uv run pytest tests/test_websocket_state_recovery.py -v
 BL-B-1~B-5 WebSocket 核心功能完成
 
 **完成标准**  
+
 - [x] 支持 1000+ 并发连接（测试脚本实现）
 - [x] 内存使用监控
 - [x] CPU 使用监控
@@ -424,11 +459,13 @@ BL-B-1~B-5 WebSocket 核心功能完成
 - [ ] 实际性能测试（已规划到 BL-B-61）
 
 **验证方式**  
+
 ```bash
 uv run python tests/performance/test_websocket_concurrent.py --help
 ```
 
 **实现结果**  
+
 - ✅ `tests/performance/test_websocket_concurrent.py` - 并发测试脚本 (354行)
 - ✅ `WebSocketLoadClient` 类 - 模拟 WebSocket 客户端
 - ✅ `PerformanceMonitor` 类 - 监控内存和 CPU
@@ -437,6 +474,7 @@ uv run python tests/performance/test_websocket_concurrent.py --help
 - ✅ 详细测试报告生成
 
 **测试功能**  
+
 - 创建 N 个并发 WebSocket 连接
 - 定期发送心跳消息
 - 监控内存和 CPU 使用
@@ -444,6 +482,7 @@ uv run python tests/performance/test_websocket_concurrent.py --help
 - 生成详细测试报告
 
 **未结事项（已规划到后续任务）**  
+
 - BL-B-61: 实际性能测试（需要启动 WebSocket 服务器）
 - BL-B-62: CI/CD 性能测试集成
 
@@ -455,6 +494,7 @@ uv run python tests/performance/test_websocket_concurrent.py --help
 验证 WebSocket 消息延迟 p99 < 100ms。
 
 **涉及范围**  
+
 - 文件: `tests/performance/test_websocket_latency.py`（新建）
 - 指标: p50/p95/p99 延迟、吞吐量
 
@@ -462,6 +502,7 @@ uv run python tests/performance/test_websocket_concurrent.py --help
 BL-B-1~B-5 WebSocket 核心功能完成
 
 **完成标准**  
+
 - [x] p99 延迟测量实现
 - [x] p95 延迟测量实现
 - [x] p50 延迟测量实现
@@ -470,11 +511,13 @@ BL-B-1~B-5 WebSocket 核心功能完成
 - [ ] 实际性能测试（已规划到 BL-B-61）
 
 **验证方式**  
+
 ```bash
 uv run python tests/performance/test_websocket_latency.py --help
 ```
 
 **实现结果**  
+
 - ✅ `tests/performance/test_websocket_latency.py` - 延迟测试脚本 (298行)
 - ✅ `LatencySample` 类 - 延迟样本
 - ✅ `LatencyMetrics` 类 - 延迟指标（含 p50/p95/p99 计算）
@@ -483,12 +526,14 @@ uv run python tests/performance/test_websocket_latency.py --help
 - ✅ 命令行参数支持：`--clients`, `--messages`, `--delay`, `--url`
 
 **测试功能**  
+
 - 测量消息往返延迟（RTT）
 - 计算 p50/p95/p99 百分位数
 - 计算吞吐量（msg/s）
 - 生成详细测试报告
 
 **未结事项（已规划到后续任务）**  
+
 - BL-B-61: 实际性能测试（与 BL-B-6 一起运行）
 
 ---
@@ -499,6 +544,7 @@ uv run python tests/performance/test_websocket_latency.py --help
 验证 WebSocket 心跳成功率 ≥99%。
 
 **涉及范围**  
+
 - 文件: `tests/performance/test_websocket_reliability.py`（新建）
 - 指标: 心跳成功率、丢包率
 
@@ -506,6 +552,7 @@ uv run python tests/performance/test_websocket_latency.py --help
 BL-B-1 心跳机制完成
 
 **完成标准**  
+
 - [x] 心跳成功率测量实现
 - [x] 丢包率测量实现
 - [x] 长时间运行支持（可配置）
@@ -514,11 +561,13 @@ BL-B-1 心跳机制完成
 - [ ] 实际 24 小时运行（已规划到 BL-B-61）
 
 **验证方式**  
+
 ```bash
 uv run python tests/performance/test_websocket_reliability.py --help
 ```
 
 **实现结果**  
+
 - ✅ `tests/performance/test_websocket_reliability.py` - 可靠性测试脚本 (320行)
 - ✅ `ReliabilityStats` 类 - 可靠性统计（成功率、丢包率）
 - ✅ `ReliabilityTestClient` 类 - 可靠性测试客户端
@@ -527,6 +576,7 @@ uv run python tests/performance/test_websocket_reliability.py --help
 - ✅ 信号中断支持（Ctrl+C）
 
 **测试功能**  
+
 - 长时间运行的心跳测试
 - 统计心跳成功/失败次数
 - 计算成功率（≥99%）
@@ -535,6 +585,7 @@ uv run python tests/performance/test_websocket_reliability.py --help
 - 生成详细测试报告
 
 **未结事项（已规划到后续任务）**  
+
 - BL-B-61: 实际性能测试（与 BL-B-6、BL-B-7 一起运行）
 - BL-B-63: 性能测试套件整合
 
@@ -548,6 +599,7 @@ uv run python tests/performance/test_websocket_reliability.py --help
 创建 PrecomputeService 服务骨架，实现服务化架构，支持 tenant 隔离。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/services/precompute.py`（新建）
 - 类: `PrecomputeService`
 - 方法: `__init__()`, `start()`, `stop()`, `process_batch()`
@@ -556,6 +608,7 @@ uv run python tests/performance/test_websocket_reliability.py --help
 BL-B-31 依赖升级完成
 
 **完成标准**  
+
 - [x] PrecomputeService 类实现
 - [x] 支持 tenant_id 隔离
 - [x] 支持 DB 连接注入
@@ -563,11 +616,13 @@ BL-B-31 依赖升级完成
 - [x] 基础日志记录
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_precompute_service.py -v
 ```
 
 **实现结果**  
+
 - ✅ `wrapper/src/services/__init__.py` - 模块导出
 - ✅ `wrapper/src/services/precompute.py` - PrecomputeService 类 (154行)
 - ✅ `tests/test_precompute_service.py` - 11个测试用例，全部通过
@@ -577,12 +632,14 @@ uv run pytest tests/test_precompute_service.py -v
 - ✅ 健康检查接口
 
 **测试覆盖**  
+
 - PrecomputeService 基础功能 (9个测试)
 - Tenant 隔离测试 (1个测试)
 - 生命周期测试 (1个测试)
 - 总计: 11/11 测试通过
 
 **未结事项（已规划到后续任务）**  
+
 - BL-B-9: tree-sitter 集成 + 指纹
 - BL-B-10: 调用关系创建
 - BL-B-11: 循环检测
@@ -598,6 +655,7 @@ uv run pytest tests/test_precompute_service.py -v
 集成 tree-sitter 进行代码解析，实现 SHA256 指纹计算，支持增量分析。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/services/code_parser.py`（新建）
 - 文件: `wrapper/src/services/fingerprint.py`（新建）
 - 类: `CodeParser`, `FingerprintManager`
@@ -606,6 +664,7 @@ uv run pytest tests/test_precompute_service.py -v
 BL-B-8 基础架构完成
 
 **完成标准**  
+
 - [x] 支持 Python/JavaScript/TypeScript 解析
 - [x] SHA256 指纹计算
 - [x] 变更检测（指纹比对）
@@ -613,11 +672,13 @@ BL-B-8 基础架构完成
 - [ ] 未变更文件跳过分析（集成到 PrecomputeService 时实现）
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_fingerprint.py -v
 ```
 
 **实现结果**  
+
 - ✅ `wrapper/src/services/fingerprint.py` - FingerprintManager 类 (135行)
 - ✅ `wrapper/src/services/code_parser.py` - CodeParser 类 (236行)
 - ✅ `tests/test_fingerprint.py` - 16个测试用例，全部通过
@@ -627,11 +688,13 @@ uv run pytest tests/test_fingerprint.py -v
 - ✅ 符号提取（函数、类）
 
 **测试覆盖**  
+
 - FingerprintManager 基础功能 (15个测试)
 - 集成测试 (1个测试)
 - 总计: 16/16 测试通过
 
 **未结事项（已规划到后续任务）**  
+
 - BL-B-10: 调用关系创建
 - BL-B-11: 循环检测
 - BL-B-12: 权重计算
@@ -646,6 +709,7 @@ uv run pytest tests/test_fingerprint.py -v
 从 AST 中提取函数调用关系，自动创建 RELATE 关系。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/services/relation_builder.py`（新建）
 - 类: `RelationBuilder`
 - 方法: `extract_calls()`, `create_relations()`, `batch_relate()`
@@ -654,6 +718,7 @@ uv run pytest tests/test_fingerprint.py -v
 BL-B-9 tree-sitter 集成完成
 
 **完成标准**  
+
 - [x] 提取函数调用关系
 - [x] 批量创建关系（100 条/批）
 - [x] 自调用过滤（caller != callee）
@@ -661,11 +726,13 @@ BL-B-9 tree-sitter 集成完成
 - [ ] 创建 atom → atom RELATE（已规划到 BL-B-64）
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_relation_builder.py -v
 ```
 
 **实现结果**  
+
 - ✅ `wrapper/src/services/relation_builder.py` - RelationBuilder 类 (241行)
 - ✅ `tests/test_relation_builder.py` - 7个测试用例，全部通过
 - ✅ `CallRelation` 数据类 - 调用关系
@@ -676,10 +743,12 @@ uv run pytest tests/test_relation_builder.py -v
 - ✅ 支持 Mock 模式（无 DB）
 
 **测试覆盖**  
+
 - RelationBuilder 基础功能 (7个测试)
 - 总计: 7/7 测试通过
 
 **未结事项（已规划到后续任务）**  
+
 - BL-B-64: SurrealDB RELATE 集成
 - BL-B-11: 循环检测
 - BL-B-12: 权重计算
@@ -694,6 +763,7 @@ uv run pytest tests/test_relation_builder.py -v
 检测代码中的循环依赖（circular dependencies）。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/services/cycle_detector.py`（新建）
 - 类: `CycleDetector`
 - 算法: DFS（深度优先搜索）
@@ -702,6 +772,7 @@ uv run pytest tests/test_relation_builder.py -v
 BL-B-10 调用关系创建完成
 
 **完成标准**  
+
 - [x] DFS 算法实现
 - [x] 检测循环调用链
 - [x] 记录循环路径
@@ -709,11 +780,13 @@ BL-B-10 调用关系创建完成
 - [x] 时间复杂度 O(V+E)
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_cycle_detector.py -v
 ```
 
 **实现结果**  
+
 - ✅ `wrapper/src/services/cycle_detector.py` - CycleDetector 类 (191行)
 - ✅ `tests/test_cycle_detector.py` - 12个测试用例，全部通过
 - ✅ `Cycle` 数据类 - 循环信息（path, length）
@@ -724,11 +797,13 @@ uv run pytest tests/test_cycle_detector.py -v
 - ✅ 使用三色标记法（白/灰/黑）
 
 **测试覆盖**  
+
 - CycleDetector 基础功能 (10个测试)
 - 性能测试 (2个测试)
 - 总计: 12/12 测试通过
 
 **未结事项（已规划到后续任务）**  
+
 - BL-B-65: CycleDetector 集成到 RelationBuilder
 - BL-B-66: 循环依赖解决策略
 
@@ -740,6 +815,7 @@ uv run pytest tests/test_cycle_detector.py -v
 计算调用关系的权重，用于图遍历优先级。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/services/weight_calculator.py`（新建）
 - 类: `WeightCalculator`
 - 因素: 调用频率、复杂度、参数数量、跨文件
@@ -748,12 +824,14 @@ uv run pytest tests/test_cycle_detector.py -v
 BL-B-10 调用关系创建完成
 
 **完成标准**  
+
 - [x] 权重因子定义
 - [x] 权重计算公式
 - [x] 归一化处理
 - [ ] 权重持久化（BL-B-67 后续任务）
 
 **验证方式**  
+
 ```python
 def test_calculate_weight():
     wc = WeightCalculator()
@@ -762,6 +840,7 @@ def test_calculate_weight():
 ```
 
 **实现结果**  
+
 - ✅ `wrapper/src/services/weight_calculator.py` (195行)
 - ✅ WeightFactors 数据类定义
 - ✅ 权重计算公式: `base + frequency_factor + complexity_factor + param_factor + cross_file_factor`
@@ -778,6 +857,7 @@ def test_calculate_weight():
 将 WeightCalculator 集成到 RelationBuilder，使用权重计算器计算关系权重。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/services/relation_builder.py`（修改）
 - 集成: WeightCalculator 实例
 - 功能: `_calculate_weight()` 使用 WeightCalculator
@@ -786,17 +866,20 @@ def test_calculate_weight():
 BL-B-12 权重计算完成
 
 **完成标准**  
+
 - [x] RelationBuilder 初始化时创建 WeightCalculator
 - [x] `_calculate_weight()` 使用 WeightCalculator
 - [x] 权重保存到 WeightCalculator
 - [x] 提供 `weight_calculator` property
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_relation_builder_weight.py -v
 ```
 
 **实际完成**  
+
 - 在 `RelationBuilder.__init__` 中初始化 `WeightCalculator`
 - 修改 `_calculate_weight()` 使用 `WeightCalculator.calculate_weight()`
 - 使用 `WeightFactors` 定义权重因子
@@ -812,6 +895,7 @@ uv run pytest tests/test_relation_builder_weight.py -v
 将权重持久化到 SurrealDB，支持权重保存、加载和查询。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/services/weight_calculator.py`（修改）
 - 表: `reference`（使用现有 weight 字段）
 - 功能: 异步保存/加载权重
@@ -820,6 +904,7 @@ uv run pytest tests/test_relation_builder_weight.py -v
 BL-B-12 权重计算完成
 
 **完成标准**  
+
 - [x] WeightCalculator 支持 DB 连接
 - [x] 实现 `save_weight_to_db()` 方法
 - [x] 实现 `get_weight_from_db()` 方法
@@ -827,11 +912,13 @@ BL-B-12 权重计算完成
 - [x] 实现 `load_weights_from_db()` 加载权重
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_weight_persistence.py -v
 ```
 
 **实际完成**  
+
 - 修改 `WeightCalculator.__init__` 接受 `db` 参数
 - 添加 `save_weight_to_db()` 保存单个权重到 reference 表
 - 添加 `get_weight_from_db()` 从 reference 表查询权重
@@ -848,6 +935,7 @@ uv run pytest tests/test_weight_persistence.py -v
 监控 PrecomputeService 性能，记录耗时、内存使用。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/services/performance_monitor.py`（新建）
 - 类: `PerformanceMonitor`
 - 指标: parse_time, analysis_time, memory_usage
@@ -856,12 +944,14 @@ uv run pytest tests/test_weight_persistence.py -v
 BL-B-8 基础架构完成
 
 **完成标准**  
+
 - [x] 性能指标收集
 - [x] 内存监控
 - [x] 日志记录
 - [x] 性能报告生成
 
 **验证方式**  
+
 ```python
 async def test_performance_monitor():
     pm = PerformanceMonitor()
@@ -872,6 +962,7 @@ async def test_performance_monitor():
 ```
 
 **实现结果**  
+
 - ✅ `wrapper/src/services/performance_monitor.py` (277行)
 - ✅ PerformanceMetrics 数据类
 - ✅ 19个测试全部通过
@@ -888,6 +979,7 @@ async def test_performance_monitor():
 实现并发控制，防止同文件重复处理，限制并发数。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/services/concurrency_control.py`（新建）
 - 类: `ConcurrencyControl`
 - 机制: Semaphore(5) + processing Set
@@ -896,12 +988,14 @@ async def test_performance_monitor():
 BL-B-8 基础架构完成
 
 **完成标准**  
+
 - [x] Semaphore(5) 并发限制
 - [x] processing Set 去重
 - [x] 队列机制
 - [x] 超时处理
 
 **验证方式**  
+
 ```python
 async def test_concurrency_limit():
     cc = ConcurrencyControl(max_concurrent=5)
@@ -911,6 +1005,7 @@ async def test_concurrency_limit():
 ```
 
 **实现结果**  
+
 - ✅ `wrapper/src/services/concurrency_control.py` (282行)
 - ✅ DuplicateTaskError 异常类
 - ✅ 18个测试全部通过
@@ -929,6 +1024,7 @@ async def test_concurrency_limit():
 将 Meilisearch 客户端从 httpx REST 调用迁移到官方 SDK 0.40。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/utils/meili_client.py`（修改）
 - 依赖: `meilisearch>=0.40.0,<0.41.0`
 
@@ -936,12 +1032,14 @@ async def test_concurrency_limit():
 BL-B-31 依赖升级完成
 
 **完成标准**  
+
 - [x] 替换 httpx 为 meilisearch SDK
 - [x] 更新所有 API 调用
 - [x] 错误处理适配
 - [x] 配置迁移
 
 **验证方式**  
+
 ```python
 async def test_meilisearch_sdk():
     client = MeiliClient()
@@ -951,6 +1049,7 @@ async def test_meilisearch_sdk():
 ```
 
 **实现结果**  
+
 - ✅ `wrapper/src/utils/meili_sdk_client.py` (357行)
 - ✅ MeilisearchSDKClient 类实现
 - ✅ 16个测试全部通过
@@ -967,6 +1066,7 @@ async def test_meilisearch_sdk():
 迁移 Meilisearch 索引设置到新 SDK。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/utils/meili_client.py`（修改）
 - 索引: `memories`, `code_search_index`
 
@@ -974,11 +1074,13 @@ async def test_meilisearch_sdk():
 BL-B-15 客户端迁移完成
 
 **完成标准**  
+
 - [x] 索引设置迁移
 - [x] 字段映射更新
 - [x] 搜索配置更新
 
 **验证方式**  
+
 ```python
 async def test_index_settings():
     client = MeiliClient()
@@ -987,6 +1089,7 @@ async def test_index_settings():
 ```
 
 **实现结果**  
+
 - ✅ `get_settings()` 方法实现
 - ✅ `reset_settings()` 方法实现
 - ✅ 18个测试全部通过
@@ -1000,6 +1103,7 @@ async def test_index_settings():
 实现批量操作支持，提升导入性能。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/utils/meili_client.py`（修改）
 - 方法: `batch_add_documents()`, `batch_update_documents()`
 
@@ -1007,12 +1111,14 @@ async def test_index_settings():
 BL-B-15 客户端迁移完成
 
 **完成标准**  
+
 - [x] 批量添加文档
 - [x] 批量更新文档
 - [x] 批量删除文档
 - [x] 批处理大小 100 条
 
 **验证方式**  
+
 ```python
 async def test_batch_operations():
     client = MeiliClient()
@@ -1022,6 +1128,7 @@ async def test_batch_operations():
 ```
 
 **实现结果**  
+
 - ✅ `batch_add_documents()` 方法实现
 - ✅ `batch_delete_documents()` 方法实现
 - ✅ 支持自定义 `batch_size`（默认 100）
@@ -1039,6 +1146,7 @@ async def test_batch_operations():
 创建 v3.2 核心表：atom, entity, reference。
 
 **涉及范围**  
+
 - 文件: `scripts/init_surrealdb_v3.2.surql`（新建）
 - 表: `atom`, `entity`, `reference`
 
@@ -1046,6 +1154,7 @@ async def test_batch_operations():
 SurrealDB 1.0.8 已安装
 
 **完成标准**  
+
 - [x] atom 表创建
 - [x] entity 表创建
 - [x] reference 表创建
@@ -1053,12 +1162,15 @@ SurrealDB 1.0.8 已安装
 - [x] 索引创建
 
 **验证方式**  
+
 ```sql
 INFO FOR DB;
 -- 应显示 atom, entity, reference 表
+
 ```
 
 **实现结果**  
+
 - ✅ `scripts/init_surrealdb_v3.2.surql` (新建)
 - ✅ atom 表：8个字段，4个索引
 - ✅ entity 表：12个字段，6个索引
@@ -1076,6 +1188,7 @@ INFO FOR DB;
 配置 SurrealDB ChangeFeed，支持实时变更通知。
 
 **涉及范围**  
+
 - 文件: `scripts/init_surrealdb_v3.2.surql`（修改）
 - 配置: `CHANGE FEED 7d ON TABLE ...`
 
@@ -1083,17 +1196,21 @@ INFO FOR DB;
 BL-B-18 核心表创建完成
 
 **完成标准**  
+
 - [x] ChangeFeed 启用
 - [x] 7 天 TTL 配置
 - [x] 支持 atom/entity/reference 表
 
 **验证方式**  
+
 ```sql
 LIVE SELECT * FROM atom;
 -- 应返回 query UUID
+
 ```
 
 **实现结果**  
+
 - ✅ `wrapper/src/utils/changefeed_client.py` (新建)
 - ✅ ChangeFeedClient 类实现
 - ✅ `subscribe_to_changes()` 方法
@@ -1109,6 +1226,7 @@ LIVE SELECT * FROM atom;
 创建辅助表：performance_log, session_state。
 
 **涉及范围**  
+
 - 文件: `scripts/init_surrealdb_v3.2.surql`（修改）
 - 表: `performance_log`, `session_state`
 
@@ -1116,17 +1234,21 @@ LIVE SELECT * FROM atom;
 BL-B-18 核心表创建完成
 
 **完成标准**  
+
 - [x] performance_log 表创建
 - [x] session_state 表创建
 - [x] 索引创建
 
 **验证方式**  
+
 ```sql
 INFO FOR DB;
 -- 应显示所有表
+
 ```
 
 **实现结果**  
+
 - ✅ performance_log 表：7个字段，3个索引
 - ✅ session_state 表：7个字段，3个索引（新增）
 - ✅ schema_version 表：4个字段
@@ -1140,6 +1262,7 @@ INFO FOR DB;
 创建数据迁移脚本，从 v2.x 迁移到 v3.2。
 
 **涉及范围**  
+
 - 文件: `scripts/migrate_v2_to_v3.2.py`（新建）
 - 迁移: memory → atom/entity/reference
 
@@ -1147,18 +1270,21 @@ INFO FOR DB;
 BL-B-18~B-20 Schema 创建完成
 
 **完成标准**  
+
 - [x] 数据迁移脚本
 - [x] 数据验证
 - [x] 回滚机制
 - [x] 迁移日志
 
 **验证方式**  
+
 ```bash
 uv run python scripts/migrate_v2_to_v32.py --dry-run
 uv run python scripts/migrate_v2_to_v32.py --execute
 ```
 
 **实现结果**  
+
 - ✅ `scripts/migrate_v2_to_v32.py` (新建)
 - ✅ `V2ToV3Migration` 类实现
 - ✅ dry-run / execute 模式支持
@@ -1180,6 +1306,7 @@ uv run python scripts/migrate_v2_to_v32.py --execute
 将服务端口从 17999 迁移到 18008，支持双端口并行期。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/config.py`（修改）
 - 配置: 端口配置更新
 
@@ -1187,18 +1314,21 @@ uv run python scripts/migrate_v2_to_v32.py --execute
 无
 
 **完成标准**  
+
 - [x] 默认端口改为 18008
 - [x] 双端口并行支持（1-2 周）
 - [x] 环境变量覆盖支持
 - [ ] 文档更新
 
 **验证方式**  
+
 ```bash
 curl http://localhost:18008/health
 curl http://localhost:17999/health  # 并行期
 ```
 
 **实现结果**  
+
 - ✅ `wrapper/src/config.py` 修改
 - ✅ 新默认端口 18008
 - ✅ 旧端口 17999（legacy_port）
@@ -1217,6 +1347,7 @@ curl http://localhost:17999/health  # 并行期
 优化 Docker 镜像构建，使用多阶段构建减少镜像体积。
 
 **涉及范围**  
+
 - 文件: `Dockerfile`（修改）
 - 优化: 多阶段构建、缓存优化
 
@@ -1224,17 +1355,20 @@ curl http://localhost:17999/health  # 并行期
 无
 
 **完成标准**  
+
 - [x] 多阶段构建 Dockerfile
 - [x] 镜像体积减少 50%+
 - [x] 构建时间减少 30%+
 
 **验证方式**  
+
 ```bash
 docker build -t embedding-service:v3.2 .
 docker images | grep embedding-service
 ```
 
 **实现结果**  
+
 - ✅ `wrapper/Dockerfile.multistage` (新建)
 - ✅ 3阶段构建：builder, production, development
 - ✅ 非 root 用户运行
@@ -1251,6 +1385,7 @@ docker images | grep embedding-service
 添加 docker-compose 健康检查配置。
 
 **涉及范围**  
+
 - 文件: `docker-compose.yml`（修改）
 - 配置: healthcheck
 
@@ -1258,11 +1393,13 @@ docker images | grep embedding-service
 BL-B-22 端口迁移完成
 
 **完成标准**  
+
 - [x] healthcheck 配置
 - [x] 依赖服务启动顺序
 - [x] 自动重启策略
 
 **验证方式**  
+
 ```bash
 docker-compose up -d
 docker-compose ps
@@ -1270,6 +1407,7 @@ docker-compose ps
 ```
 
 **实现结果**  
+
 - ✅ `docker-compose.yml` 修改
 - ✅ healthcheck 使用新端口 18008
 - ✅ 添加 `start_period: 15s`
@@ -1288,6 +1426,7 @@ docker-compose ps
 更新端口迁移相关文档。
 
 **涉及范围**  
+
 - 文件: `README.md`, `docs/START_GUIDE.md`, `docs/API_SPECIFICATION.md`
 - 内容: 端口配置说明
 
@@ -1295,18 +1434,21 @@ docker-compose ps
 BL-B-22 端口迁移完成
 
 **完成标准**  
+
 - [x] README.md 端口说明更新
 - [x] START_GUIDE.md 启动命令更新
 - [x] API_SPECIFICATION.md 端点更新
 - [x] 环境变量文档更新
 
 **验证方式**  
+
 ```bash
 # 检查文档中端口引用
 grep -r "17999\|18008" docs/ README.md
 ```
 
 **实现结果**  
+
 - ✅ `README.md` 更新
 - ✅ `docs/START_GUIDE.md` 更新
 - ✅ `docs/API_SPECIFICATION.md` 更新
@@ -1322,6 +1464,7 @@ grep -r "17999\|18008" docs/ README.md
 配置 SSL 证书自动续期（Certbot）。
 
 **涉及范围**  
+
 - 文件: `docker-compose.yml`（修改）
 - 配置: Certbot 容器
 
@@ -1329,16 +1472,19 @@ grep -r "17999\|18008" docs/ README.md
 域名已配置
 
 **完成标准**  
+
 - [x] Certbot 配置
 - [x] 自动续期脚本
 - [x] 证书验证
 
 **验证方式**  
+
 ```bash
 openssl s_client -connect api.example.com:443
 ```
 
 **实现结果**  
+
 - ✅ `docker-compose.ssl.yml` (新建)
 - ✅ `nginx/nginx.conf` (新建)
 - ✅ `scripts/init_ssl.sh` (新建)
@@ -1357,6 +1503,7 @@ openssl s_client -connect api.example.com:443
 编写 SSL 配置说明文档。
 
 **涉及范围**  
+
 - 文件: `docs/SSL-SETUP.md`（新建）
 - 内容: SSL 配置步骤、域名配置、证书管理
 
@@ -1364,18 +1511,21 @@ openssl s_client -connect api.example.com:443
 BL-B-25 SSL 自动续期完成
 
 **完成标准**  
+
 - [x] SSL 配置步骤文档
 - [x] 域名配置指南
 - [x] 证书管理说明
 - [x] 故障排查指南
 
 **验证方式**  
+
 ```bash
 # 检查文档完整性
 cat docs/SSL-SETUP.md | grep -E "域名|证书|配置"
 ```
 
 **实现结果**  
+
 - ✅ `docs/SSL-SETUP.md` (新建)
 - ✅ 快速开始指南
 - ✅ 域名配置说明
@@ -1394,6 +1544,7 @@ cat docs/SSL-SETUP.md | grep -E "域名|证书|配置"
 为 WebSocket 模块编写单元测试，覆盖率 ≥80%。
 
 **涉及范围**  
+
 - 文件: `tests/test_websocket_*.py`（新建）
 - 覆盖: heartbeat, ack, reconnection, diff, state_recovery
 
@@ -1401,16 +1552,19 @@ cat docs/SSL-SETUP.md | grep -E "域名|证书|配置"
 BL-B-1~B-5 WebSocket 实现完成
 
 **完成标准**  
+
 - [x] 单元测试覆盖率 ≥80%
 - [x] 所有关键路径测试
 - [x] Mock 外部依赖
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_websocket_*.py --cov=wrapper/src/websocket --cov-report=html
 ```
 
 **实现结果**  
+
 - ✅ 现有测试文件：test_websocket_heartbeat.py, test_websocket_ack.py, test_websocket_reconnection.py, test_websocket_diff.py, test_websocket_state_recovery.py, test_websocket.py
 - ✅ 81 个测试通过（4 个需要实际服务运行）
 - ✅ 覆盖 heartbeat, ack, reconnection, diff, state_recovery
@@ -1424,6 +1578,7 @@ uv run pytest tests/test_websocket_*.py --cov=wrapper/src/websocket --cov-report
 为 Precompute 模块编写单元测试，覆盖率 ≥80%。
 
 **涉及范围**  
+
 - 文件: `tests/test_precompute_*.py`（新建）
 - 覆盖: parser, fingerprint, relations, cycles, weights
 
@@ -1431,16 +1586,19 @@ uv run pytest tests/test_websocket_*.py --cov=wrapper/src/websocket --cov-report
 BL-B-8~B-14 Precompute 实现完成
 
 **完成标准**  
+
 - [x] 单元测试覆盖率 ≥80%
 - [x] 所有关键路径测试
 - [x] Mock 外部依赖
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_precompute_*.py --cov=wrapper/src/services --cov-report=html
 ```
 
 **实现结果**  
+
 - ✅ test_precompute_service.py - PrecomputeService 测试（11 测试）
 - ✅ test_fingerprint.py - FingerprintManager 测试（16 测试）
 - ✅ test_code_parser.py - CodeParser 测试（15 测试，新建）
@@ -1455,6 +1613,7 @@ uv run pytest tests/test_precompute_*.py --cov=wrapper/src/services --cov-report
 编写 WebSocket 端到端集成测试。
 
 **涉及范围**  
+
 - 文件: `tests/integration/test_websocket_e2e.py`（新建）
 - 场景: 连接、心跳、ACK、重连、DIFF
 
@@ -1462,11 +1621,13 @@ uv run pytest tests/test_precompute_*.py --cov=wrapper/src/services --cov-report
 BL-B-26 单元测试完成
 
 **完成标准**  
+
 - [ ] 端到端测试通过
 - [ ] 真实服务测试
 - [ ] 性能基准测试
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/integration/test_websocket_e2e.py -v
 ```
@@ -1479,6 +1640,7 @@ uv run pytest tests/integration/test_websocket_e2e.py -v
 编写 API 端到端集成测试。
 
 **涉及范围**  
+
 - 文件: `tests/integration/test_api_e2e.py`（新建）
 - 场景: Precompute API, Memory API, Search API
 
@@ -1486,11 +1648,13 @@ uv run pytest tests/integration/test_websocket_e2e.py -v
 BL-B-27 单元测试完成
 
 **完成标准**  
+
 - [ ] 端到端测试通过
 - [ ] 真实服务测试
 - [ ] 数据一致性验证
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/integration/test_api_e2e.py -v
 ```
@@ -1503,6 +1667,7 @@ uv run pytest tests/integration/test_api_e2e.py -v
 建立性能基准，记录关键指标。
 
 **涉及范围**  
+
 - 文件: `tests/performance/benchmark.py`（新建）
 - 指标: 延迟、吞吐量、并发、内存
 
@@ -1510,16 +1675,19 @@ uv run pytest tests/integration/test_api_e2e.py -v
 BL-B-28~B-29 集成测试完成
 
 **完成标准**  
+
 - [x] 性能基准建立
 - [x] 基准报告生成
 - [x] 性能回归检测
 
 **验证方式**  
+
 ```bash
 uv run python tests/performance/benchmark.py --report
 ```
 
 **实际完成**  
+
 - ✅ `tests/performance/benchmark.py` - PerformanceBenchmark 类 (580+行)
 - ✅ 支持三种测试模式：quick（快速）、standard（标准）、full（完整）
 - ✅ 整合现有性能测试：
@@ -1536,6 +1704,7 @@ uv run python tests/performance/benchmark.py --report
 - ✅ 创建 `tests/test_benchmark.py` - 10 个单元测试全部通过
 
 **使用示例**  
+
 ```bash
 # 标准模式（默认）
 uv run python tests/performance/benchmark.py --report
@@ -1560,12 +1729,14 @@ uv run python tests/performance/benchmark.py --compare reports/baseline.json --r
 补充 WebSocket 性能测试基准文档。
 
 **涉及范围**  
+
 - 文件: `docs/v3.2/BACKEND-v3.2-WEBSOCKET.md`（补充）
 
 **前置依赖**  
 BL-B-6~B-7 性能测试完成
 
 **完成标准**  
+
 - [x] 性能指标文档
 - [x] 测试方法说明
 - [x] 基准数据记录
@@ -1574,6 +1745,7 @@ BL-B-6~B-7 性能测试完成
 文档评审通过
 
 **实际完成**  
+
 - ✅ 在 `docs/v3.2/BACKEND-v3.2-WEBSOCKET.md` 第 5.3 节补充性能测试基准
 - ✅ 性能指标表格：并发连接、心跳成功率、消息延迟 P99、内存/CPU 使用
 - ✅ 测试方法说明：并发测试、延迟测试、可靠性测试
@@ -1589,12 +1761,14 @@ BL-B-6~B-7 性能测试完成
 完善 PrecomputeService 关系创建实现文档。
 
 **涉及范围**  
+
 - 文件: `docs/v3.2/BACKEND-v3.2-PRECOMPUTE.md`（补充）
 
 **前置依赖**  
 BL-B-10~B-12 实现完成
 
 **完成标准**  
+
 - [x] 关系创建算法文档
 - [x] 权重计算说明
 - [x] 循环检测算法
@@ -1610,12 +1784,14 @@ BL-B-10~B-12 实现完成
 统一预计算批处理大小参数文档。
 
 **涉及范围**  
+
 - 文件: `docs/v3.2/BACKEND-v3.2-PRECOMPUTE.md`（补充）
 
 **前置依赖**  
 BL-B-8 基础架构完成
 
 **完成标准**  
+
 - [x] 批处理参数统一
 - [x] 文档更新
 - [x] 配置说明
@@ -1624,6 +1800,7 @@ BL-B-8 基础架构完成
 文档评审通过
 
 **实际完成**  
+
 - ✅ 在 `docs/v3.2/BACKEND-v3.2-PRECOMPUTE.md` 第 4.2.1 节补充批处理参数统一文档
 - ✅ 批处理参数表格：PrecomputeConfig、RelationBuilder、MeilisearchSDKClient、AsyncMeilisearchSDKClient
 - ✅ 统一默认值：BATCH_SIZE = 100
@@ -1639,12 +1816,14 @@ BL-B-8 基础架构完成
 扩充后端实施指南文档。
 
 **涉及范围**  
+
 - 文件: `docs/v3.2/BACKEND-v3.2-IMPLEMENTATION.md`（扩充）
 
 **前置依赖**  
 Phase 2-3 开发完成
 
 **完成标准**  
+
 - [x] 详细实施步骤
 - [x] 最佳实践总结
 - [x] FAQ 整理
@@ -1653,6 +1832,7 @@ Phase 2-3 开发完成
 文档评审通过
 
 **实际完成**  
+
 - ✅ 在 `docs/v3.2/BACKEND-v3.2-IMPLEMENTATION.md` 扩充实施指南
 - ✅ 第 6 节：详细实施步骤（环境准备、服务启动、验证部署）
 - ✅ 第 7 节：最佳实践总结（配置管理、性能优化、错误处理、监控告警）
@@ -1666,12 +1846,14 @@ Phase 2-3 开发完成
 添加 WebSocket 错误处理示例代码。
 
 **涉及范围**  
+
 - 文件: `docs/v3.2/BACKEND-v3.2-WEBSOCKET.md`（补充）
 
 **前置依赖**  
 BL-B-1~B-5 实现完成
 
 **完成标准**  
+
 - [x] 错误码定义
 - [x] 处理示例代码
 - [x] 故障排查指南
@@ -1680,10 +1862,11 @@ BL-B-1~B-5 实现完成
 文档评审通过
 
 **实际完成**  
+
 - ✅ 在 `docs/v3.2/BACKEND-v3.2-WEBSOCKET.md` 添加第 6 节错误处理
 - ✅ 错误码定义表格（8 个错误码：WS-001 ~ WS-008）
-- ✅ 客户端错误处理示例（connect_with_retry, send_with_ack, _handle_error）
-- ✅ 服务端错误处理示例（handle_client, _handle_messages）
+- ✅ 客户端错误处理示例（connect_with_retry, send_with_ack, handle_error）
+- ✅ 服务端错误处理示例（handle_client, handle_messages）
 - ✅ 错误恢复策略（ReconnectionStrategy）
 - ✅ 故障排查指南（4 个常见问题及解决方案）
 - ✅ 调试工具（wscat, curl, tcpdump）
@@ -1696,23 +1879,27 @@ BL-B-1~B-5 实现完成
 添加 Kubernetes 部署配置。
 
 **涉及范围**  
+
 - 文件: `k8s/`（新建目录）
 
 **前置依赖**  
 BL-B-22~B-25 部署配置完成
 
 **完成标准**  
+
 - [x] Kubernetes 配置
 - [ ] Helm chart（可选）
 - [x] 部署文档
 
 **验证方式**  
+
 ```bash
 kubectl apply -f k8s/
 kubectl get pods
 ```
 
 **实际完成**  
+
 - ✅ `k8s/namespace.yaml` - 命名空间配置
 - ✅ `k8s/surrealdb-deployment.yaml` - SurrealDB Deployment + Service + PVC
 - ✅ `k8s/meilisearch-deployment.yaml` - Meilisearch Deployment + Service + PVC + Secret
@@ -1750,12 +1937,14 @@ kubectl get svc -n opencode-memory
 添加数据库 ER 关系图。
 
 **涉及范围**  
+
 - 文件: `docs/v3.2/DATABASE-v3.2-ER.md`（新建）
 
 **前置依赖**  
 BL-B-18~B-21 Schema 完成
 
 **完成标准**  
+
 - [x] ER 图绘制
 - [x] 关系说明
 - [x] 文档集成
@@ -1764,6 +1953,7 @@ BL-B-18~B-21 Schema 完成
 文档评审通过
 
 **实际完成**  
+
 - ✅ `docs/v3.2/DATABASE-v3.2-ER.md` - 数据库 ER 关系图文档
 - ✅ 核心实体关系图（完整 ER 图 + 表结构说明）
 - ✅ 图关系模型（代码、Backlog、Wiki、记忆）
@@ -1779,12 +1969,14 @@ BL-B-18~B-21 Schema 完成
 添加 SSL 自动续期配置文档。
 
 **涉及范围**  
+
 - 文件: `docs/v3.2/DEPLOYMENT-v3.2.md`（补充）
 
 **前置依赖**  
 BL-B-25 SSL 配置完成
 
 **完成标准**  
+
 - [x] Certbot 配置说明
 - [x] 自动续期脚本
 - [x] 验证方法
@@ -1793,6 +1985,7 @@ BL-B-25 SSL 配置完成
 文档评审通过
 
 **实际完成**  
+
 - ✅ 在 `docs/v3.2/DEPLOYMENT-v3.2.md` 第 4.6.4 节补充 SSL 验证方法
 - ✅ Certbot 配置说明（裸机、Docker、Kubernetes）
 - ✅ 自动续期脚本（shell 脚本、Docker Compose）
@@ -1808,6 +2001,7 @@ BL-B-25 SSL 配置完成
 将 AckManager 集成到 ReliableWebSocketServer，实现消息确认机制。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/websocket/reliable_server.py`（修改）
 - 集成: AckManager 到 ReliableWebSocketServer
 
@@ -1815,12 +2009,14 @@ BL-B-25 SSL 配置完成
 BL-B-3 ACK 系统完成
 
 **完成标准**  
+
 - [x] ReliableWebSocketServer 初始化时创建 AckManager
 - [x] 发送消息时调用 ack_manager.send_with_ack()
 - [x] 收到客户端 ACK 消息时调用 ack_manager.handle_ack()
 - [x] 消息发送失败时自动重试
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_websocket_integration.py -v
 ```
@@ -1833,12 +2029,14 @@ uv run pytest tests/test_websocket_integration.py -v
 定义客户端如何发送 ACK 消息的协议规范。
 
 **涉及范围**  
+
 - 文件: `docs/v3.2/WEBSOCKET-v3.2-PROTOCOL.md`（新建）
 
 **前置依赖**  
 BL-B-52 AckManager 集成完成
 
 **完成标准**  
+
 - [x] ACK 消息格式定义
 - [x] 客户端 ACK 发送时机说明
 - [x] 服务端 ACK 处理流程
@@ -1855,6 +2053,7 @@ BL-B-52 AckManager 集成完成
 实现消息队列持久化，确保消息不丢失。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/websocket/message_queue.py`（已存在）
 - 文件: `tests/test_websocket_persistent.py`（新建）
 
@@ -1862,16 +2061,19 @@ BL-B-52 AckManager 集成完成
 BL-B-53 ACK 消息协议定义完成
 
 **完成标准**  
+
 - [x] 消息队列持久化存储
 - [x] 服务重启后恢复未确认消息
 - [x] 消息过期清理机制
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_websocket_persistent.py -v
 ```
 
 **实际完成**  
+
 - ✅ `wrapper/src/websocket/message_queue.py` - MessageQueue 类（已存在，345行）
   - `QueuedMessage` 数据类 - 队列消息定义
   - `enqueue()` - 消息入队
@@ -1888,6 +2090,7 @@ uv run pytest tests/test_websocket_persistent.py -v
   - `TestMessageQueueEdgeCases` - 边界情况测试（6个）
 
 **功能特性**  
+
 - 消息持久化到 `.opencode/ws-messages.json`
 - 支持 from_offset 查询（用于断线重连后同步）
 - 消息送达状态跟踪
@@ -1904,6 +2107,7 @@ uv run pytest tests/test_websocket_persistent.py -v
 将 DiffManager 集成到 ReliableWebSocketServer，实现增量同步。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/websocket/reliable_server.py`（修改）
 - 集成: DiffManager 到 ReliableWebSocketServer
 
@@ -1911,12 +2115,14 @@ uv run pytest tests/test_websocket_persistent.py -v
 BL-B-4 DIFF 模式完成
 
 **完成标准**  
+
 - [x] ReliableWebSocketServer 初始化时创建 DiffManager
 - [x] 发送消息时根据配置选择 diff/full 模式
 - [x] 缓存消息状态用于生成 diff
 - [x] 支持客户端切换 diff/full 模式
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_websocket_diff_integration.py -v
 ```
@@ -1929,18 +2135,21 @@ uv run pytest tests/test_websocket_diff_integration.py -v
 实现 `LIVE SELECT DIFF` 订阅，支持 SurrealDB 变更通知的增量同步。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/websocket/live_diff_handler.py`（新建）
 
 **前置依赖**  
 BL-B-55 DiffManager 集成完成
 
 **完成标准**  
+
 - [x] 监听 SurrealDB LIVE SELECT 变更
 - [x] 将变更转换为 JSON Patch
 - [x] 发送 diff 消息到客户端
 - [x] 支持变更合并（减少消息数量）
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_websocket_live_diff.py -v
 ```
@@ -1953,6 +2162,7 @@ uv run pytest tests/test_websocket_live_diff.py -v
 提供客户端配置接口，允许客户端选择 diff/full 模式。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/routers/websocket.py`（修改）
 - 文件: `docs/v3.2/WEBSOCKET-v3.2-PROTOCOL.md`（更新）
 
@@ -1960,12 +2170,14 @@ uv run pytest tests/test_websocket_live_diff.py -v
 BL-B-56 LIVE SELECT DIFF 订阅完成
 
 **完成标准**  
+
 - [x] WebSocket 连接参数支持 `mode=diff|full`
 - [x] 动态切换模式 API
 - [x] 客户端配置文档
 - [x] 向后兼容（默认 full 模式）
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_websocket_client_config.py -v
 ```
@@ -1978,18 +2190,21 @@ uv run pytest tests/test_websocket_client_config.py -v
 将 StateRecoveryManager 集成到 ReliableWebSocketServer，实现状态恢复。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/websocket/reliable_server.py`（修改）
 
 **前置依赖**  
 BL-B-5 状态恢复完成
 
 **完成标准**  
+
 - [x] ReliableWebSocketServer 初始化时创建 StateRecoveryManager
 - [x] 连接建立时恢复 session
 - [x] 消息发送时更新 offset
 - [x] 连接断开时保存状态
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_websocket_state_integration.py -v
 ```
@@ -2002,6 +2217,7 @@ uv run pytest tests/test_websocket_state_integration.py -v
 实现同步丢失消息功能，支持从指定 offset 恢复消息。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/websocket/message_queue.py`（新建）
 - 或: 集成 SurrealDB 消息历史
 
@@ -2009,12 +2225,14 @@ uv run pytest tests/test_websocket_state_integration.py -v
 BL-B-58 StateRecoveryManager 集成完成
 
 **完成标准**  
+
 - [x] 消息队列持久化存储
 - [x] 支持 from_offset 查询
 - [x] 返回指定 offset 之后的所有消息
 - [x] 消息过期清理（7天）
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_websocket_from_offset.py -v
 ```
@@ -2027,18 +2245,21 @@ uv run pytest tests/test_websocket_from_offset.py -v
 实现断线重连后自动恢复状态，结合 ReconnectionManager 和 StateRecoveryManager。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/websocket/reliable_server.py`（修改）
 
 **前置依赖**  
 BL-B-59 同步丢失消息完成
 
 **完成标准**  
+
 - [x] 重连后自动恢复 session
 - [x] 同步丢失消息（from_offset）
 - [x] 恢复后发送 ACK 确认
 - [x] 恢复失败进入降级模式
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_websocket_auto_recovery.py -v
 ```
@@ -2051,6 +2272,7 @@ uv run pytest tests/test_websocket_auto_recovery.py -v
 运行实际的 WebSocket 性能测试，验证服务端性能指标。
 
 **涉及范围**  
+
 - 执行 `tests/performance/test_websocket_concurrent.py`
 - 执行 `tests/performance/test_websocket_latency.py`
 
@@ -2059,6 +2281,7 @@ BL-B-6 并发连接测试脚本完成
 BL-B-7 消息延迟测试脚本完成
 
 **完成标准**  
+
 - [x] 启动 WebSocket 服务器（已有 start_services.py）
 - [x] 运行 1000+ 并发连接测试（已有 test_websocket_concurrent.py）
 - [x] 验证内存使用 < 2GB（测试脚本内置检查）
@@ -2067,6 +2290,7 @@ BL-B-7 消息延迟测试脚本完成
 - [x] 生成性能测试报告（新增 run_performance_tests.py）
 
 **验证方式**  
+
 ```bash
 # 启动服务器
 uv run python start_services.py
@@ -2084,6 +2308,7 @@ uv run python tests/performance/test_websocket_latency.py --duration 60
 将 WebSocket 性能测试集成到 CI/CD 流程。
 
 **涉及范围**  
+
 - 文件: `.github/workflows/performance.yml`（新建）
 - 文件: `tests/test_performance_workflow.py`（新建）
 
@@ -2091,17 +2316,20 @@ uv run python tests/performance/test_websocket_latency.py --duration 60
 BL-B-61 性能测试实际运行完成
 
 **完成标准**  
+
 - [x] GitHub Actions 工作流配置
 - [x] 定时运行性能测试（每日/每周）
 - [x] 性能指标趋势图
 - [x] 性能退化告警
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_performance_workflow.py -v
 ```
 
 **实际完成**  
+
 - ✅ `.github/workflows/performance.yml` - GitHub Actions 工作流 (240行)
   - 定时触发：每天凌晨 2 点（UTC）
   - 手动触发：支持 quick/standard/full 三种模式
@@ -2119,7 +2347,8 @@ uv run pytest tests/test_performance_workflow.py -v
   - 步骤配置验证
   - 集成验证
 
-**工作流特性**  
+**工作流特性**
+
 | 特性 | 配置 |
 |------|------|
 | 定时触发 | 每天 02:00 UTC |
@@ -2130,6 +2359,7 @@ uv run pytest tests/test_performance_workflow.py -v
 | 失败处理 | continue-on-error + 状态检查 |
 
 **使用方式**  
+
 ```bash
 # 手动触发（GitHub CLI）
 gh workflow run performance.yml
@@ -2146,6 +2376,7 @@ gh run list --workflow=performance.yml
 整合 BL-B-6、BL-B-7、BL-B-51 三个测试脚本，形成完整的性能测试套件。
 
 **涉及范围**  
+
 - 文件: `tests/performance/test_websocket_suite.py`（新建）
 - 文件: `tests/performance/run_all_tests.py`（新建）
 
@@ -2155,6 +2386,7 @@ BL-B-7 消息延迟测试完成
 BL-B-51 心跳成功率验证完成
 
 **完成标准**  
+
 - [x] 统一的测试套件入口
 - [x] 顺序执行所有性能测试
 - [x] 统一的测试报告格式
@@ -2162,6 +2394,7 @@ BL-B-51 心跳成功率验证完成
 - [x] 综合性能评分（通过标准检查）
 
 **验证方式**  
+
 ```bash
 # 运行完整测试套件
 uv run python tests/performance/test_websocket_suite.py
@@ -2180,12 +2413,14 @@ uv run python tests/performance/test_websocket_suite.py --test reliability
 将 RelationBuilder 与 SurrealDB 集成，实际创建 atom → atom RELATE 关系。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/services/relation_builder.py`（修改）
 
 **前置依赖**  
 BL-B-10 调用关系创建完成
 
 **完成标准**  
+
 - [x] 集成 SurrealDB 客户端
 - [x] 实现 RELATE 语句生成
 - [x] 批量执行 RELATE 操作
@@ -2193,6 +2428,7 @@ BL-B-10 调用关系创建完成
 - [x] 关系查询接口（内存缓存）
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_relation_builder_integration.py -v
 ```
@@ -2205,23 +2441,27 @@ uv run pytest tests/test_relation_builder_integration.py -v
 将 CycleDetector 集成到 RelationBuilder，在创建关系时检测循环。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/services/relation_builder.py`（修改）
 
 **前置依赖**  
 BL-B-11 循环检测完成
 
 **完成标准**  
+
 - [x] 在 RelationBuilder 中集成 CycleDetector
 - [x] 创建关系前检测循环
 - [x] 发现循环时记录警告
 - [x] 支持跳过循环关系创建
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_relation_builder_cycle.py -v
 ```
 
 **实际完成**  
+
 - 在 `RelationBuilder.__init__` 中添加 `skip_cycles` 参数和 `_cycle_detector` 初始化
 - 添加 `detect_cycles()` 方法检测循环并记录警告
 - 添加 `filter_cycle_relations()` 方法分离循环和非循环关系
@@ -2239,23 +2479,27 @@ uv run pytest tests/test_relation_builder_cycle.py -v
 定义循环依赖的解决策略，如何处理检测到的循环。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/services/cycle_resolver.py`（新建）
 
 **前置依赖**  
 BL-B-65 CycleDetector 集成完成
 
 **完成标准**  
+
 - [x] 定义循环类型分类
 - [x] 实现循环打破策略
 - [x] 支持循环标记（跳过/警告/错误）
 - [x] 循环依赖报告生成
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_cycle_resolver.py -v
 ```
 
 **实际完成**  
+
 - 创建 `CycleType` 枚举：DIRECT, INDIRECT, SELF, COMPLEX
 - 创建 `CycleAction` 枚举：SKIP, WARN, ERROR, BREAK
 - 创建 `CycleInfo` dataclass 存储循环详细信息
@@ -2277,6 +2521,7 @@ uv run pytest tests/test_cycle_resolver.py -v
 将 PerformanceMonitor 集成到 PrecomputeService，监控 process_batch 性能。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/services/precompute.py`（修改）
 - 集成: PerformanceMonitor 实例
 - 指标: parse_time, analysis_time, total_time
@@ -2285,17 +2530,20 @@ uv run pytest tests/test_cycle_resolver.py -v
 BL-B-13 PerformanceMonitor 完成
 
 **完成标准**  
+
 - [x] PrecomputeService 初始化时创建 PerformanceMonitor
 - [x] process_batch 中使用 monitor 上下文
 - [x] 记录 parse_time, analysis_time 等指标
 - [x] 提供 get_performance_report() 方法
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_precompute_service.py -v
 ```
 
 **实际完成**  
+
 - 在 `PrecomputeService.__init__` 中初始化 `PerformanceMonitor`
 - 在 `start()` 中调用 `performance_monitor.start_tracing()`
 - 在 `stop()` 中调用 `performance_monitor.stop_tracing()`
@@ -2312,6 +2560,7 @@ uv run pytest tests/test_precompute_service.py -v
 将性能指标持久化到 SurrealDB，支持历史查询和分析。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/services/performance_monitor.py`（修改）
 - 表: `performance_log`（新建）
 - 功能: 异步保存指标到 DB
@@ -2320,17 +2569,20 @@ uv run pytest tests/test_precompute_service.py -v
 BL-B-69 PerformanceMonitor 集成完成
 
 **完成标准**  
+
 - [x] 定义 performance_log 表结构
 - [x] 实现 save_to_db() 方法
 - [x] 支持批量保存
 - [x] 提供查询接口
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_performance_persistence.py -v
 ```
 
 **实际完成**  
+
 - 修改 `PerformanceMonitor.__init__` 接受 `db` 参数
 - 添加 `save_to_db()` 保存单个指标到 performance_log 表
 - 添加 `persist_all_metrics()` 批量持久化内存中的指标
@@ -2347,6 +2599,7 @@ uv run pytest tests/test_performance_persistence.py -v
 将 ConcurrencyControl 集成到 PrecomputeService，防止同文件重复处理。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/services/precompute.py`（修改）
 - 集成: ConcurrencyControl 实例
 - 功能: process_batch 中使用并发控制
@@ -2355,17 +2608,20 @@ uv run pytest tests/test_performance_persistence.py -v
 BL-B-14 ConcurrencyControl 完成
 
 **完成标准**  
+
 - [x] PrecomputeService 初始化时创建 ConcurrencyControl
 - [x] process_batch 中使用 cc.process() 处理文件
 - [x] 防止同文件重复处理
 - [x] 支持并发限制配置
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_precompute_service.py -v
 ```
 
 **实际完成**  
+
 - 在 `PrecomputeService.__init__` 中添加 `max_concurrent` 和 `timeout_seconds` 参数
 - 初始化 `ConcurrencyControl` 实例
 - 添加 `_process_file_with_concurrency()` 方法使用并发控制处理单个文件
@@ -2382,6 +2638,7 @@ uv run pytest tests/test_precompute_service.py -v
 将队列状态持久化到 SurrealDB，服务重启后恢复。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/services/concurrency_control.py`（修改）
 - 表: `task_queue`（新建）
 - 功能: 保存/恢复队列状态
@@ -2390,17 +2647,20 @@ uv run pytest tests/test_precompute_service.py -v
 BL-B-71 ConcurrencyControl 集成完成
 
 **完成标准**  
+
 - [x] 定义 task_queue 表结构
 - [x] 实现 save_queue_state() 方法
 - [x] 实现 restore_queue_state() 方法
 - [x] 服务启动时自动恢复队列
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_queue_persistence.py -v
 ```
 
 **实际完成**  
+
 - 在 `scripts/init_surrealdb_v3.2.surql` 中添加 `task_queue` 表定义
 - 修改 `ConcurrencyControl.__init__` 接受 `db` 和 `tenant_id` 参数
 - 添加 `save_queue_state()` 保存队列状态到 task_queue 表
@@ -2418,6 +2678,7 @@ uv run pytest tests/test_queue_persistence.py -v
 将 MeilisearchSDKClient 集成到现有代码中，替换 httpx 调用。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/utils/meili_client.py`（修改）
 - 文件: `wrapper/src/config.py`（修改）
 - 功能: 使用新 SDK 客户端
@@ -2426,17 +2687,20 @@ uv run pytest tests/test_queue_persistence.py -v
 BL-B-15 Meilisearch SDK 客户端迁移完成
 
 **完成标准**  
+
 - [x] 更新 `meili_client.py` 使用新 SDK
 - [x] 更新 `config.py` 中的客户端初始化
 - [x] 保持向后兼容
 - [x] 所有现有测试通过
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_meili_integration.py -v
 ```
 
 **实际完成**  
+
 - 重写 `wrapper/src/utils/meili_client.py` 使用 `meilisearch-python` SDK
 - 使用 `asyncio.to_thread()` 包装同步 SDK 调用，保持异步接口
 - 保持与旧版完全相同的 API 接口（向后兼容）
@@ -2451,6 +2715,7 @@ uv run pytest tests/test_meili_integration.py -v
 为 MeilisearchSDKClient 添加异步支持。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/utils/meili_sdk_client.py`（修改）
 - 方案: 线程池或 meilisearch-python-sdk
 
@@ -2458,17 +2723,20 @@ uv run pytest tests/test_meili_integration.py -v
 BL-B-73 与现有代码集成完成
 
 **完成标准**  
+
 - [x] 评估异步方案（线程池 vs 异步 SDK）
 - [x] 实现异步 API 包装
 - [x] 保持同步 API 兼容
 - [x] 性能测试对比
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_meili_async.py -v
 ```
 
 **实际完成**  
+
 - 评估方案：使用 `asyncio.to_thread()` 包装同步 SDK 调用（与 meili_client.py 一致）
 - 创建 `AsyncMeilisearchSDKClient` 类，提供完全异步的 API
 - 保持同步 `MeilisearchSDKClient` 不变，实现向后兼容
@@ -2489,6 +2757,7 @@ uv run pytest tests/test_meili_async.py -v
 为代码搜索索引添加特定配置和优化。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/utils/meili_sdk_client.py`（修改）
 - 索引: `code_search_index`
 - 配置: 代码术语词典、搜索优化
@@ -2497,17 +2766,20 @@ uv run pytest tests/test_meili_async.py -v
 BL-B-16 索引设置迁移完成
 
 **完成标准**  
+
 - [x] 定义 code_search_index 专用配置
 - [x] 添加代码术语词典（104词）
 - [x] 优化代码标识符搜索
 - [x] 测试代码搜索功能
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_code_search_index.py -v
 ```
 
 **实际完成**  
+
 - 在 `MeilisearchSDKClient` 中添加 `CODE_SEARCH_INDEX_SETTINGS` 类变量
 - 配置包含：
   - `searchableAttributes`: file_path, code_content, code_symbols, function_names, class_names, variable_names, comments, docstrings
@@ -2529,6 +2801,7 @@ uv run pytest tests/test_code_search_index.py -v
 在真实 SurrealDB 环境中测试迁移脚本，验证数据完整性。
 
 **涉及范围**  
+
 - 文件: `scripts/migrate_v2_to_v32.py`（测试）
 - 环境: 真实 SurrealDB 实例
 - 数据: 实际 memory 表数据
@@ -2537,6 +2810,7 @@ uv run pytest tests/test_code_search_index.py -v
 BL-B-21 迁移脚本完成
 
 **完成标准**  
+
 - [x] 在测试环境运行迁移
 - [x] 验证 atom 表数据完整性
 - [x] 验证 entity 表数据完整性
@@ -2544,12 +2818,14 @@ BL-B-21 迁移脚本完成
 - [x] 性能基准测试
 
 **验证方式**  
+
 ```bash
 # 在测试环境执行
 uv run python scripts/migrate_v2_to_v32.py --execute --batch-size 100
 ```
 
 **实际完成**  
+
 - 扩展现有测试文件 `tests/test_migration_v2_to_v3.py`
 - 添加 `TestV2ToV3MigrationDataIntegrity` 测试类：
   - `test_verify_atom_data_integrity()` - 验证 atom 表数据完整性（记录数匹配）
@@ -2568,6 +2844,7 @@ uv run python scripts/migrate_v2_to_v32.py --execute --batch-size 100
 优化迁移脚本性能，支持大批量数据并行处理。
 
 **涉及范围**  
+
 - 文件: `scripts/migrate_v2_to_v32.py`（优化）
 - 优化: 并行处理、批量大小调优
 
@@ -2575,18 +2852,21 @@ uv run python scripts/migrate_v2_to_v32.py --execute --batch-size 100
 BL-B-76 实际测试完成
 
 **完成标准**  
+
 - [x] 并行处理实现
 - [x] 批量大小自动调优
 - [x] 进度报告优化
 - [x] 性能提升 50%+
 
 **验证方式**  
+
 ```bash
 # 对比优化前后性能
 uv run python scripts/benchmark_migration.py
 ```
 
 **实际完成**  
+
 - 修改 `V2ToV3Migration.__init__` 添加参数：
   - `max_concurrent`: 最大并发数（默认 5）
   - `auto_tune_batch`: 是否自动调优 batch size（默认 True）
@@ -2681,22 +2961,26 @@ uv run python scripts/benchmark_migration.py
 为 Audit 日志端点补充完整的单元测试和集成测试，确保审计功能稳定可靠。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/routers/audit.py`（被测对象）
 - 文件: `tests/test_audit_endpoints.py`（新建）
 - 文件: `tests/integration/test_audit_integration.py`（新建）
 
 **前置依赖**  
+
 - Audit router 已实现
 - MemoryManager 已集成 audit 方法
 - SurrealDB 连接可用
 
 **完成标准**  
+
 - [ ] `POST /api/v1/audit/log` 单元测试（5+ 场景）
 - [ ] `GET /api/v1/audit/logs` 单元测试（6+ 场景）
 - [ ] `DELETE /api/v1/audit/logs` 单元测试（2+ 场景）
 - [ ] 集成测试（2+ 场景）
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_audit_endpoints.py -v
 uv run pytest tests/integration/test_audit_integration.py -v
@@ -2710,20 +2994,24 @@ uv run pytest tests/integration/test_audit_integration.py -v
 为 Projects 端点（代码地图、统计信息）补充测试，确保项目级代码分析功能正确。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/routers/projects.py`（被测对象）
 - 文件: `tests/test_projects_api.py`（新建）
 
 **前置依赖**  
+
 - Projects router 已实现
 - MemoryManager.get_project_map() 已实现
 - MemoryManager.get_project_stats() 已实现
 
 **完成标准**  
+
 - [ ] `GET /api/v1/projects/{project_id}/map` 测试（5+ 场景）
 - [ ] `GET /api/v1/projects/{project_id}/stats` 测试（5+ 场景）
 - [ ] 错误处理测试（3+ 场景）
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_projects_api.py -v
 ```
@@ -2736,14 +3024,17 @@ uv run pytest tests/test_projects_api.py -v
 为 Lookup 端点（source_id/hash/file_path 查询）补充测试，确保多设备同步查询功能正确。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/routers/lookup.py`（被测对象）
 - 文件: `tests/test_lookup_api.py`（新建）
 
 **前置依赖**  
+
 - Lookup router 已实现
 - MemoryManager lookup 方法已实现
 
 **完成标准**  
+
 - [ ] source_id 查询测试（4+ 场景）
 - [ ] hash 查询测试（4+ 场景）
 - [ ] file_path + project_id 查询测试（3+ 场景）
@@ -2752,6 +3043,7 @@ uv run pytest tests/test_projects_api.py -v
 - [ ] 多租户隔离测试（2+ 场景）
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_lookup_api.py -v
 ```
@@ -2764,14 +3056,17 @@ uv run pytest tests/test_lookup_api.py -v
 建立并发压力测试套件，验证系统在高并发场景下的稳定性和性能。
 
 **涉及范围**  
+
 - 文件: `tests/performance/test_concurrency.py`（新建）
 - 文件: `tests/performance/test_load.py`（新建）
 
 **前置依赖**  
+
 - 核心 API 端点已实现
 - Docker Compose 开发环境可用
 
 **完成标准**  
+
 - [ ] 并发连接测试（3+ 场景）
 - [ ] 并发写入测试（3+ 场景）
 - [ ] 并发搜索测试（3+ 场景）
@@ -2779,6 +3074,7 @@ uv run pytest tests/test_lookup_api.py -v
 - [ ] 性能基准（2+ 指标）
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/performance/test_concurrency.py -v
 ```
@@ -2791,14 +3087,17 @@ uv run pytest tests/performance/test_concurrency.py -v
 建立故障恢复测试套件，验证系统在依赖服务故障时的恢复能力。
 
 **涉及范围**  
+
 - 文件: `tests/resilience/test_service_recovery.py`（新建）
 - 文件: `tests/resilience/test_db_reconnect.py`（新建）
 
 **前置依赖**  
+
 - Docker Compose 环境可用
 - 服务健康检查端点已实现
 
 **完成标准**  
+
 - [ ] SurrealDB 故障恢复（4+ 场景）
 - [ ] Meilisearch 故障恢复（3+ 场景）
 - [ ] Embedding 服务故障（3+ 场景）
@@ -2806,6 +3105,7 @@ uv run pytest tests/performance/test_concurrency.py -v
 - [ ] 网络分区测试（2+ 场景）
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/resilience/ -v
 ```
@@ -2818,14 +3118,17 @@ uv run pytest tests/resilience/ -v
 整合现有 E2E 测试，建立完整的端到端测试套件，覆盖核心用户场景。
 
 **涉及范围**  
+
 - 文件: `tests/e2e/test_complete_workflow.py`（新建）
 - 文件: `tests/e2e/test_multi_device_sync.py`（新建）
 
 **前置依赖**  
+
 - Docker Compose 完整环境可用
 - 所有核心 API 端点已实现
 
 **完成标准**  
+
 - [ ] 完整工作流测试（3+ 场景）
 - [ ] 多设备同步场景（3+ 场景）
 - [ ] WebSocket 实时推送场景（2+ 场景）
@@ -2833,6 +3136,7 @@ uv run pytest tests/resilience/ -v
 - [ ] 测试报告生成
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/e2e/ -v --html=report.html
 ```
@@ -2851,17 +3155,20 @@ uv run pytest tests/e2e/ -v --html=report.html
 实现代码指纹增量同步 API，支持插件端只上传变更文件，减少 90% 数据传输。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/routers/sync.py` — 新增 `POST /api/v1/sync/code-fingerprints` 端点
 - 文件: `wrapper/src/services/code_fingerprint_service.py` — 指纹比对服务（新建）
 - 文件: `wrapper/src/models/sync.py` — CodeFingerprintRequest/Response 模型
 - 数据库: SurrealDB — 存储文件指纹表 `file_fingerprint`
 
 **前置依赖**  
+
 - BL-B-22 完成（端口迁移 17999→18008）
 - BL-B-18 完成（Schema v3.2 核心表创建）
 - 插件端 BL-P-4 完成（端口迁移）
 
 **完成标准**  
+
 - [ ] `POST /api/v1/sync/code-fingerprints` 端点实现
 - [ ] 接收文件指纹列表（file_path, content_hash, symbols_hash）
 - [ ] 与数据库现有指纹比对，返回变更/未变更/新增文件列表
@@ -2871,6 +3178,7 @@ uv run pytest tests/e2e/ -v --html=report.html
 - [ ] 单元测试覆盖率 > 80%
 
 **验证方式**  
+
 ```bash
 # 1. API 测试
 curl -X POST http://localhost:18008/api/v1/sync/code-fingerprints \
@@ -2906,6 +3214,7 @@ uv run pytest tests/test_sync_code_fingerprints.py -v
 实现 PrecomputeService 代码分析 API，支持插件端上传代码分析结果（文件、符号、调用关系）。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/routers/precompute.py` — 新增 `POST /api/v1/precompute/analysis` 端点
 - 文件: `wrapper/src/services/precompute_service.py` — 预计算服务（新建/扩展）
 - 文件: `wrapper/src/models/precompute.py` — PrecomputeAnalysisRequest/Response 模型
@@ -2913,12 +3222,14 @@ uv run pytest tests/test_sync_code_fingerprints.py -v
 - 集成: tree-sitter — 代码解析（如需要后端二次解析）
 
 **前置依赖**  
+
 - BL-B-8 完成（PrecomputeService 基础架构）
 - BL-B-9 完成（tree-sitter 集成）
 - BL-B-10 完成（调用关系创建）
 - 插件端 BL-P-6 完成（指纹同步）
 
 **完成标准**  
+
 - [ ] `POST /api/v1/precompute/analysis` 端点实现
 - [ ] 接收项目 ID、文件列表、符号列表、调用关系列表
 - [ ] 创建 memory 条目（atom 类型）
@@ -2930,6 +3241,7 @@ uv run pytest tests/test_sync_code_fingerprints.py -v
 - [ ] 单元测试覆盖率 > 80%
 
 **验证方式**  
+
 ```bash
 # 1. API 测试
 curl -X POST http://localhost:18008/api/v1/precompute/analysis \
@@ -2964,6 +3276,7 @@ uv run pytest tests/test_precompute_analysis.py -v
 部署完整的集成测试环境，供插件端进行端到端测试。
 
 **涉及范围**  
+
 - 文件: `docker-compose.test.yml` — 测试环境配置（新建）
 - 文件: `scripts/init_test_data.py` — 测试数据初始化脚本
 - 文件: `.env.test` — 测试环境变量配置
@@ -2971,6 +3284,7 @@ uv run pytest tests/test_precompute_analysis.py -v
 - 数据: 测试租户 `test-tenant`，测试项目 `test-project-v3.2`
 
 **前置依赖**  
+
 - BL-B-22 完成（端口迁移）
 - BL-B-23 完成（Docker 多阶段构建）
 - BL-B-24 完成（docker-compose 健康检查）
@@ -2978,6 +3292,7 @@ uv run pytest tests/test_precompute_analysis.py -v
 - BL-B-81 完成（Precompute API）
 
 **完成标准**  
+
 - [ ] `docker-compose.test.yml` 可一键启动完整环境
 - [ ] 端口 18008 可访问（wrapper 服务）
 - [ ] 端口 18000 可访问（embedding 服务）
@@ -2989,6 +3304,7 @@ uv run pytest tests/test_precompute_analysis.py -v
 - [ ] 插件端可成功连接并执行基本操作
 
 **验证方式**  
+
 ```bash
 # 1. 启动测试环境
 docker-compose -f docker-compose.test.yml up -d
@@ -3017,6 +3333,7 @@ npm run test:integration
 实现符号查询 API，支持按符号名查找定义位置、符号类型过滤、模糊搜索。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/routers/symbols.py` — 新增 `GET /api/v1/symbols/search` 端点
 - 文件: `wrapper/src/services/symbol_service.py` — 符号查询服务（新建）
 - 文件: `wrapper/src/models/symbols.py` — SymbolSearchRequest/Response 模型
@@ -3024,11 +3341,13 @@ npm run test:integration
 - 集成: Meilisearch — 符号名称全文索引（可选）
 
 **前置依赖**  
+
 - BL-B-81 完成（PrecomputeService API，创建 entity 数据）
 - BL-B-18 完成（Schema 核心表）
 - 插件端 BL-P-8 完成（Code Analysis 适配）
 
 **完成标准**  
+
 - [ ] `GET /api/v1/symbols/search` 端点实现
 - [ ] 支持按符号名精确查询
 - [ ] 支持符号类型过滤（function/class/interface）
@@ -3038,6 +3357,7 @@ npm run test:integration
 - [ ] 单元测试覆盖率 > 80%
 
 **验证方式**  
+
 ```bash
 # 1. API 测试
 curl "http://localhost:18008/api/v1/symbols/search?query=main&type=function&project_id=test-project"
@@ -3065,6 +3385,7 @@ uv run pytest tests/test_symbol_search.py -v
 修复三个路由直接访问 `memory_manager._db` 私有属性的问题，提高代码封装性。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/utils/memory_manager/manager.py` — 添加 `db` 公开属性
 - 文件: `wrapper/src/routers/sync.py` — 改用 `memory_manager.db`
 - 文件: `wrapper/src/routers/precompute.py` — 改用 `memory_manager.db`
@@ -3074,11 +3395,13 @@ uv run pytest tests/test_symbol_search.py -v
 无
 
 **完成标准**  
+
 - [ ] `MemoryManager` 添加 `db` 公开属性
 - [ ] 三个路由改为访问 `memory_manager.db`
 - [ ] 所有测试通过
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/ -v
 uv run ruff check wrapper/src/routers/
@@ -3095,6 +3418,7 @@ uv run ruff check wrapper/src/routers/
 统一 `symbol_service` 和 `manager` 中的 `_extract_records` 实现，防止数据丢失 bug。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/utils/memory_manager/manager.py` — 抽取 `_extract_records` 为工具函数
 - 文件: `wrapper/src/services/symbol_service.py` — 复用统一实现
 - 文件: `wrapper/src/services/code_fingerprint_service.py` — 复用统一实现
@@ -3103,12 +3427,14 @@ uv run ruff check wrapper/src/routers/
 无
 
 **完成标准**  
+
 - [ ] 创建 `wrapper/src/utils/db_utils.py` 工具模块
 - [ ] 抽取 `_extract_records` 函数
 - [ ] 三个服务都使用统一实现
 - [ ] 边界情况测试（嵌套列表、空结果等）
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_symbol_search_api.py -v
 uv run pytest tests/test_code_fingerprint_api.py -v
@@ -3125,6 +3451,7 @@ uv run pytest tests/test_code_fingerprint_api.py -v
 修复 PrecomputeService 每次请求创建新实例的性能问题，实现单例或连接池管理。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/main.py` — lifespan 中创建 PrecomputeService 单例
 - 文件: `wrapper/src/routers/precompute.py` — 使用单例而非创建新实例
 - 文件: `wrapper/src/services/precompute.py` — 支持单例模式（如果必要）
@@ -3133,12 +3460,14 @@ uv run pytest tests/test_code_fingerprint_api.py -v
 无
 
 **完成标准**  
+
 - [ ] lifespan 启动时创建 PrecomputeService 单例
 - [ ] 路由使用单例服务
 - [ ] 支持多租户（使用 `dict[str, PrecomputeService]` 缓存）
 - [ ] 性能测试：100 次请求 < 5 秒
 
 **验证方式**  
+
 ```bash
 # 性能测试
 uv run python -c "
@@ -3168,17 +3497,21 @@ asyncio.run(test())
 优化代码指纹服务的 N+1 查询问题，使用批量 SQL 替代循环查询。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/services/code_fingerprint_service.py` — `update_fingerprints()` 和 `delete_fingerprints()`
 
 **前置依赖**  
+
 - BL-B-85 完成（统一 _extract_records）
 
 **完成标准**  
+
 - [ ] 使用批量 UPSERT 替代循环
 - [ ] 使用批量 DELETE 替代循环
 - [ ] 100 个文件的批量操作 < 1 秒
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/test_code_fingerprint_api.py::TestCodeFingerprintService -v
 ```
@@ -3194,17 +3527,21 @@ uv run pytest tests/test_code_fingerprint_api.py::TestCodeFingerprintService -v
 为 code-fingerprints 端点添加事务保护，确保数据一致性。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/routers/sync.py` — 包裹在 SurrealDB 事务中
 
 **前置依赖**  
+
 - BL-B-84 完成（db 公开属性）
 
 **完成标准**  
+
 - [ ] 使用 `BEGIN TRANSACTION` / `COMMIT` / `CANCEL`
 - [ ] 更新和删除操作原子性
 - [ ] 失败时回滚并记录错误日志
 
 **验证方式**  
+
 ```bash
 # 模拟失败场景测试
 uv run pytest tests/test_code_fingerprint_api.py -v
@@ -3221,6 +3558,7 @@ uv run pytest tests/test_code_fingerprint_api.py -v
 提升测试质量，修复断言过于宽松、未使用字段等问题。
 
 **涉及范围**  
+
 - 文件: `tests/test_precompute_analysis_api.py` — 修复宽松断言
 - 文件: `tests/test_code_fingerprint_api.py` — 添加边界测试
 - 文件: `wrapper/src/models.py` — 添加 `max_length` 约束
@@ -3230,6 +3568,7 @@ uv run pytest tests/test_code_fingerprint_api.py -v
 无
 
 **完成标准**  
+
 - [ ] 修复 `assert response.status_code in [200, 503]` 为精确断言
 - [ ] 添加 `max_length=1000` 到批量操作字段
 - [ ] 更新 `main.py` 版本号到 3.2.0
@@ -3237,6 +3576,7 @@ uv run pytest tests/test_code_fingerprint_api.py -v
 - [ ] 添加集成测试 skip 机制（服务不可用时）
 
 **验证方式**  
+
 ```bash
 uv run pytest tests/ -v
 uv run ruff check tests/
