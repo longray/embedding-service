@@ -119,7 +119,7 @@ class CodeFingerprintService:
             count = 0
             for fp in fingerprints:
                 query = """
-                    UPSERT file_fingerprint {
+                    UPSERT file_fingerprint CONTENT {
                         file_path: $file_path,
                         content_hash: $content_hash,
                         symbols_hash: $symbols_hash,

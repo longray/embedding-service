@@ -20,6 +20,8 @@ from surrealdb import AsyncSurreal
 from . import state
 from .config import config
 from .models import (  # noqa: F401 — re-exported for backward compatibility
+    CodeFingerprintRequest,
+    CodeFingerprintResponse,
     ConflictResolutionRequest,
     EmbeddingRequest,
     MemoryItem,
@@ -43,6 +45,7 @@ from .routers import (
     lookup,
     memories,
     prefetch,
+    precompute,
     projects,
     relations,
     search,
@@ -323,6 +326,7 @@ app.include_router(sync.router)
 app.include_router(websocket.router)
 app.include_router(clustering.router)
 app.include_router(prefetch.router)
+app.include_router(precompute.router)
 app.include_router(stubs.router)
 
 

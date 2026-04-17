@@ -1,22 +1,25 @@
 version: '3.8'
 
 services:
-  # SurrealDB 开发数据库，使用本地路径数据卷以便热重载开发数据
+  # SurrealDB 开发数据库，使用自定义镜像（支持健康检查）
   surrealdb:
-    image: surrealdb/surrealdb:v3.0.1
+    build:
+      context: .
+      dockerfile: Dockerfile.surrealdb
     container_name: embedding-surrealdb-dev
     ports:
       - "18002:18002"
     command: start --user root --pass root --bind 0.0.0.0:18002 rocksdb://data
     volumes:
-      - surrealdb-data-dev:/data
+      - ./docker-data/surrealdb-dev:/data
     networks:
       - embedding-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:18002/health"]
+      test: ["CMD", "/bin/httpcheck", "http://localhost:18002/health"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
   # Meilisearch 全文搜索引擎（开发环境）
   meilisearch:
@@ -29,7 +32,7 @@ services:
       - MEILI_ENV=development
       - MEILI_NO_ANALYTICS=true
     volumes:
-      - meili-data-dev:/meili_data
+      - ./docker-data/meilisearch-dev:/meili_data
     networks:
       - embedding-network
     healthcheck:
@@ -38,21 +41,30 @@ services:
       timeout: 5s
       retries: 5
 
-  # Embedding 服务（本地代码挂载，热重载）
+  # Embedding 服务（GPU 加速，本地代码挂载，热重载）
   embedding:
     build:
       context: .
-      dockerfile: Dockerfile.embedding
+      dockerfile: Dockerfile.embedding.gpu
     container_name: embedding-service-dev
     ports:
       - "18000:18000"
     environment:
       - EMB_PORT=18000
       - EMB_MODEL_PATH=/app/src/qwen3_embedding_service/models/Qwen/Qwen3-Embedding-0___6B
+      - CUDA_VISIBLE_DEVICES=0
     volumes:
       - ./src/qwen3_embedding_service:/app/src/qwen3_embedding_service
     networks:
       - embedding-network
+    # GPU 配置
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:18000/health"]
       interval: 30s
@@ -81,11 +93,11 @@ services:
   #     timeout: 10s
   #     retries: 3
 
-  # 包装层服务：使用多阶段构建开发目标，本地代码挂载实现热重载
+  # 包装层服务：多阶段构建 development 目标（最小镜像+热重载）
   wrapper:
     build:
-      context: ./wrapper
-      dockerfile: Dockerfile.multistage
+      context: .
+      dockerfile: wrapper/Dockerfile.multistage
       target: development
     container_name: wrapper-service-dev
     ports:

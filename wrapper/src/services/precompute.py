@@ -133,10 +133,11 @@ class PrecomputeService:
         """处理单个文件
 
         读取文件、解析代码、提取符号、计算指纹。
+        如果 item 中包含 'content' 字段，则直接使用，否则读取文件。
 
         Args:
             file_path: 文件路径
-            item: 文件信息
+            item: 文件信息，可能包含 'content' 字段
 
         Returns:
             处理结果，如果失败返回 None
@@ -144,7 +145,10 @@ class PrecomputeService:
         self._logger.debug("[PrecomputeService] 处理文件: %s", file_path)
 
         try:
-            content = await self._read_file(file_path)
+            # 优先使用 item 中的 content，否则读取文件
+            content = item.get("content")
+            if content is None:
+                content = await self._read_file(file_path)
             if content is None:
                 return None
 

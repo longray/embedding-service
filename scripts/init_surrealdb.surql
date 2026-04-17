@@ -267,9 +267,9 @@ DEFINE INDEX IF NOT EXISTS conflict_status_tenant ON conflict FIELDS status, ten
 
 -- 更新版本号
 UPSERT schema_version:current CONTENT {
-    version: '2.3.1',
+    version: '2.4.1',
     applied_at: time::now(),
-    description: 'Phase B: 同步冲突解决 - conflict 表 + 冲突持久化与解决策略'
+    description: 'Phase 8: 代码指纹同步 API + PrecomputeService 代码分析 API - file_fingerprint 表'
 };
 
 -- ==================== audit_log 表 (P3-5) ====================
