@@ -11,6 +11,7 @@ from typing import Any
 from aiocache.serializers import JsonSerializer
 
 from ..code_analyzer import CodeAnalyzer
+from ..db_utils import extract_records
 from ..http_pool import get_http_pool
 from ..meili_client import MeilisearchClient
 from .audit import AuditMixin
@@ -163,21 +164,9 @@ class MemoryManager(
     def _extract_records(self, db_result: Any) -> list[dict[str, Any]]:
         """从 SurrealDB query() 返回值中提取记录列表
 
-        处理 SDK 返回的多种格式：
-        - list[dict]: 直接的记录列表（单条 SELECT 语句）
-        - list[list[dict]]: 嵌套结构（多语句结果或 query_raw）
+        使用统一的 extract_records 工具函数处理多种格式。
         """
-        records: list[dict[str, Any]] = []
-        if not db_result or not isinstance(db_result, list):
-            return records
-        for item in db_result:
-            if isinstance(item, dict):
-                records.append(item)
-            elif isinstance(item, list):
-                for record in item:
-                    if isinstance(record, dict):
-                        records.append(record)
-        return records
+        return extract_records(db_result)
 
     def _extract_record_id(self, db_result: Any) -> str | None:
         """从 SurrealDB create() 或 query() 返回值中提取记录 ID

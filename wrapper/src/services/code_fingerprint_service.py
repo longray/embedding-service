@@ -7,6 +7,8 @@ import logging
 
 from surrealdb import Surreal
 
+from ..utils.db_utils import extract_records
+
 logger = logging.getLogger(__name__)
 
 
@@ -49,13 +51,12 @@ class CodeFingerprintService:
 
             # 解析现有指纹
             existing_fingerprints: dict[str, dict[str, str]] = {}
-            if result and len(result) > 0:
-                records = result[0].get("result", [])
-                for record in records:
-                    existing_fingerprints[record["file_path"]] = {
-                        "content_hash": record.get("content_hash", ""),
-                        "symbols_hash": record.get("symbols_hash", ""),
-                    }
+            records = extract_records(result)
+            for record in records:
+                existing_fingerprints[record["file_path"]] = {
+                    "content_hash": record.get("content_hash", ""),
+                    "symbols_hash": record.get("symbols_hash", ""),
+                }
 
             # 分类文件
             changed_files: list[str] = []

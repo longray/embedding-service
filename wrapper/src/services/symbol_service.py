@@ -8,6 +8,7 @@ import logging
 from typing import Any
 
 from ..models import SymbolMatch, SymbolSearchResponse
+from ..utils.db_utils import extract_records
 
 logger = logging.getLogger(__name__)
 
@@ -88,14 +89,5 @@ class SymbolService:
 
     @staticmethod
     def _extract_records(result: Any) -> list[dict]:
-        if not result or not isinstance(result, list):
-            return []
-        first = result[0]
-        if isinstance(first, dict) and "result" in first:
-            inner = first["result"]
-            return inner if isinstance(inner, list) else [inner] if inner else []
-        if isinstance(first, list):
-            return first
-        if isinstance(first, dict):
-            return [first]
-        return []
+        """使用统一的 extract_records 工具函数"""
+        return extract_records(result)
