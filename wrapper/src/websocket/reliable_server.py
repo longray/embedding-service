@@ -8,13 +8,13 @@
 
 import asyncio
 import logging
-from typing import Any, Callable, Literal, Optional
+from typing import Any, Callable, Dict, Literal, Optional
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-from .heartbeat import HeartbeatManager
 from .ack_manager import AckManager
 from .diff_manager import DiffManager
+from .heartbeat import HeartbeatManager
 from .message_queue import MessageQueue
 from .reconnection import ReconnectionManager
 from .state_recovery import StateRecoveryManager
@@ -93,6 +93,9 @@ class ReliableWebSocketServer:
         self._auto_recovery_enabled: bool = True
         self._recovery_failed: bool = False
 
+        # 订阅过滤器配置
+        self._filters: Dict[str, Any] = {}
+
         logger.debug(
             "[ReliableWebSocketServer] 初始化: interval=%.1fs, timeout=%.1fs, max_missing=%d, "
             "ack_timeout=%.1fs, ack_max_retries=%d, diff_mode=%s, state_recovery=enabled, "
@@ -138,6 +141,15 @@ class ReliableWebSocketServer:
         self._receive_task = asyncio.create_task(self._receive_loop(), name="websocket_receive")
         await self._heartbeat_manager.start()
 
+        # 发送 connected 消息
+        await self._websocket.send_json(
+            {
+                "type": "connected",
+                "session_id": self._session_id,
+                "timestamp": asyncio.get_event_loop().time(),
+            }
+        )
+
         logger.info("[ReliableWebSocketServer] 连接已接受，心跳/ACK/DIFF/StateRecovery机制已启动")
 
     async def close(self, code: int = 1000, reason: str = "") -> None:
@@ -178,6 +190,16 @@ class ReliableWebSocketServer:
         """发送 JSON 数据"""
         if not self._is_connected:
             raise RuntimeError("WebSocket 未连接")
+
+        # 消息入队（用于 from_offset 恢复）
+        if self._message_queue and self._session_id:
+            self._message_offset += 1
+            self._message_queue.enqueue(
+                session_id=self._session_id,
+                message_type=data.get("type", "unknown"),
+                data=data,
+            )
+
         await self._websocket.send_json(data)
 
     async def send_json_with_ack(self, data: dict[str, Any], timeout: Optional[float] = None) -> bool:
@@ -195,6 +217,15 @@ class ReliableWebSocketServer:
 
         if self._ack_manager is None:
             raise RuntimeError("ACK 管理器未初始化")
+
+        # 消息入队（用于 from_offset 恢复）
+        if self._message_queue and self._session_id:
+            self._message_offset += 1
+            self._message_queue.enqueue(
+                session_id=self._session_id,
+                message_type=data.get("type", "unknown"),
+                data=data,
+            )
 
         async def send_callback(message: dict) -> None:
             await self._websocket.send_json(message)
@@ -232,6 +263,14 @@ class ReliableWebSocketServer:
         if use_ack:
             return await self.send_json_with_ack(message, timeout=ack_timeout)
         else:
+            # 消息入队（用于 from_offset 恢复）
+            if self._message_queue and self._session_id:
+                self._message_offset += 1
+                self._message_queue.enqueue(
+                    session_id=self._session_id,
+                    message_type=message.get("type", "unknown"),
+                    data=message,
+                )
             await self._websocket.send_json(message)
             return True
 
@@ -327,6 +366,12 @@ class ReliableWebSocketServer:
                         if ack_id and self._ack_manager:
                             self._ack_manager.handle_ack(ack_id)
                             logger.debug("[ReliableWebSocketServer] ACK 已处理: ack_id=%s", ack_id)
+                    elif msg_type == "sync_request":
+                        from_offset = message.get("from_offset", 0)
+                        await self._handle_sync_request(from_offset)
+                    elif msg_type == "subscribe":
+                        filters = message.get("filters", {})
+                        await self._handle_subscribe(filters)
                     else:
                         logger.debug("[ReliableWebSocketServer] 收到消息: %s", message)
 
@@ -368,16 +413,17 @@ class ReliableWebSocketServer:
         Returns:
             Session ID
         """
+        # 如果 StateRecoveryManager 未初始化，先初始化
         if self._state_recovery is None:
-            raise RuntimeError("StateRecoveryManager 未初始化")
+            self._state_recovery = StateRecoveryManager()
 
         self._session_id = self._state_recovery.generate_session_id()
         self._message_offset = 0
         logger.info("[ReliableWebSocketServer] 创建 Session: %s", self._session_id)
         return self._session_id
 
-    def restore_session(self, session_id: str) -> bool:
-        """恢复 Session
+    async def restore_session(self, session_id: str) -> bool:
+        """恢复 Session 并重放丢失的消息
 
         Args:
             session_id: Session ID
@@ -392,6 +438,11 @@ class ReliableWebSocketServer:
         if state is not None:
             self._session_id = session_id
             self._message_offset = state.get("offset", 0)
+
+            # 重放丢失的消息
+            if self._message_queue and self._message_offset > 0:
+                await self._replay_messages(self._message_offset)
+
             logger.info(
                 "[ReliableWebSocketServer] 恢复 Session: %s, offset=%d",
                 session_id,
@@ -399,8 +450,71 @@ class ReliableWebSocketServer:
             )
             return True
 
+        # Session 不存在或已过期
         logger.warning("[ReliableWebSocketServer] 恢复 Session 失败: %s", session_id)
+
+        # 发送错误消息给客户端
+        try:
+            await self._websocket.send_json(
+                {
+                    "type": "error",
+                    "code": "SESSION_EXPIRED",
+                    "message": "Session 不存在或已过期",
+                }
+            )
+        except Exception:
+            pass
+
         return False
+
+    async def _replay_messages(self, from_offset: int) -> None:
+        """重放从指定 offset 开始的消息
+
+        Args:
+            from_offset: 起始 offset
+        """
+        if not self._message_queue or not self._session_id:
+            return
+
+        messages = self._message_queue.get_messages_from_offset(from_offset, self._session_id)
+
+        for msg in messages:
+            try:
+                await self._websocket.send_json(msg.data)
+                self._message_queue.mark_delivered(msg.offset)
+                logger.debug("[ReliableWebSocketServer] 重放消息: offset=%d", msg.offset)
+            except Exception as e:
+                logger.error("[ReliableWebSocketServer] 重放消息失败: offset=%d, error=%s", msg.offset, e)
+
+    async def _handle_sync_request(self, from_offset: int) -> None:
+        """处理 sync_request 消息
+
+        从指定 offset 开始同步丢失的消息给客户端。
+
+        Args:
+            from_offset: 起始 offset
+        """
+        if not self._message_queue or not self._session_id:
+            logger.warning("[ReliableWebSocketServer] 无法处理 sync_request: queue 或 session 未初始化")
+            return
+
+        try:
+            messages = self._message_queue.get_messages_from_offset(from_offset, self._session_id)
+
+            for msg in messages:
+                try:
+                    await self._websocket.send_json(msg.data)
+                    self._message_queue.mark_delivered(msg.offset)
+                    logger.debug("[ReliableWebSocketServer] sync_request 发送消息: offset=%d", msg.offset)
+                except Exception as e:
+                    logger.error("[ReliableWebSocketServer] sync_request 发送失败: offset=%d, error=%s", msg.offset, e)
+
+            logger.info(
+                "[ReliableWebSocketServer] sync_request 完成: from_offset=%d, sent=%d", from_offset, len(messages)
+            )
+
+        except Exception as e:
+            logger.error("[ReliableWebSocketServer] sync_request 处理失败: %s", e)
 
     def update_message_offset(self, offset: int) -> None:
         """更新消息 offset
@@ -416,6 +530,68 @@ class ReliableWebSocketServer:
                 self._session_id,
                 offset,
             )
+
+    async def _handle_subscribe(self, filters: Dict[str, Any]) -> None:
+        """处理 subscribe 消息
+
+        设置订阅过滤器，只推送符合条件的变更。
+
+        Args:
+            filters: 过滤条件，支持 tenant_id、type、tags、project_id
+        """
+        self._filters = filters
+        logger.info("[ReliableWebSocketServer] 订阅过滤器已设置: %s", filters)
+
+        # 发送确认
+        await self._websocket.send_json(
+            {
+                "type": "subscribed",
+                "filters": filters,
+            }
+        )
+
+    def should_send_to_client(self, data: Dict[str, Any]) -> bool:
+        """检查数据是否应该发送给客户端
+
+        根据订阅过滤器判断。
+
+        Args:
+            data: 变更数据
+
+        Returns:
+            是否应该发送
+        """
+        if not self._filters:
+            return True
+
+        # 检查 tenant_id
+        if "tenant_id" in self._filters:
+            if data.get("tenant_id") != self._filters["tenant_id"]:
+                return False
+
+        # 检查 type
+        if "type" in self._filters:
+            if data.get("type") != self._filters["type"]:
+                return False
+
+        # 检查 project_id
+        if "project_id" in self._filters:
+            if data.get("project_id") != self._filters["project_id"]:
+                return False
+
+        # 检查 tags（数据包含任一指定 tag）
+        if "tags" in self._filters:
+            data_tags = data.get("tags", [])
+            filter_tags = self._filters["tags"]
+            # 类型安全检查
+            if not isinstance(data_tags, list):
+                data_tags = [data_tags] if data_tags else []
+            if not isinstance(filter_tags, list):
+                filter_tags = [filter_tags] if filter_tags else []
+            if not any(tag in data_tags for tag in filter_tags):
+                return False
+
+        return True
 
     def increment_message_offset(self) -> int:
         """递增消息 offset

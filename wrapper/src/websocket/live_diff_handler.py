@@ -13,8 +13,8 @@
 
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional, Callable
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Any, Callable, Dict, List, Optional
 
 from .diff_manager import DiffManager
 from .patch_generator import PatchGenerator
@@ -61,6 +61,7 @@ class LiveDiffHandler:
         self._live_query_id: Optional[str] = None
         self._pending_changes: Dict[str, Dict[str, Any]] = {}
         self._merge_task: Optional[asyncio.Task] = None
+        self._subscribe_task: Optional[asyncio.Task] = None
         self._state_cache: Dict[str, Any] = {}
 
         logger.debug(
@@ -88,6 +89,15 @@ class LiveDiffHandler:
 
             self._is_running = True
 
+            # 发送初始快照（首次连接时）
+            await self._send_snapshot()
+
+            # 启动订阅循环任务（关键修复：订阅 LIVE SELECT 通知流）
+            self._subscribe_task = asyncio.create_task(
+                self._subscribe_loop(),
+                name="live_diff_subscribe",
+            )
+
             # 启动变更合并任务
             self._merge_task = asyncio.create_task(
                 self._merge_changes_loop(),
@@ -111,6 +121,14 @@ class LiveDiffHandler:
             return
 
         self._is_running = False
+
+        # 取消订阅任务
+        if self._subscribe_task and not self._subscribe_task.done():
+            self._subscribe_task.cancel()
+            try:
+                await self._subscribe_task
+            except asyncio.CancelledError:
+                pass
 
         # 取消合并任务
         if self._merge_task and not self._merge_task.done():
@@ -140,8 +158,8 @@ class LiveDiffHandler:
             LIVE SELECT 查询 ID
         """
         try:
-            # 执行 LIVE SELECT 查询
-            result = await self._surrealdb.query(f"LIVE SELECT * FROM {self._table_name}")
+            # 执行 LIVE SELECT 查询（表名使用 type::table 转换）
+            result = await self._surrealdb.query(f"LIVE SELECT * FROM type::table(${self._table_name})")
 
             # 提取查询 ID
             if result and len(result) > 0:
@@ -153,6 +171,67 @@ class LiveDiffHandler:
         except Exception as e:
             logger.error("[LiveDiffHandler] 启动 LIVE SELECT 查询失败: %s", e)
             return None
+
+    async def _send_snapshot(self, limit: int = 1000) -> bool:
+        """发送当前数据的完整快照
+
+        在首次连接时发送已有数据的完整状态，
+        客户端收到后可建立初始状态，后续变更走 diff。
+
+        Args:
+            limit: 最大记录数，默认 1000
+
+        Returns:
+            是否成功发送
+        """
+        try:
+            # 查询当前数据（带限制防止大数据量）
+            result = await self._surrealdb.query(f"SELECT * FROM {self._table_name} LIMIT {limit}")
+
+            if not result:
+                logger.debug("[LiveDiffHandler] 无数据可发送快照")
+                return True
+
+            # 提取记录并应用过滤器
+            records = []
+            for item in result:
+                if isinstance(item, dict):
+                    # 应用过滤器（如果 WebSocket 服务器设置了过滤器）
+                    if hasattr(self._websocket, "should_send_to_client"):
+                        if self._websocket.should_send_to_client(item):
+                            records.append(item)
+                    else:
+                        records.append(item)
+                elif isinstance(item, list):
+                    for record in item:
+                        if hasattr(self._websocket, "should_send_to_client"):
+                            if self._websocket.should_send_to_client(record):
+                                records.append(record)
+                        else:
+                            records.append(record)
+
+            # 初始化状态缓存
+            for record in records:
+                record_id = record.get("id")
+                if record_id:
+                    self._state_cache[record_id] = record
+
+            # 发送快照消息
+            snapshot_message = {
+                "type": "snapshot",
+                "data": records,
+                "count": len(records),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+
+            await self._websocket.send_json(snapshot_message)
+
+            logger.info("[LiveDiffHandler] 快照已发送: %d 条记录", len(records))
+            return True
+
+        except Exception as e:
+            logger.error("[LiveDiffHandler] 发送快照失败: %s", e)
+            return False
 
     async def handle_change(self, change: Dict[str, Any]) -> None:
         """处理 SurrealDB 变更通知
@@ -171,11 +250,17 @@ class LiveDiffHandler:
             logger.debug("[LiveDiffHandler] 变更缺少 record_id")
             return
 
+        # 检查过滤器（如果 WebSocket 服务器设置了过滤器）
+        if hasattr(self._websocket, "should_send_to_client"):
+            if not self._websocket.should_send_to_client(data or {}):
+                logger.debug("[LiveDiffHandler] 变更被过滤器拦截: id=%s", record_id)
+                return
+
         # 缓存变更，等待合并
         self._pending_changes[record_id] = {
             "action": action,
             "data": data,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         logger.debug(
@@ -183,6 +268,44 @@ class LiveDiffHandler:
             action,
             record_id,
         )
+
+    async def _subscribe_loop(self) -> None:
+        """订阅 LIVE SELECT 通知循环
+
+        关键修复：订阅 SurrealDB 的 LIVE SELECT 通知流，
+        将变更转发到 handle_change() 处理。
+        """
+        if not self._live_query_id:
+            logger.error("[LiveDiffHandler] 无法订阅：query_id 为空")
+            return
+
+        retry_count = 0
+        max_retries = 3
+
+        while self._is_running and retry_count < max_retries:
+            try:
+                async for notification in self._surrealdb.subscribe_live(self._live_query_id):
+                    if not self._is_running:
+                        break
+
+                    # 转发变更到 handle_change
+                    await self.handle_change(notification)
+
+                # 流正常结束（非异常）
+                logger.debug("[LiveDiffHandler] 订阅流已关闭")
+                break
+
+            except asyncio.CancelledError:
+                logger.debug("[LiveDiffHandler] 订阅循环已取消")
+                raise
+            except Exception as e:
+                retry_count += 1
+                logger.error("[LiveDiffHandler] 订阅循环错误 (重试 %d/%d): %s", retry_count, max_retries, e)
+                if retry_count < max_retries:
+                    await asyncio.sleep(1.0 * retry_count)  # 指数退避
+                else:
+                    logger.error("[LiveDiffHandler] 订阅循环达到最大重试次数，停止")
+                    break
 
     async def _merge_changes_loop(self) -> None:
         """变更合并循环"""

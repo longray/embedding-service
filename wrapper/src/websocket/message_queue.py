@@ -13,7 +13,7 @@ import json
 import logging
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass, asdict
@@ -161,7 +161,7 @@ class MessageQueue:
             session_id=session_id,
             message_type=message_type,
             data=data,
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             delivered=False,
         )
 
@@ -303,6 +303,16 @@ class MessageQueue:
 
         return cleared_count
 
+    def _parse_timestamp(self, timestamp_str: str) -> datetime:
+        """解析时间戳字符串，处理带和不带时区的情况"""
+        if "Z" in timestamp_str:
+            timestamp_str = timestamp_str.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(timestamp_str)
+        # 如果带时区，转换为 naive
+        if dt.tzinfo is not None:
+            dt = dt.replace(tzinfo=None)
+        return dt
+
     def _cleanup_expired(self) -> int:
         """清理过期消息
 
@@ -313,7 +323,7 @@ class MessageQueue:
         cutoff = now - timedelta(days=self._ttl_days)
 
         original_count = len(self._messages)
-        self._messages = [m for m in self._messages if datetime.fromisoformat(m.timestamp) > cutoff]
+        self._messages = [m for m in self._messages if self._parse_timestamp(m.timestamp) > cutoff]
         cleared_count = original_count - len(self._messages)
 
         if cleared_count > 0:

@@ -26,7 +26,7 @@ class MeiliSyncMixin:
             "type": memory_data.get("type", "general"),
             "tags": memory_data.get("tags", []),
             "project_id": memory_data.get("project_id", "global"),
-            "created_at": memory_data.get("created_at") or datetime.now(timezone.utc).isoformat(),
+            "created_at": memory_data.get("created_at") or datetime.utcnow().isoformat(),
             "source_id": memory_data.get("source_id", ""),
             "metadata": memory_data.get("metadata", {}),
         }

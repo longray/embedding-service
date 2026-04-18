@@ -7,8 +7,8 @@ from typing import Literal
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from ..utils.auth import verify_websocket_token
-from ..websocket.reliable_server import ReliableWebSocketServer
 from ..websocket.live_diff_handler import LiveDiffHandler
+from ..websocket.reliable_server import ReliableWebSocketServer
 
 logger = logging.getLogger(__name__)
 
@@ -61,16 +61,28 @@ async def websocket_live_memories(
 
         db_manager = await SurrealDBManager.get_instance()
 
+        # 确保数据库连接已建立
+        try:
+            _ = db_manager.db  # 测试连接是否存在
+        except RuntimeError:
+            await db_manager.reconnect()
+
+        # 定期清理过期 session（每次新连接时执行）
+        if reliable_ws._state_recovery:
+            cleaned = reliable_ws._state_recovery.cleanup_expired()
+            if cleaned > 0:
+                logger.debug("[WebSocket] 清理过期 session: %d", cleaned)
+
+        # 创建 Session（必须在 accept 之前，这样 connected 消息才有 session_id）
+        session_id = reliable_ws.create_session()
+
         # 接受连接并启动心跳
         await reliable_ws.accept()
-
-        # 创建 Session
-        session_id = reliable_ws.create_session()
 
         # 如果有恢复的状态，尝试恢复
         restore_session_id = websocket.query_params.get("session_id")
         if restore_session_id:
-            if reliable_ws.restore_session(restore_session_id):
+            if await reliable_ws.restore_session(restore_session_id):
                 session_id = restore_session_id
                 logger.info("[WebSocket] 恢复 Session: %s", session_id)
 
@@ -114,7 +126,15 @@ async def websocket_live_memories(
                 "LIVE SELECT * FROM memory WHERE tenant_id = $tenant_id",
                 {"tenant_id": tenant_id},
             )
-            query_uuid = query_result[0]["result"]
+            # 处理 SurrealDB 3.0 返回格式（可能是 UUID 对象或列表）
+            if isinstance(query_result, list) and len(query_result) > 0:
+                if isinstance(query_result[0], dict):
+                    query_uuid = query_result[0].get("result") or query_result[0].get("id")
+                else:
+                    query_uuid = str(query_result[0])
+            else:
+                # 直接返回 UUID 对象
+                query_uuid = str(query_result)
 
             logger.info(
                 "[WebSocket] 启动 LIVE 查询: %s",
@@ -140,7 +160,11 @@ async def websocket_live_memories(
     except WebSocketDisconnect:
         logger.info("[WebSocket] 客户端断开连接")
     except Exception as e:
-        logger.error("[WebSocket] 错误: %s", e)
+        import traceback
+
+        error_msg = f"{type(e).__name__}: {e}"
+        logger.error("[WebSocket] 错误: %s", error_msg)
+        traceback.print_exc()
         try:
             await reliable_ws.send_json({"error": str(e)})
         except Exception:
@@ -169,7 +193,9 @@ async def websocket_live_memories(
 async def _forward_notifications(db_manager, query_uuid, reliable_ws):
     """转发 LIVE SELECT 通知到 WebSocket 客户端"""
     try:
-        async for notification in db_manager.db.subscribe_live(query_uuid):
+        # subscribe_live 返回 coroutine，需要 await
+        subscription = await db_manager.db.subscribe_live(query_uuid)
+        async for notification in subscription:
             if not reliable_ws.is_connected:
                 break
             await reliable_ws.send_json(notification)

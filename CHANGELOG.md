@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.1] - 2026-04-18
+
+### Fixed
+
+- **WebSocket 实时推送修复** (Phase 10)
+  - 修复 datetime 时区问题：`datetime.utcnow()` 与 `datetime.now(timezone.utc)` 混用导致的 `can't subtract offset-naive and offset-aware datetimes` 错误
+  - 修复数据库连接问题：`SurrealDBManager.get_instance()` 只创建实例不自动连接，添加 `reconnect()` 调用
+  - 修复 SurrealDB 3.0 UUID 返回格式：`LIVE SELECT` 直接返回 UUID 对象而非列表，使用 `isinstance()` 灵活处理
+  - 修复 `subscribe_live` coroutine 未 await：先 `await` 获取 subscription，再 `async for` 遍历
+  - 修复 `connected` 消息缺失：在 `accept()` 后发送 `connected` 消息，包含有效 `session_id`
+  - 修复 session 初始化顺序：`create_session()` 在 `accept()` 之前调用，确保 `session_id` 可用
+  - 修复 SurrealDB 参数化表名问题：`$table` 参数不能用作表标识符，改用 f-string
+
+### Changed
+
+- **datetime 统一处理**：所有模块统一使用 naive datetime，解析时兼容 `Z`/`+00:00` 后缀
+  - 涉及文件：`state_recovery.py`, `message_queue.py`, `code_analyzer.py`, `audit.py`, `meili_sync.py`
+
+### Technical
+
+- **WebSocket 连接验证**：15/15 单元测试通过，连接测试验证通过
+- **插件集成就绪**：WebSocket 端点 `ws://localhost:18008/ws/memories/live` 已就绪，等待插件端集成测试
+
 ## [2.8.0] - 2026-04-15
 
 ### Added

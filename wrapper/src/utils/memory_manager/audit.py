@@ -211,7 +211,7 @@ class AuditMixin:
             清理结果
         """
         try:
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
+            cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
 
             query = """
                 DELETE FROM audit_log

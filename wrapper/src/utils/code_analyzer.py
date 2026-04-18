@@ -139,7 +139,7 @@ class CodeAnalyzer:
                 docstrings=docstrings,
                 dependencies=dependencies,
                 complexity_metrics=complexity_metrics,
-                analyzed_at=datetime.now(timezone.utc).isoformat(),
+                analyzed_at=datetime.utcnow().isoformat(),
                 analyzer="tree-sitter",
             )
         except Exception as e:
@@ -467,7 +467,7 @@ class CodeAnalyzer:
             docstrings=docstrings,
             dependencies=await self._extract_dependencies(content),
             complexity_metrics=complexity,
-            analyzed_at=datetime.now(timezone.utc).isoformat(),
+            analyzed_at=datetime.utcnow().isoformat(),
             analyzer_version="1.0.0",
             analyzer="regex",
         )

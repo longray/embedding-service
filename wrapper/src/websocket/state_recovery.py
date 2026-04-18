@@ -14,7 +14,7 @@ import logging
 import os
 import time
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -133,11 +133,13 @@ class StateRecoveryManager:
     def restore_state(self, session_id: str) -> Optional[Dict[str, Any]]:
         """恢复状态
 
+        检查 session 是否存在且未过期。
+
         Args:
             session_id: Session ID
 
         Returns:
-            状态字典，如果不存在返回 None
+            状态字典，如果不存在或已过期返回 None
         """
         session = self._state["sessions"].get(session_id)
         if session is None:
@@ -146,6 +148,22 @@ class StateRecoveryManager:
                 session_id,
             )
             return None
+
+        # 检查 TTL
+        updated_at_str = session.get("updated_at") or session.get("created_at")
+        if updated_at_str:
+            # 处理带时区的 ISO 格式（+00:00 或 Z）
+            updated_at_str = updated_at_str.replace("Z", "+00:00")
+            updated_at = datetime.fromisoformat(updated_at_str)
+            # 如果带时区，转换为 naive
+            if updated_at.tzinfo is not None:
+                updated_at = updated_at.replace(tzinfo=None)
+            if datetime.utcnow() - updated_at > timedelta(days=self._ttl_days):
+                logger.warning("[StateRecoveryManager] Session 已过期: %s", session_id)
+                # 删除过期 session
+                del self._state["sessions"][session_id]
+                self._save_state()
+                return None
 
         logger.debug(
             "[StateRecoveryManager] 恢复状态: session_id=%s, offset=%d",
@@ -208,7 +226,12 @@ class StateRecoveryManager:
         for session_id, session in self._state["sessions"].items():
             updated_at_str = session.get("updated_at") or session.get("created_at")
             if updated_at_str:
+                # 处理带时区的 ISO 格式（+00:00 或 Z）
+                updated_at_str = updated_at_str.replace("Z", "+00:00")
                 updated_at = datetime.fromisoformat(updated_at_str)
+                # 如果带时区，转换为 naive
+                if updated_at.tzinfo is not None:
+                    updated_at = updated_at.replace(tzinfo=None)
                 if now - updated_at > timedelta(days=self._ttl_days):
                     expired_sessions.append(session_id)
 
