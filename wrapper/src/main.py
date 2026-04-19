@@ -38,6 +38,7 @@ from .models import (  # noqa: F401 — re-exported for backward compatibility
     SyncPreviewResponse,
 )
 from .routers import (
+    atom,
     audit,
     clustering,
     embeddings,
@@ -319,7 +320,8 @@ app = FastAPI(title="Minimal Wrapper Service", version="2.6.0", lifespan=lifespa
 
 app.include_router(health.router)
 app.include_router(embeddings.router)
-app.include_router(lookup.router)  # 必须在 memories 之前
+app.include_router(lookup.router)
+app.include_router(atom.router)
 app.include_router(memories.router)
 app.include_router(search.router)
 app.include_router(relations.router)

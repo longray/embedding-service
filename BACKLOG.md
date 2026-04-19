@@ -3597,6 +3597,7 @@ uv run ruff check tests/
 - 文件: `wrapper/src/websocket/live_diff_handler.py` — 添加订阅循环
 
 **前置依赖**  
+
 - BL-B-56 完成（LIVE SELECT DIFF 订阅基础实现）
 
 **完成标准**  
@@ -3627,6 +3628,7 @@ uv run pytest tests/test_websocket_diff.py -v
 - 文件: `wrapper/src/websocket/state_recovery.py` — 恢复时重放消息
 
 **前置依赖**  
+
 - BL-B-54 完成（消息持久化基础实现）
 - BL-B-90 完成（diff 模式订阅修复，确保有消息可入队）
 
@@ -3657,6 +3659,7 @@ uv run pytest tests/test_websocket_message_queue.py -v
 - 文件: `wrapper/src/websocket/reliable_server.py` — 处理 `"sync_request"` 消息
 
 **前置依赖**  
+
 - BL-B-91 完成（MessageQueue 集成）
 
 **完成标准**  
@@ -3687,6 +3690,7 @@ uv run pytest tests/test_websocket_sync_request.py -v
 - 文件: `wrapper/src/websocket/diff_manager.py` — 初始化状态
 
 **前置依赖**  
+
 - BL-B-90 完成（diff 模式订阅修复，确保能正常获取数据）
 
 **完成标准**  
@@ -3717,6 +3721,7 @@ uv run pytest tests/test_websocket_snapshot.py -v
 - 文件: `wrapper/src/websocket/live_diff_handler.py` — 添加过滤逻辑
 
 **前置依赖**  
+
 - BL-B-91 完成（MessageQueue 集成，确保消息流可用）
 - BL-B-90 完成（diff 模式订阅修复）
 
@@ -3748,6 +3753,7 @@ uv run pytest tests/test_websocket_subscribe.py -v
 - 文件: `wrapper/src/websocket/reliable_server.py` — 定期调用 `cleanup_expired()`
 
 **前置依赖**  
+
 - BL-B-58 完成（StateRecoveryManager 集成基础实现）
 
 **完成标准**  
@@ -3786,3 +3792,263 @@ uv run pytest tests/test_websocket_session_ttl.py -v
 | **Phase 9: 代码审查修复** | **6** | **3** | **2** | **1** | **4 天** |
 | **Phase 10: WebSocket 修复** | **6** | **3** | **3** | **0** | **4.5 天** |
 | **总计** | **90** | **42** | **39** | **9** | **58.5 天** |
+
+---
+
+## 场景十三：v3.2 架构修复 - Atom/Entity/Reference API 实现
+
+> **背景**: v3.2 架构设计已完成，但实际实现存在差距：Atom/Entity/Reference API 缺失、Schema 不一致
+>
+> **目标**: 实现完整的 Atom/Entity/Reference 架构 API
+>
+> **策略**: 开发期间新旧系统并行运行，不强制迁移
+>
+> **文档**: 详见 [docs/v3.2/IMPLEMENTATION-PLAN-v3.2.md](./docs/v3.2/IMPLEMENTATION-PLAN-v3.2.md)
+
+---
+
+### BL-B-96 [P0] 后端 Atom API 实现
+
+**目标**: 实现完整的 Atom CRUD API，支持原子级知识单元的创建、查询、更新、删除
+
+**涉及范围**:
+
+1. **Router 开发**:
+   - wrapper/src/routers/atom.py - Atom CRUD 端点
+   - POST /api/v1/atoms - 创建 Atom
+   - GET /api/v1/atoms/{id} - 获取 Atom
+   - GET /api/v1/atoms - 列出 Atoms（支持过滤）
+   - PUT /api/v1/atoms/{id} - 更新 Atom
+   - DELETE /api/v1/atoms/{id} - 删除 Atom
+
+2. **数据模型**:
+   - AtomCreateRequest / AtomUpdateRequest / AtomResponse Pydantic 模型
+   - 支持字段：type, content, name, signature, params, return_type, is_exported, is_async, complexity, start_line, end_line, metadata
+
+3. **SurrealDB 集成**:
+   - 使用 SurrealDB tom 表（已定义在 init_surrealdb_v3.2.surql）
+   - 支持 tenant_id 隔离
+
+**前置依赖**:
+
+- SurrealDB v3.2 schema 已部署（atom 表）
+- MemoryManager 已初始化
+- 后端服务运行在 localhost:18008
+
+**完成标准**:
+
+1. 所有 5 个 Atom API 端点实现完成
+2. 支持 8 种 Atom 类型：function, class, interface, import, goal, scope, task, note
+3. 支持分页、过滤（type, project）、tenant 隔离
+4. 错误处理完善（404, 500, 503）
+5. 代码通过 ruff linter 检查
+6. 单元测试覆盖所有端点
+
+**验证方式**:
+
+1. **单元测试**: pytest 测试每个端点
+   `ash
+   uv run pytest tests/routers/test_atom.py -v
+   `
+2. **集成测试**: 使用 curl/httpx 测试完整流程
+   `ash
+   curl -X POST http://localhost:18008/api/v1/atoms \
+     -H "Content-Type: application/json" \
+     -d '{"type":"function","name":"test","content":"def test(): pass"}'
+   `
+3. **数据库验证**: 检查 SurrealDB atom 表数据正确性
+4. **API 文档**: 自动生成 OpenAPI 文档可访问
+
+**工时**: 3 天
+**状态**: 🆕 新建
+
+---
+
+### BL-B-97 [P0] 后端 Entity API 实现
+
+**目标**: 实现完整的 Entity CRUD API，支持知识实体的 L0/L1/L2 分层存储
+
+**涉及范围**:
+
+1. **Router 开发**:
+   - wrapper/src/routers/entity.py - Entity CRUD 端点
+   - POST /api/v1/entities - 创建 Entity
+   - GET /api/v1/entities/{id}?level=0/1/2 - 获取 Entity（支持分层）
+   - GET /api/v1/entities - 列出 Entities
+   - PUT /api/v1/entities/{id} - 更新 Entity
+   - DELETE /api/v1/entities/{id} - 删除 Entity
+
+2. **数据模型**:
+   - EntityCreateRequest / EntityResponse Pydantic 模型
+   - L0: abstract (≤100字符)
+   - L1: overview (object)
+   - L2: atoms (Atom ID 列表)
+   - 类型特定字段：wiki(title, aliases), backlog(priority, status), code(file_path, language)
+
+3. **Atom 关联**:
+   - 验证 atoms 字段中的 Atom ID 存在性
+   - 使用 SurrealDB REFERENCE 和 ON DELETE CASCADE
+
+**前置依赖**:
+
+- BL-B-96 完成（Atom API）
+- SurrealDB v3.2 schema 已部署（entity 表）
+- Atom 表已有数据
+
+**完成标准**:
+
+1. 所有 5 个 Entity API 端点实现完成
+2. 支持 4 种 Entity 类型：memory, backlog, wiki, code
+3. level 参数正确工作：0=abstract, 1=abstract+overview, 2=full
+4. atoms 关联验证正确（创建时检查 Atom 存在）
+5. 类型特定字段根据 entity.type 自动处理
+6. 单元测试覆盖所有端点
+
+**验证方式**:
+
+1. **单元测试**: pytest 测试分层查询
+   `python
+
+   # 测试 level=0 只返回 abstract
+
+   response = client.get("/api/v1/entities/xxx?level=0")
+   assert "abstract" in response.json()
+   assert "atoms" not in response.json()
+   `
+2. **集成测试**: 创建 Entity 时关联已有 Atom
+3. **数据库验证**: 检查 entity.atoms 引用正确
+4. **级联测试**: 删除 Atom 后检查 Entity 自动更新
+
+**工时**: 3 天
+**状态**: 🆕 新建
+
+---
+
+### BL-B-98 [P0] 后端 Reference API 实现
+
+**目标**: 实现图关系 API，使用 SurrealDB RELATE 创建原生图关系
+
+**涉及范围**:
+
+1. **Router 开发**:
+   - wrapper/src/routers/reference.py - Reference 端点
+   - POST /api/v1/references - 创建关系（使用 RELATE）
+   - GET /api/v1/references - 查询关系（支持图遍历）
+   - DELETE /api/v1/references/{id} - 删除关系
+
+2. **关系类型支持**:
+   - calls: 函数调用
+   - imports: 模块导入
+   - depends_on: 依赖关系
+   - implements: 实现关系
+   - wiki_link: Wiki 链接
+   - part_of: 组成关系
+
+3. **图遍历查询**:
+   - 从 from_id 出发的关系：SELECT * FROM atom:xxx->reference
+   - 指向 to_id 的关系：SELECT * FROM <-reference-atom:yyy
+   - 支持 type 过滤
+
+**前置依赖**:
+
+- BL-B-96 完成（Atom API）
+- BL-B-97 完成（Entity API）
+- SurrealDB v3.2 schema 已部署（reference 表）
+
+**完成标准**:
+
+1. 使用 SurrealDB RELATE 语法创建关系
+2. 支持 Atom-Atom, Atom-Entity, Entity-Entity 关系
+3. 图遍历查询正确工作
+4. 唯一索引防止重复关系（in, out, type）
+5. 支持 weight, file_path, line, column 等元数据
+6. 单元测试覆盖所有端点
+
+**验证方式**:
+
+1. **单元测试**: 测试 RELATE 语法
+   `python
+   response = client.post("/api/v1/references", json={
+       "from_id": "atom:func1",
+       "to_id": "atom:func2",
+       "type": "calls"
+   })
+   `
+2. **图遍历测试**: 查询调用关系
+   `ash
+   curl "http://localhost:18008/api/v1/references?from_id=atom:xxx"
+   `
+3. **数据库验证**: 检查 reference 表使用 RELATION 类型
+4. **唯一性测试**: 尝试创建重复关系应失败
+
+**工时**: 2 天
+**状态**: 🆕 新建
+
+---
+
+### BL-B-99 [P1] 后端 main.py Router 注册
+
+**目标**: 在 main.py 中注册 Atom/Entity/Reference routers
+
+**涉及范围**:
+
+1. **Router 导入**:
+   - rom .routers import atom, entity, reference
+   - 保留现有 routers（memories, relations 等）
+
+2. **Router 注册**:
+   - pp.include_router(atom.router, prefix="/api/v1")
+   - pp.include_router(entity.router, prefix="/api/v1")
+   - pp.include_router(reference.router, prefix="/api/v1")
+   - 保留旧 API 兼容
+
+3. **OpenAPI 文档**:
+   - 自动生成包含新 API 的文档
+   - 标签分类：atoms, entities, references
+
+**前置依赖**:
+
+- BL-B-96 完成（Atom API）
+- BL-B-97 完成（Entity API）
+- BL-B-98 完成（Reference API）
+
+**完成标准**:
+
+1. 新 routers 正确注册
+2. /docs 显示新 API 端点
+3. 旧 API 仍然可用
+4. 无路由冲突
+
+**验证方式**:
+
+1. **启动测试**: 服务正常启动无错误
+2. **API 文档**: 访问 /docs 显示新端点
+3. **路由测试**: 测试新旧 API 都能访问
+4. **集成测试**: 端到端测试通过
+
+**工时**: 0.5 天
+**状态**: 🆕 新建
+
+---
+
+## 场景十三汇总
+
+| 编号 | 任务 | 优先级 | 工时 | 状态 |
+|------|------|--------|------|------|
+| BL-B-96 | Atom API 实现 | P0 | 3天 | 🆕 |
+| BL-B-97 | Entity API 实现 | P0 | 3天 | 🆕 |
+| BL-B-98 | Reference API 实现 | P0 | 2天 | 🆕 |
+| BL-B-99 | Router 注册 | P1 | 0.5天 | 🆕 |
+
+**小计**: 4 个任务，8.5 天
+
+---
+
+## 更新后的统计汇总
+
+| 分类 | 总数 | P0 | P1 | P2 | P3 | 工时 |
+|------|------|----|----|----|----|------|
+| **场景十三: Atom/Entity/Reference** | **4** | **3** | **1** | **0** | **0** | **8.5 天** |
+| **总计** | **94** | **45** | **40** | **9** | **0** | **67 天** |
+
+---
