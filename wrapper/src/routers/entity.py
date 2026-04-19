@@ -194,34 +194,45 @@ async def create_entity(request: EntityCreateRequest):
         entity_data = {k: v for k, v in entity_data.items() if v is not None}
 
         
-        result = await db.create("entity", entity_data)
-        
-        logger.info("[Entity] Create result type: %s, value: %s", type(result), result)
+        # BL-B-100: 使用事务执行创建操作
+        try:
+            await db.query("BEGIN TRANSACTION")
+            result = await db.create("entity", entity_data)
 
-        if not result:
-            raise HTTPException(status_code=500, detail="创建 Entity 失败")
+            if not result:
+                await db.query("CANCEL TRANSACTION")
+                raise HTTPException(status_code=500, detail="创建 Entity 失败")
 
-        if isinstance(result, dict):
-            record = result
-        elif isinstance(result, list) and result:
-            record = result[0]
-            if isinstance(record, list) and record:
-                record = record[0]
-        else:
-            raise HTTPException(status_code=500, detail=f"创建 Entity 失败: 无效的响应格式 {type(result)}")
+            if isinstance(result, dict):
+                record = result
+            elif isinstance(result, list) and result:
+                record = result[0]
+                if isinstance(record, list) and record:
+                    record = record[0]
+            else:
+                await db.query("CANCEL TRANSACTION")
+                raise HTTPException(status_code=500, detail=f"创建 Entity 失败: 无效的响应格式 {type(result)}")
 
-        raw_id = record.get("id") if isinstance(record, dict) else record
-        if raw_id and not isinstance(raw_id, list) and hasattr(raw_id, "table_name"):
-            record_id = f"{raw_id.table_name}:{raw_id.id}"
-        else:
-            record_id = str(raw_id)
+            raw_id = record.get("id") if isinstance(record, dict) else record
+            if raw_id and not isinstance(raw_id, list) and hasattr(raw_id, "table_name"):
+                record_id = f"{raw_id.table_name}:{raw_id.id}"
+            else:
+                record_id = str(raw_id)
 
-        # Convert atoms back to string IDs for response
-        response_data = entity_data.copy()
-        if response_data.get("atoms"):
-            response_data["atoms"] = request.atoms
+            # Convert atoms back to string IDs for response
+            response_data = entity_data.copy()
+            if response_data.get("atoms"):
+                response_data["atoms"] = request.atoms
 
-        return EntityResponse(id=record_id, **response_data)
+            await db.query("COMMIT TRANSACTION")
+            return EntityResponse(id=record_id, **response_data)
+
+        except Exception:
+            try:
+                await db.query("CANCEL TRANSACTION")
+            except Exception as cancel_error:
+                logger.error("[Entity] 事务回滚失败: %s", cancel_error)
+            raise
 
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=e.message) from e
@@ -351,16 +362,26 @@ async def update_entity(entity_id: str, request: EntityUpdateRequest):
         if not update_data:
             raise HTTPException(status_code=400, detail="没有要更新的字段")
 
-        
         update_data["updated_at"] = "time::now()"
 
-        
-        result = await db.update(entity_id, update_data)
+        # BL-B-100: 使用事务执行更新操作
+        try:
+            await db.query("BEGIN TRANSACTION")
+            result = await db.update(entity_id, update_data)
 
-        if not result or len(result) == 0:
-            raise HTTPException(status_code=500, detail="更新失败")
+            if not result or len(result) == 0:
+                await db.query("CANCEL TRANSACTION")
+                raise HTTPException(status_code=500, detail="更新失败")
 
-        return result[0]
+            await db.query("COMMIT TRANSACTION")
+            return result[0]
+
+        except Exception:
+            try:
+                await db.query("CANCEL TRANSACTION")
+            except Exception as cancel_error:
+                logger.error("[Entity] 事务回滚失败: %s", cancel_error)
+            raise
 
     except HTTPException:
         raise
@@ -388,10 +409,19 @@ async def delete_entity(entity_id: str, tenant_id: str = Query(default="default"
         if not check or len(check) == 0:
             raise HTTPException(status_code=404, detail="Entity 不存在")
 
-        
-        await db.delete(entity_id)
+        # BL-B-100: 使用事务执行删除操作
+        try:
+            await db.query("BEGIN TRANSACTION")
+            await db.delete(entity_id)
+            await db.query("COMMIT TRANSACTION")
+            return {"success": True, "message": "Entity 已删除"}
 
-        return {"success": True, "message": "Entity 已删除"}
+        except Exception:
+            try:
+                await db.query("CANCEL TRANSACTION")
+            except Exception as cancel_error:
+                logger.error("[Entity] 事务回滚失败: %s", cancel_error)
+            raise
 
     except HTTPException:
         raise

@@ -116,38 +116,51 @@ async def create_reference(request: ReferenceCreateRequest):
             "metadata": request.metadata,
         }
 
-        result = await db.query(query, params)
+        # BL-B-100: 使用事务执行创建操作
+        try:
+            await db.query("BEGIN TRANSACTION")
+            result = await db.query(query, params)
 
-        if not result:
-            raise HTTPException(status_code=500, detail="创建关系失败")
+            if not result:
+                await db.query("CANCEL TRANSACTION")
+                raise HTTPException(status_code=500, detail="创建关系失败")
 
-        if isinstance(result, dict):
-            record = result
-        elif isinstance(result, list) and result:
-            record = result[0]
-            if isinstance(record, list) and record:
-                record = record[0]
-        else:
-            raise HTTPException(status_code=500, detail="创建关系失败: 无效的响应格式")
+            if isinstance(result, dict):
+                record = result
+            elif isinstance(result, list) and result:
+                record = result[0]
+                if isinstance(record, list) and record:
+                    record = record[0]
+            else:
+                await db.query("CANCEL TRANSACTION")
+                raise HTTPException(status_code=500, detail="创建关系失败: 无效的响应格式")
 
-        raw_id = record.get("id") if isinstance(record, dict) else record
-        if hasattr(raw_id, "table_name"):
-            record_id = f"{raw_id.table_name}:{raw_id.id}"
-        else:
-            record_id = str(raw_id)
+            raw_id = record.get("id") if isinstance(record, dict) else record
+            if raw_id and not isinstance(raw_id, list) and hasattr(raw_id, "table_name"):
+                record_id = f"{raw_id.table_name}:{raw_id.id}"
+            else:
+                record_id = str(raw_id)
 
-        return ReferenceResponse(
-            id=record_id,
-            from_id=request.from_id,
-            to_id=request.to_id,
-            type=request.type,
-            tenant_id=request.tenant_id,
-            weight=request.weight,
-            file_path=request.file_path,
-            line=request.line,
-            column=request.column,
-            metadata=request.metadata,
-        )
+            await db.query("COMMIT TRANSACTION")
+            return ReferenceResponse(
+                id=record_id,
+                from_id=request.from_id,
+                to_id=request.to_id,
+                type=request.type,
+                tenant_id=request.tenant_id,
+                weight=request.weight,
+                file_path=request.file_path,
+                line=request.line,
+                column=request.column,
+                metadata=request.metadata,
+            )
+
+        except Exception:
+            try:
+                await db.query("CANCEL TRANSACTION")
+            except Exception as cancel_error:
+                logger.error("[Reference] 事务回滚失败: %s", cancel_error)
+            raise
 
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=e.message) from e
@@ -229,10 +242,19 @@ async def delete_reference(reference_id: str, tenant_id: str = Query(default="de
         if not check or len(check) == 0:
             raise HTTPException(status_code=404, detail="关系不存在")
 
-        
-        await db.delete(reference_id)
+        # BL-B-100: 使用事务执行删除操作
+        try:
+            await db.query("BEGIN TRANSACTION")
+            await db.delete(reference_id)
+            await db.query("COMMIT TRANSACTION")
+            return {"success": True, "message": "关系已删除"}
 
-        return {"success": True, "message": "关系已删除"}
+        except Exception:
+            try:
+                await db.query("CANCEL TRANSACTION")
+            except Exception as cancel_error:
+                logger.error("[Reference] 事务回滚失败: %s", cancel_error)
+            raise
 
     except HTTPException:
         raise
