@@ -49,6 +49,7 @@ from .routers import (
     precompute,
     prefetch,
     projects,
+    reference,
     relations,
     search,
     stubs,
@@ -324,6 +325,7 @@ app.include_router(embeddings.router)
 app.include_router(lookup.router)
 app.include_router(atom.router)
 app.include_router(entity.router)
+app.include_router(reference.router)
 app.include_router(memories.router)
 app.include_router(search.router)
 app.include_router(relations.router)
