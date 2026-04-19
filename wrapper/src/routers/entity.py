@@ -123,13 +123,38 @@ async def create_entity(request: EntityCreateRequest):
 
         
         if request.atoms:
+            from surrealdb.data.types.record_id import RecordID
+            record_ids = []
             for atom_id in request.atoms:
-                check = await db.query(
-                    "SELECT id FROM atom WHERE id = $atom_id",
-                    {"atom_id": atom_id}
-                )
-                if not check or len(check) == 0:
-                    raise ValidationError(f"Atom 不存在: {atom_id}")
+                if ":" in atom_id:
+                    parts = atom_id.split(":", 1)
+                    record_ids.append(RecordID(parts[0], parts[1]))
+                else:
+                    record_ids.append(atom_id)
+            
+            logger.info("[Entity] Looking for atoms: %s, record_ids: %s", request.atoms, record_ids)
+            
+            atoms_check = await db.query(
+                "SELECT id FROM atom WHERE id IN $atom_ids",
+                {"atom_ids": record_ids}
+            )
+            
+            logger.info("[Entity] atoms_check result: %s, type: %s", atoms_check, type(atoms_check))
+            
+            found_ids = set()
+            if atoms_check:
+                for record in atoms_check:
+                    record_id = record["id"]
+                    if hasattr(record_id, "table_name"):
+                        found_ids.add(f"{record_id.table_name}:{record_id.id}")
+                    else:
+                        found_ids.add(str(record_id))
+            
+            logger.info("[Entity] found_ids: %s, request.atoms: %s", found_ids, set(request.atoms))
+            
+            missing = set(request.atoms) - found_ids
+            if missing:
+                raise ValidationError(f"Atoms 不存在: {missing}")
 
         
         entity_data = {
@@ -137,7 +162,7 @@ async def create_entity(request: EntityCreateRequest):
             "tenant_id": request.tenant_id,
             "abstract": request.abstract,
             "overview": request.overview,
-            "atoms": request.atoms,
+            "atoms": record_ids if request.atoms else [],
             "tags": request.tags,
             "project": request.project,
             "created_by": request.created_by,
@@ -170,11 +195,33 @@ async def create_entity(request: EntityCreateRequest):
 
         
         result = await db.create("entity", entity_data)
+        
+        logger.info("[Entity] Create result type: %s, value: %s", type(result), result)
 
-        if not result or len(result) == 0:
+        if not result:
             raise HTTPException(status_code=500, detail="创建 Entity 失败")
 
-        return EntityResponse(id=result[0]["id"], **entity_data)
+        if isinstance(result, dict):
+            record = result
+        elif isinstance(result, list) and result:
+            record = result[0]
+            if isinstance(record, list) and record:
+                record = record[0]
+        else:
+            raise HTTPException(status_code=500, detail=f"创建 Entity 失败: 无效的响应格式 {type(result)}")
+
+        raw_id = record.get("id") if isinstance(record, dict) else record
+        if raw_id and not isinstance(raw_id, list) and hasattr(raw_id, "table_name"):
+            record_id = f"{raw_id.table_name}:{raw_id.id}"
+        else:
+            record_id = str(raw_id)
+
+        # Convert atoms back to string IDs for response
+        response_data = entity_data.copy()
+        if response_data.get("atoms"):
+            response_data["atoms"] = request.atoms
+
+        return EntityResponse(id=record_id, **response_data)
 
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=e.message) from e

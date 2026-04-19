@@ -370,3 +370,90 @@ DEFINE INDEX IF NOT EXISTS idx_fingerprint_tenant_project ON file_fingerprint FI
 DEFINE INDEX IF NOT EXISTS idx_fingerprint_content_hash ON file_fingerprint FIELDS content_hash;
     -- 按内容哈希查询（用于去重）
     -- 按 file_path + project_id 组合查询（lookup API）
+
+-- ==================== v3.2: Atom/Entity/Reference 表 ====================
+-- 新增: 支持代码分析的四层架构
+
+-- 1. atom 表 - 原子级数据单元
+DEFINE TABLE IF NOT EXISTS atom TYPE NORMAL;
+
+DEFINE FIELD IF NOT EXISTS id ON atom TYPE record<atom>;
+DEFINE FIELD IF NOT EXISTS tenant_id ON atom TYPE string
+    ASSERT $value != NONE AND string::len($value) > 0;
+DEFINE FIELD IF NOT EXISTS type ON atom TYPE string
+    ASSERT $value IN ['function', 'class', 'interface', 'import', 'goal', 'scope', 'task', 'note', 'symbol', 'token', 'fragment'];
+DEFINE FIELD IF NOT EXISTS content ON atom TYPE string;
+DEFINE FIELD IF NOT EXISTS name ON atom TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS signature ON atom TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS params ON atom TYPE option<array<object>>;
+DEFINE FIELD IF NOT EXISTS return_type ON atom TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS is_exported ON atom TYPE option<bool>;
+DEFINE FIELD IF NOT EXISTS is_async ON atom TYPE option<bool>;
+DEFINE FIELD IF NOT EXISTS complexity ON atom TYPE option<int>;
+DEFINE FIELD IF NOT EXISTS max_nesting_depth ON atom TYPE option<int>;
+DEFINE FIELD IF NOT EXISTS docstring ON atom TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS start_line ON atom TYPE option<int>;
+DEFINE FIELD IF NOT EXISTS end_line ON atom TYPE option<int>;
+DEFINE FIELD IF NOT EXISTS status ON atom TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS metadata ON atom TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS project ON atom TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS fingerprint ON atom TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created_at ON atom TYPE datetime DEFAULT time::now();
+DEFINE FIELD IF NOT EXISTS updated_at ON atom TYPE datetime DEFAULT time::now();
+
+-- atom 表索引
+DEFINE INDEX IF NOT EXISTS idx_atom_tenant ON atom FIELDS tenant_id;
+DEFINE INDEX IF NOT EXISTS idx_atom_type ON atom FIELDS type;
+DEFINE INDEX IF NOT EXISTS idx_atom_project ON atom FIELDS project;
+DEFINE INDEX IF NOT EXISTS idx_atom_fingerprint ON atom FIELDS fingerprint;
+DEFINE INDEX IF NOT EXISTS idx_atom_created_at ON atom FIELDS created_at;
+
+-- 2. entity 表 - 实体（由 atom 组成）
+DEFINE TABLE IF NOT EXISTS entity TYPE NORMAL;
+
+DEFINE FIELD IF NOT EXISTS id ON entity TYPE record<entity>;
+DEFINE FIELD IF NOT EXISTS tenant_id ON entity TYPE string
+    ASSERT $value != NONE AND string::len($value) > 0;
+DEFINE FIELD IF NOT EXISTS type ON entity TYPE string
+    ASSERT $value IN ['memory', 'backlog', 'wiki', 'code'];
+DEFINE FIELD IF NOT EXISTS abstract ON entity TYPE string;
+DEFINE FIELD IF NOT EXISTS overview ON entity TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS atoms ON entity TYPE option<array<record<atom>>>;
+DEFINE FIELD IF NOT EXISTS tags ON entity TYPE option<array<string>>;
+DEFINE FIELD IF NOT EXISTS project ON entity TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS created_by ON entity TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS title ON entity TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS aliases ON entity TYPE option<array<string>>;
+DEFINE FIELD IF NOT EXISTS priority ON entity TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS status ON entity TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS scene ON entity TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS estimated_hours ON entity TYPE option<float>;
+DEFINE FIELD IF NOT EXISTS actual_hours ON entity TYPE option<float>;
+DEFINE FIELD IF NOT EXISTS file_path ON entity TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS language ON entity TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS quality_score ON entity TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS complexity_metrics ON entity TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS created_at ON entity TYPE datetime DEFAULT time::now();
+DEFINE FIELD IF NOT EXISTS updated_at ON entity TYPE datetime DEFAULT time::now();
+
+-- entity 表索引
+DEFINE INDEX IF NOT EXISTS idx_entity_tenant ON entity FIELDS tenant_id;
+DEFINE INDEX IF NOT EXISTS idx_entity_type ON entity FIELDS type;
+DEFINE INDEX IF NOT EXISTS idx_entity_project ON entity FIELDS project;
+DEFINE INDEX IF NOT EXISTS idx_entity_created_at ON entity FIELDS created_at;
+
+-- 3. reference 表 - 引用关系（图关系）
+DEFINE TABLE IF NOT EXISTS reference TYPE RELATION;
+
+DEFINE FIELD IF NOT EXISTS in ON reference TYPE record<entity>;
+DEFINE FIELD IF NOT EXISTS out ON reference TYPE record<entity>;
+DEFINE FIELD IF NOT EXISTS tenant_id ON reference TYPE string
+    ASSERT $value != NONE AND string::len($value) > 0;
+DEFINE FIELD IF NOT EXISTS type ON reference TYPE string
+    ASSERT $value IN ['calls', 'imports', 'depends_on', 'implements', 'wiki_link', 'part_of', 'call', 'import', 'extend', 'implement', 'use'];
+DEFINE FIELD IF NOT EXISTS weight ON reference TYPE float DEFAULT 0.5 ASSERT $value >= 0.0 AND $value <= 1.0;
+DEFINE FIELD IF NOT EXISTS file_path ON reference TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS line ON reference TYPE option<int>;
+DEFINE FIELD IF NOT EXISTS column ON reference TYPE option<int>;
+DEFINE FIELD IF NOT EXISTS metadata ON reference TYPE option<object>;
+DEFINE FIELD IF NOT EXISTS created_at ON reference TYPE datetime DEFAULT time::now();

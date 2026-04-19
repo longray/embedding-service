@@ -2,8 +2,8 @@
 
 > **版本**: v3.2.0  
 > **创建日期**: 2026-04-12  
-> **最后更新**: 2026-04-15  
-> **总任务数**: 66  
+> **最后更新**: 2026-04-20  
+> **总任务数**: 71  
 > **已完成**: 66  
 > **预估总工时**: 28 天  
 > **协议**: AGENT-COLLABORATION-PROTOCOL-v1.0
@@ -18,6 +18,7 @@
 - [开发文档](./DEVELOPMENT.md) - 面向开发人员
 - [v3.2 设计文档](./v3.2/) - 详细设计规范
 - [BACKLOG v3.3](./BACKLOG-v3.3.md) - PrecomputeService + Stub 端点（8 个任务，100% 完成）
+- [Phase 8: API 优化](#phase-8-atomentityreference-api-优化) - Atom/Entity/Reference API 性能优化（5 个任务）
 
 ---
 
@@ -28,6 +29,7 @@
 - [Phase 2: WebSocket 重写](#phase-2-websocket-重写55-天)
 - [Phase 3: PrecomputeService](#phase-3-precomputeservice7-天)
 - [Phase 4: Meilisearch SDK](#phase-4-meilisearch-sdk-升级2-天)
+- [Phase 8: API 优化](#phase-8-atomentityreference-api-优化) ⭐ 新增
 - [Phase 5: Schema 升级](#phase-5-surrealdb-schema-升级25-天)
 - [Phase 6: 端口迁移](#phase-6-端口迁移25-天)
 - [Phase 7: 测试](#phase-7-测试45-天)
@@ -4049,6 +4051,407 @@ uv run pytest tests/test_websocket_session_ttl.py -v
 | 分类 | 总数 | P0 | P1 | P2 | P3 | 工时 |
 |------|------|----|----|----|----|------|
 | **场景十三: Atom/Entity/Reference** | **4** | **3** | **1** | **0** | **0** | **8.5 天** |
-| **总计** | **94** | **45** | **40** | **9** | **0** | **67 天** |
+| **场景十四: API 优化** | **5** | **3** | **2** | **0** | **0** | **3 天** |
+| **总计** | **99** | **48** | **42** | **9** | **0** | **70 天** |
+
+---
+
+## Phase 8: Atom/Entity/Reference API 优化
+
+> **场景**: 场景十四 - 后端 API 性能与质量优化
+> **背景**: Atom/Entity/Reference API 已实现（BL-B-96/97/98），代码审查发现性能与质量问题
+> **目标**: 修复 P1/P2/P3 问题，提升 API 性能与可靠性
+
+---
+
+### BL-B-99 [P1] 修复 Entity 创建 N+1 查询问题
+
+#### 目标
+修复 Entity 创建时验证 atoms 的 N+1 查询问题，将逐个查询改为批量查询，减少数据库往返次数。
+
+#### 涉及范围
+
+**文件**:
+- `wrapper/src/routers/entity.py` - `create_entity()` 函数（lines 125-132）
+
+**当前问题代码**:
+```python
+if request.atoms:
+    for atom_id in request.atoms:  # N 次循环
+        check = await db.query(
+            "SELECT id FROM atom WHERE id = $atom_id",  # N 次查询
+            {"atom_id": atom_id}
+        )
+        if not check or len(check) == 0:
+            raise ValidationError(f"Atom 不存在: {atom_id}")
+```
+
+**修复后代码**:
+```python
+if request.atoms:
+    # 批量验证 atoms 是否存在
+    atoms_check = await db.query(
+        "SELECT id FROM atom WHERE id IN $atom_ids",
+        {"atom_ids": request.atoms}
+    )
+    found_ids = {str(record["id"]) for record in atoms_check} if atoms_check else set()
+    missing = set(request.atoms) - found_ids
+    if missing:
+        raise ValidationError(f"Atoms 不存在: {missing}")
+```
+
+#### 前置依赖
+- ✅ BL-B-97 Entity API 已实现
+
+#### 完成标准
+- [ ] 使用 IN 运算符实现批量查询
+- [ ] 保持原有错误提示精度（列出所有不存在的 atoms）
+- [ ] 复杂度从 O(N) 查询降为 O(1) 查询
+- [ ] 所有现有测试通过
+
+#### 验证方式
+
+**单元测试**:
+```python
+# 测试批量验证逻辑
+async def test_create_entity_with_atoms_batch_validation():
+    # 创建多个 atoms
+    atoms = [await create_atom(f"atom_{i}") for i in range(10)]
+    # 创建 entity 引用所有 atoms - 应只执行 1 次查询
+    entity = await create_entity(atoms=[a["id"] for a in atoms])
+    assert entity["atoms"] == [a["id"] for a in atoms]
+```
+
+**性能测试**:
+```bash
+# 对比修复前后查询次数
+# 修复前: N+1 次查询（1次创建 + N次验证）
+# 修复后: 2 次查询（1次创建 + 1次批量验证）
+```
+
+---
+
+### BL-B-100 [P2] 添加事务支持到 Atom/Entity/Reference APIs
+
+#### 目标
+为 Atom/Entity/Reference 的创建、更新、删除操作添加 SurrealDB 事务支持，确保数据一致性。
+
+#### 涉及范围
+
+**文件**:
+- `wrapper/src/routers/atom.py` - `create_atom()`, `update_atom()`, `delete_atom()`
+- `wrapper/src/routers/entity.py` - `create_entity()`, `update_entity()`, `delete_entity()`
+- `wrapper/src/routers/reference.py` - `create_reference()`, `delete_reference()`
+
+**参考实现**（sync.py lines 128-157）:
+```python
+# 使用事务执行写操作
+try:
+    await db.query("BEGIN TRANSACTION")
+    
+    # 执行操作...
+    await db.create("entity", entity_data)
+    
+    await db.query("COMMIT TRANSACTION")
+except Exception as tx_error:
+    try:
+        await db.query("CANCEL TRANSACTION")
+    except Exception as cancel_error:
+        logger.error("事务回滚失败: %s", cancel_error)
+    raise tx_error
+```
+
+#### 前置依赖
+- ✅ BL-B-96/97/98 Atom/Entity/Reference API 已实现
+- ✅ SurrealDB 事务语法已验证（sync.py）
+
+#### 完成标准
+- [ ] Atom 创建/更新/删除使用事务
+- [ ] Entity 创建/更新/删除使用事务（包含 atom 验证）
+- [ ] Reference 创建/删除使用事务
+- [ ] 事务失败时正确回滚
+- [ ] 添加事务相关日志
+- [ ] 所有现有测试通过
+
+#### 验证方式
+
+**单元测试**:
+```python
+async def test_entity_creation_transaction_rollback():
+    # 模拟创建失败（如 atoms 不存在）
+    with pytest.raises(ValidationError):
+        await create_entity(atoms=["nonexistent:atom"])
+    
+    # 验证数据库中无残留数据
+    result = await db.query("SELECT * FROM entity WHERE abstract = 'test'")
+    assert len(result) == 0
+```
+
+**集成测试**:
+```bash
+# 测试并发场景下的事务隔离
+uv run pytest tests/test_atom_api.py::test_transaction_isolation -v
+```
+
+---
+
+### BL-B-101 [P2] 统一响应格式与错误处理
+
+#### 目标
+统一 Atom/Entity/Reference API 的响应格式和错误处理，提升 API 一致性。
+
+#### 涉及范围
+
+**文件**:
+- `wrapper/src/routers/atom.py`
+- `wrapper/src/routers/entity.py`
+- `wrapper/src/routers/reference.py`
+
+**问题清单**:
+1. 错误响应格式不一致（有些用 ValidationError，有些直接 HTTPException）
+2. 成功响应字段顺序不一致
+3. 部分端点缺少详细的错误信息
+4. 日志格式不统一
+
+**统一标准**:
+```python
+# 错误响应
+raise ValidationError(detail=f"无效的 {resource} 类型: {type}")
+
+# 成功响应
+return ResourceResponse(
+    id=result[0]["id"],
+    type=request.type,
+    tenant_id=request.tenant_id,
+    # ... 其他字段按字母顺序
+)
+
+# 日志格式
+logger.info("[%s] %s 创建成功: %s", operation, resource, id)
+logger.error("[%s] %s 失败: %s", operation, resource, error)
+```
+
+#### 前置依赖
+- ✅ BL-B-96/97/98 Atom/Entity/Reference API 已实现
+
+#### 完成标准
+- [ ] 所有错误使用 ValidationError 或 HTTPException（统一标准）
+- [ ] 响应字段顺序一致（id, type, tenant_id 优先）
+- [ ] 日志格式统一 `[操作] 资源 结果: 详情`
+- [ ] 添加操作标识符便于追踪
+- [ ] 所有现有测试通过
+
+#### 验证方式
+
+**代码审查**:
+```bash
+# 检查响应格式一致性
+rg "return.*Response" wrapper/src/routers/atom.py entity.py reference.py
+```
+
+**API 测试**:
+```bash
+# 验证错误响应格式一致
+curl -X POST http://localhost:18008/api/v1/atoms \
+  -H "Content-Type: application/json" \
+  -d '{"type": "invalid", "content": "test"}'
+
+# 应返回统一格式的错误响应
+```
+
+---
+
+### BL-B-102 [P3] 添加分页元数据到列表查询
+
+#### 目标
+为 Atom/Entity/Reference 的列表查询添加分页元数据（total, page, page_size, has_more）。
+
+#### 涉及范围
+
+**文件**:
+- `wrapper/src/routers/atom.py` - `list_atoms()`
+- `wrapper/src/routers/entity.py` - `list_entities()`
+- `wrapper/src/routers/reference.py` - `list_references()`
+
+**当前实现**:
+```python
+@router.get("/atoms")
+async def list_atoms(
+    tenant_id: str = "default",
+    skip: int = 0,
+    limit: int = 100,
+):
+    result = await db.query("SELECT * FROM atom WHERE tenant_id = $tenant_id LIMIT $limit START $skip", {...})
+    return result  # 只有数据，无分页信息
+```
+
+**目标实现**:
+```python
+class PaginatedResponse(BaseModel):
+    data: list[Any]
+    total: int
+    page: int
+    page_size: int
+    has_more: bool
+
+@router.get("/atoms", response_model=PaginatedResponse)
+async def list_atoms(
+    tenant_id: str = "default",
+    page: int = 1,
+    page_size: int = 100,
+):
+    # 查询总数
+    count_result = await db.query(
+        "SELECT count() FROM atom WHERE tenant_id = $tenant_id GROUP BY ALL",
+        {"tenant_id": tenant_id}
+    )
+    total = count_result[0]["count"] if count_result else 0
+    
+    # 查询数据
+    skip = (page - 1) * page_size
+    data = await db.query(
+        "SELECT * FROM atom WHERE tenant_id = $tenant_id LIMIT $limit START $skip",
+        {"tenant_id": tenant_id, "limit": page_size, "skip": skip}
+    )
+    
+    return PaginatedResponse(
+        data=data or [],
+        total=total,
+        page=page,
+        page_size=page_size,
+        has_more=(skip + len(data or [])) < total
+    )
+```
+
+#### 前置依赖
+- ✅ BL-B-96/97/98 Atom/Entity/Reference API 已实现
+
+#### 完成标准
+- [ ] Atom 列表添加分页元数据
+- [ ] Entity 列表添加分页元数据
+- [ ] Reference 列表添加分页元数据
+- [ ] 支持 page/page_size 参数（替代 skip/limit）
+- [ ] 返回 total/has_more 信息
+- [ ] 向后兼容（保留 skip/limit 支持）
+- [ ] 所有现有测试通过
+
+#### 验证方式
+
+**API 测试**:
+```bash
+# 测试分页响应
+curl "http://localhost:18008/api/v1/atoms?page=1&page_size=10"
+
+# 期望响应
+{
+  "data": [...],
+  "total": 100,
+  "page": 1,
+  "page_size": 10,
+  "has_more": true
+}
+```
+
+---
+
+### BL-B-103 [P3] 实现 Atom/Entity 批量操作
+
+#### 目标
+添加 Atom/Entity 的批量创建/更新/删除端点，提升大批量操作性能。
+
+#### 涉及范围
+
+**文件**:
+- `wrapper/src/routers/atom.py` - 新增 `POST /atoms/batch`
+- `wrapper/src/routers/entity.py` - 新增 `POST /entities/batch`
+
+**API 设计**:
+```python
+class BatchAtomRequest(BaseModel):
+    atoms: list[AtomCreateRequest]
+    tenant_id: str = "default"
+
+class BatchAtomResponse(BaseModel):
+    success: list[AtomResponse]
+    failed: list[dict]  # {index: int, error: str}
+    total: int
+    success_count: int
+    failed_count: int
+
+@router.post("/atoms/batch", response_model=BatchAtomResponse)
+async def batch_create_atoms(request: BatchAtomRequest):
+    """批量创建 Atoms"""
+    results = {"success": [], "failed": []}
+    
+    await db.query("BEGIN TRANSACTION")
+    try:
+        for i, atom_req in enumerate(request.atoms):
+            try:
+                result = await db.create("atom", atom_req.model_dump())
+                results["success"].append(AtomResponse(**result[0]))
+            except Exception as e:
+                results["failed"].append({"index": i, "error": str(e)})
+        
+        await db.query("COMMIT TRANSACTION")
+    except Exception:
+        await db.query("CANCEL TRANSACTION")
+        raise
+    
+    return BatchAtomResponse(
+        success=results["success"],
+        failed=results["failed"],
+        total=len(request.atoms),
+        success_count=len(results["success"]),
+        failed_count=len(results["failed"])
+    )
+```
+
+#### 前置依赖
+- ✅ BL-B-100 事务支持已实现
+- ✅ BL-B-99 N+1 查询已修复
+
+#### 完成标准
+- [ ] Atom 批量创建端点
+- [ ] Entity 批量创建端点
+- [ ] 使用事务确保原子性
+- [ ] 部分失败时返回成功/失败明细
+- [ ] 支持最大批量大小限制（如 100）
+- [ ] 所有现有测试通过
+
+#### 验证方式
+
+**API 测试**:
+```bash
+# 批量创建 atoms
+curl -X POST http://localhost:18008/api/v1/atoms/batch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "atoms": [
+      {"type": "function", "content": "def a(): pass", "name": "a"},
+      {"type": "function", "content": "def b(): pass", "name": "b"}
+    ],
+    "tenant_id": "default"
+  }'
+
+# 期望响应
+{
+  "success": [{...}, {...}],
+  "failed": [],
+  "total": 2,
+  "success_count": 2,
+  "failed_count": 0
+}
+```
+
+---
+
+## 场景十四统计
+
+| 优先级 | 任务数 | 预估工时 |
+|--------|--------|----------|
+| P1 | 1 | 0.5 天 |
+| P2 | 2 | 1.5 天 |
+| P3 | 2 | 1 天 |
+| **总计** | **5** | **3 天** |
 
 ---

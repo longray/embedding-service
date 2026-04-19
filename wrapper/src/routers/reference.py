@@ -118,11 +118,26 @@ async def create_reference(request: ReferenceCreateRequest):
 
         result = await db.query(query, params)
 
-        if not result or len(result) == 0:
+        if not result:
             raise HTTPException(status_code=500, detail="创建关系失败")
 
+        if isinstance(result, dict):
+            record = result
+        elif isinstance(result, list) and result:
+            record = result[0]
+            if isinstance(record, list) and record:
+                record = record[0]
+        else:
+            raise HTTPException(status_code=500, detail="创建关系失败: 无效的响应格式")
+
+        raw_id = record.get("id") if isinstance(record, dict) else record
+        if hasattr(raw_id, "table_name"):
+            record_id = f"{raw_id.table_name}:{raw_id.id}"
+        else:
+            record_id = str(raw_id)
+
         return ReferenceResponse(
-            id=result[0]["id"],
+            id=record_id,
             from_id=request.from_id,
             to_id=request.to_id,
             type=request.type,
