@@ -7,7 +7,9 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from .. import state
+from ..utils.db_helpers import extract_record_id, parse_surrealdb_result
 from ..utils.exceptions import ValidationError
+from ..utils.transaction import transaction
 
 logger = logging.getLogger(__name__)
 
@@ -127,31 +129,17 @@ async def create_reference(request: ReferenceCreateRequest):
         }
 
         # BL-B-100: 使用事务执行创建操作
-        try:
-            await db.query("BEGIN TRANSACTION")
+        async with transaction(db, "Reference"):
             result = await db.query(query, params)
 
             if not result:
-                await db.query("CANCEL TRANSACTION")
                 raise HTTPException(status_code=500, detail="创建关系失败")
 
-            if isinstance(result, dict):
-                record = result
-            elif isinstance(result, list) and result:
-                record = result[0]
-                if isinstance(record, list) and record:
-                    record = record[0]
-            else:
-                await db.query("CANCEL TRANSACTION")
+            record = parse_surrealdb_result(result)
+            if not record:
                 raise HTTPException(status_code=500, detail="创建关系失败: 无效的响应格式")
 
-            raw_id = record.get("id") if isinstance(record, dict) else record
-            if raw_id and not isinstance(raw_id, list) and hasattr(raw_id, "table_name"):
-                record_id = f"{raw_id.table_name}:{raw_id.id}"
-            else:
-                record_id = str(raw_id)
-
-            await db.query("COMMIT TRANSACTION")
+            record_id = extract_record_id(record)
             return ReferenceResponse(
                 id=record_id,
                 from_id=request.from_id,
@@ -164,13 +152,6 @@ async def create_reference(request: ReferenceCreateRequest):
                 column=request.column,
                 metadata=request.metadata,
             )
-
-        except Exception:
-            try:
-                await db.query("CANCEL TRANSACTION")
-            except Exception as cancel_error:
-                logger.error("[Reference] 事务回滚失败: %s", cancel_error)
-            raise
 
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=e.message) from e
@@ -308,18 +289,9 @@ async def delete_reference(reference_id: str, tenant_id: str = Query(default="de
             raise HTTPException(status_code=404, detail="关系不存在")
 
         # BL-B-100: 使用事务执行删除操作
-        try:
-            await db.query("BEGIN TRANSACTION")
+        async with transaction(db, "Reference"):
             await db.delete(reference_id)
-            await db.query("COMMIT TRANSACTION")
             return {"success": True, "message": "关系已删除"}
-
-        except Exception:
-            try:
-                await db.query("CANCEL TRANSACTION")
-            except Exception as cancel_error:
-                logger.error("[Reference] 事务回滚失败: %s", cancel_error)
-            raise
 
     except HTTPException:
         raise

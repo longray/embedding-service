@@ -8,7 +8,9 @@ from pydantic import BaseModel, Field
 from surrealdb.data.types.record_id import RecordID
 
 from .. import state
+from ..utils.db_helpers import extract_record_id, parse_surrealdb_result
 from ..utils.exceptions import ValidationError
+from ..utils.transaction import transaction
 
 logger = logging.getLogger(__name__)
 
@@ -223,46 +225,25 @@ async def create_entity(request: EntityCreateRequest):
         
         entity_data = {k: v for k, v in entity_data.items() if v is not None}
 
-        
         # BL-B-100: 使用事务执行创建操作
-        try:
-            await db.query("BEGIN TRANSACTION")
+        async with transaction(db, "Entity"):
             result = await db.create("entity", entity_data)
 
             if not result:
-                await db.query("CANCEL TRANSACTION")
                 raise HTTPException(status_code=500, detail="创建 Entity 失败")
 
-            if isinstance(result, dict):
-                record = result
-            elif isinstance(result, list) and result:
-                record = result[0]
-                if isinstance(record, list) and record:
-                    record = record[0]
-            else:
-                await db.query("CANCEL TRANSACTION")
+            record = parse_surrealdb_result(result)
+            if not record:
                 raise HTTPException(status_code=500, detail=f"创建 Entity 失败: 无效的响应格式 {type(result)}")
 
-            raw_id = record.get("id") if isinstance(record, dict) else record
-            if raw_id and not isinstance(raw_id, list) and hasattr(raw_id, "table_name"):
-                record_id = f"{raw_id.table_name}:{raw_id.id}"
-            else:
-                record_id = str(raw_id)
+            record_id = extract_record_id(record)
 
             # Convert atoms back to string IDs for response
             response_data = entity_data.copy()
             if response_data.get("atoms"):
                 response_data["atoms"] = request.atoms
 
-            await db.query("COMMIT TRANSACTION")
             return EntityResponse(id=record_id, **response_data)
-
-        except Exception:
-            try:
-                await db.query("CANCEL TRANSACTION")
-            except Exception as cancel_error:
-                logger.error("[Entity] 事务回滚失败: %s", cancel_error)
-            raise
 
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=e.message) from e
@@ -291,8 +272,7 @@ async def batch_create_entities(request: BatchEntityRequest):
         results = {"success": [], "failed": []}
 
         # 使用事务执行批量创建
-        await db.query("BEGIN TRANSACTION")
-        try:
+        async with transaction(db, "Entity"):
             for i, entity_req in enumerate(request.entities):
                 try:
                     # 验证类型
@@ -342,20 +322,11 @@ async def batch_create_entities(request: BatchEntityRequest):
                         raise HTTPException(status_code=500, detail="创建 Entity 失败")
 
                     # 处理返回结果
-                    if isinstance(result, dict):
-                        record = result
-                    elif isinstance(result, list) and result:
-                        record = result[0]
-                        if isinstance(record, list) and record:
-                            record = record[0]
-                    else:
+                    record = parse_surrealdb_result(result)
+                    if not record:
                         raise HTTPException(status_code=500, detail="创建 Entity 失败: 无效的响应格式")
 
-                    raw_id = record.get("id") if isinstance(record, dict) else record
-                    if raw_id and not isinstance(raw_id, list) and hasattr(raw_id, "table_name"):
-                        record_id = f"{raw_id.table_name}:{raw_id.id}"
-                    else:
-                        record_id = str(raw_id)
+                    record_id = extract_record_id(record)
 
                     # 转换 atoms 回字符串 IDs
                     response_data = entity_data.copy()
@@ -366,12 +337,6 @@ async def batch_create_entities(request: BatchEntityRequest):
 
                 except Exception as e:
                     results["failed"].append({"index": i, "error": str(e)})
-
-            await db.query("COMMIT TRANSACTION")
-
-        except Exception:
-            await db.query("CANCEL TRANSACTION")
-            raise
 
         return BatchEntityResponse(
             success=results["success"],
@@ -602,9 +567,7 @@ async def update_entity(entity_id: str, request: EntityUpdateRequest):
         update_data["updated_at"] = "time::now()"
 
         # BL-B-100: 使用事务执行更新操作
-        try:
-            await db.query("BEGIN TRANSACTION")
-
+        async with transaction(db, "Entity"):
             # 使用 SurrealQL UPDATE 语句来更新字段
             set_clauses = []
             params: dict[str, Any] = {"entity_id": entity_record_id}
@@ -634,8 +597,6 @@ async def update_entity(entity_id: str, request: EntityUpdateRequest):
             query = f"UPDATE entity:{record_id_str} SET {', '.join(set_clauses)}"  # nosec B608
             await db.query(query, params)
 
-            await db.query("COMMIT TRANSACTION")
-
             # 重新查询获取完整 Entity 数据
             updated = await db.query(
                 "SELECT * FROM entity WHERE id = $entity_id",
@@ -661,13 +622,6 @@ async def update_entity(entity_id: str, request: EntityUpdateRequest):
                 return record
             else:
                 raise HTTPException(status_code=500, detail="更新后查询失败")
-
-        except Exception:
-            try:
-                await db.query("CANCEL TRANSACTION")
-            except Exception as cancel_error:
-                logger.error("[Entity] 事务回滚失败: %s", cancel_error)
-            raise
 
     except HTTPException:
         raise
@@ -696,18 +650,9 @@ async def delete_entity(entity_id: str, tenant_id: str = Query(default="default"
             raise HTTPException(status_code=404, detail="Entity 不存在")
 
         # BL-B-100: 使用事务执行删除操作
-        try:
-            await db.query("BEGIN TRANSACTION")
+        async with transaction(db, "Entity"):
             await db.delete(entity_id)
-            await db.query("COMMIT TRANSACTION")
             return {"success": True, "message": "Entity 已删除"}
-
-        except Exception:
-            try:
-                await db.query("CANCEL TRANSACTION")
-            except Exception as cancel_error:
-                logger.error("[Entity] 事务回滚失败: %s", cancel_error)
-            raise
 
     except HTTPException:
         raise

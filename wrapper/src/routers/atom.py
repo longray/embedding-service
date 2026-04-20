@@ -8,7 +8,9 @@ from pydantic import BaseModel, Field
 from surrealdb.data.types.record_id import RecordID
 
 from .. import state
+from ..utils.db_helpers import extract_record_id, parse_surrealdb_result
 from ..utils.exceptions import ValidationError
+from ..utils.transaction import transaction
 
 logger = logging.getLogger(__name__)
 
@@ -183,39 +185,18 @@ async def create_atom(request: AtomCreateRequest):
         atom_data = {k: v for k, v in atom_data.items() if v is not None}
 
         # BL-B-100: 使用事务执行创建操作
-        try:
-            await db.query("BEGIN TRANSACTION")
+        async with transaction(db, "Atom"):
             result = await db.create("atom", atom_data)
 
             if not result:
-                await db.query("CANCEL TRANSACTION")
                 raise HTTPException(status_code=500, detail="创建 Atom 失败")
 
-            if isinstance(result, dict):
-                record = result
-            elif isinstance(result, list) and result:
-                record = result[0]
-                if isinstance(record, list) and record:
-                    record = record[0]
-            else:
-                await db.query("CANCEL TRANSACTION")
+            record = parse_surrealdb_result(result)
+            if not record:
                 raise HTTPException(status_code=500, detail="创建 Atom 失败: 无效的响应格式")
 
-            raw_id = record.get("id") if isinstance(record, dict) else record
-            if raw_id and not isinstance(raw_id, list) and hasattr(raw_id, "table_name"):
-                record_id = f"{raw_id.table_name}:{raw_id.id}"
-            else:
-                record_id = str(raw_id)
-
-            await db.query("COMMIT TRANSACTION")
+            record_id = extract_record_id(record)
             return AtomResponse(id=record_id, **atom_data)
-
-        except Exception:
-            try:
-                await db.query("CANCEL TRANSACTION")
-            except Exception as cancel_error:
-                logger.error("[Atom] 事务回滚失败: %s", cancel_error)
-            raise
 
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=e.message) from e
@@ -274,8 +255,7 @@ async def batch_create_atoms(request: BatchAtomRequest):
         results = {"success": [], "failed": []}
 
         # 使用事务执行批量创建
-        await db.query("BEGIN TRANSACTION")
-        try:
+        async with transaction(db, "Atom"):
             for i, atom_req in enumerate(request.atoms):
                 try:
                     # 验证类型
@@ -312,31 +292,15 @@ async def batch_create_atoms(request: BatchAtomRequest):
                         raise HTTPException(status_code=500, detail="创建 Atom 失败")
 
                     # 处理返回结果
-                    if isinstance(result, dict):
-                        record = result
-                    elif isinstance(result, list) and result:
-                        record = result[0]
-                        if isinstance(record, list) and record:
-                            record = record[0]
-                    else:
+                    record = parse_surrealdb_result(result)
+                    if not record:
                         raise HTTPException(status_code=500, detail="创建 Atom 失败: 无效的响应格式")
 
-                    raw_id = record.get("id") if isinstance(record, dict) else record
-                    if raw_id and not isinstance(raw_id, list) and hasattr(raw_id, "table_name"):
-                        record_id = f"{raw_id.table_name}:{raw_id.id}"
-                    else:
-                        record_id = str(raw_id)
-
+                    record_id = extract_record_id(record)
                     results["success"].append(AtomResponse(id=record_id, **atom_data))
 
                 except Exception as e:
                     results["failed"].append({"index": i, "error": str(e)})
-
-            await db.query("COMMIT TRANSACTION")
-
-        except Exception:
-            await db.query("CANCEL TRANSACTION")
-            raise
 
         return BatchAtomResponse(
             success=results["success"],
@@ -480,14 +444,13 @@ async def update_atom(atom_id: str, request: AtomUpdateRequest, tenant_id: str =
         update_data["updated_at"] = "time::now()"
 
         # BL-B-100: 使用事务执行更新操作
-        try:
-            await db.query("BEGIN TRANSACTION")
+        async with transaction(db, "Atom"):
             # 使用 SurrealQL UPDATE 语句，将字符串 ID 转换为 RecordID
             atom_parts = atom_id.split(":", 1)
             atom_record_id = RecordID(atom_parts[0], atom_parts[1])
             
             set_clauses = []
-            params = {"atom_id": atom_record_id}
+            params: dict[str, Any] = {"atom_id": atom_record_id}
             for key, value in update_data.items():
                 if key != "updated_at":
                     set_clauses.append(f"{key} = ${key}")
@@ -499,18 +462,9 @@ async def update_atom(atom_id: str, request: AtomUpdateRequest, tenant_id: str =
             result = await db.query(query, params)
 
             if not result or len(result) == 0:
-                await db.query("CANCEL TRANSACTION")
                 raise HTTPException(status_code=500, detail="更新失败")
 
-            await db.query("COMMIT TRANSACTION")
             return result[0] if isinstance(result, list) else result
-
-        except Exception:
-            try:
-                await db.query("CANCEL TRANSACTION")
-            except Exception as cancel_error:
-                logger.error("[Atom] 事务回滚失败: %s", cancel_error)
-            raise
 
     except HTTPException:
         raise
@@ -540,18 +494,9 @@ async def delete_atom(atom_id: str, tenant_id: str = Query(default="default")):
             raise HTTPException(status_code=404, detail="Atom 不存在")
 
         # BL-B-100: 使用事务执行删除操作
-        try:
-            await db.query("BEGIN TRANSACTION")
+        async with transaction(db, "Atom"):
             await db.delete(atom_id)
-            await db.query("COMMIT TRANSACTION")
             return {"success": True, "message": "Atom 已删除"}
-
-        except Exception:
-            try:
-                await db.query("CANCEL TRANSACTION")
-            except Exception as cancel_error:
-                logger.error("[Atom] 事务回滚失败: %s", cancel_error)
-            raise
 
     except HTTPException:
         raise
