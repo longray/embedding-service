@@ -95,9 +95,19 @@ class EntityResponse(BaseModel):
     
     tags: list[str] = Field(default_factory=list, description="标签")
     project: str | None = Field(default=None, description="项目ID")
-    created_by: str = Field(..., description="创建者")
+    created_by: str | None = Field(default=None, description="创建者")
     created_at: str | None = Field(default=None, description="创建时间")
     updated_at: str | None = Field(default=None, description="更新时间")
+
+
+class PaginatedEntityResponse(BaseModel):
+    """分页 Entity 响应"""
+
+    data: list[EntityResponse] = Field(..., description="Entity 列表")
+    total: int = Field(..., description="总记录数")
+    page: int = Field(..., description="当前页码")
+    page_size: int = Field(..., description="每页大小")
+    has_more: bool = Field(..., description="是否还有更多")
 
 
 @router.post("/entities", response_model=EntityResponse)
@@ -286,23 +296,50 @@ async def get_entity(
         raise HTTPException(status_code=500, detail=f"查询失败: {e!s}") from e
 
 
-@router.get("/entities")
+@router.get("/entities", response_model=PaginatedEntityResponse)
 async def list_entities(
     type: str | None = Query(default=None, description="Entity 类型过滤"),
     project: str | None = Query(default=None, description="项目过滤"),
     status: str | None = Query(default=None, description="状态过滤"),
     tenant_id: str = Query(default="default"),
-    limit: int = Query(default=50, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
+    page: int = Query(default=1, ge=1, description="页码"),
+    page_size: int = Query(default=50, ge=1, le=100, description="每页大小"),
+    limit: int | None = Query(default=None, ge=1, le=100, description="返回数量限制（向后兼容）"),
+    offset: int | None = Query(default=None, ge=0, description="偏移量（向后兼容）"),
 ):
-    """列出 Entities"""
+    """列出 Entities（支持分页）"""
     if not state.memory_manager:
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
 
     try:
         db = state.memory_manager.db
 
-        
+        # 向后兼容：如果提供了 limit/offset，使用它们
+        if limit is not None and offset is not None:
+            skip = offset
+            take = limit
+        else:
+            skip = (page - 1) * page_size
+            take = page_size
+
+        # 查询总数
+        count_query = "SELECT count() FROM entity WHERE tenant_id = $tenant_id"
+        count_params = {"tenant_id": tenant_id}
+
+        if type:
+            count_query += " AND type = $type"
+            count_params["type"] = type
+        if project:
+            count_query += " AND project = $project"
+            count_params["project"] = project
+        if status:
+            count_query += " AND status = $status"
+            count_params["status"] = status
+
+        count_result = await db.query(count_query, count_params)
+        total = count_result[0]["count"] if count_result and len(count_result) > 0 else 0
+
+        # 查询数据
         query = "SELECT id, type, abstract, tags, status, project, created_at FROM entity WHERE tenant_id = $tenant_id"
         params = {"tenant_id": tenant_id}
 
@@ -316,10 +353,37 @@ async def list_entities(
             query += " AND status = $status"
             params["status"] = status
 
-        query += f" LIMIT {limit} START {offset}"
+        query += f" LIMIT {take} START {skip}"
 
         result = await db.query(query, params)
-        return result or []
+        raw_data = result or []
+
+        # 转换数据格式以匹配 Pydantic 模型
+        data = []
+        for record in raw_data:
+            # 处理 RecordID
+            raw_id = record.get("id")
+            if raw_id and hasattr(raw_id, "table_name"):
+                record["id"] = f"{raw_id.table_name}:{raw_id.id}"
+            # 处理 datetime
+            for field in ["created_at", "updated_at"]:
+                if field in record and record[field] is not None:
+                    if hasattr(record[field], "isoformat"):
+                        record[field] = record[field].isoformat()
+            data.append(record)
+
+        # 计算当前页码和 has_more
+        current_page = page if limit is None else (skip // take) + 1
+        current_page_size = take
+        has_more = (skip + len(data)) < total
+
+        return PaginatedEntityResponse(
+            data=data,
+            total=total,
+            page=current_page,
+            page_size=current_page_size,
+            has_more=has_more
+        )
 
     except Exception as e:
         logger.error("[Entity] 列表查询失败: %s", e)
