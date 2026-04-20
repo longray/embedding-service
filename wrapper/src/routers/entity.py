@@ -14,6 +14,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["entities"])
 
+# 模块级常量：Entity 有效类型
+ENTITY_VALID_TYPES = frozenset(["memory", "backlog", "wiki", "code"])
+
 
 class EntityCreateRequest(BaseModel):
     """创建 Entity 请求"""
@@ -145,9 +148,8 @@ async def create_entity(request: EntityCreateRequest):
         db = state.memory_manager.db
 
         
-        valid_types = ["memory", "backlog", "wiki", "code"]
-        if request.type not in valid_types:
-            raise ValidationError(f"无效的 Entity 类型: {request.type}. 必须是 {valid_types}")
+        if request.type not in ENTITY_VALID_TYPES:
+            raise ValidationError(f"无效的 Entity 类型: {request.type}. 必须是 {list(ENTITY_VALID_TYPES)}")
 
         
         if request.atoms:
@@ -294,8 +296,7 @@ async def batch_create_entities(request: BatchEntityRequest):
             for i, entity_req in enumerate(request.entities):
                 try:
                     # 验证类型
-                    valid_types = ["memory", "backlog", "wiki", "code"]
-                    if entity_req.type not in valid_types:
+                    if entity_req.type not in ENTITY_VALID_TYPES:
                         raise ValidationError(f"无效的 Entity 类型: {entity_req.type}")
 
                     # 准备数据

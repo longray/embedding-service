@@ -14,6 +14,12 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["atoms"])
 
+# 模块级常量：Atom 有效类型
+ATOM_VALID_TYPES = frozenset([
+    "function", "class", "interface", "import",
+    "goal", "scope", "task", "note"
+])
+
 
 
 
@@ -148,9 +154,8 @@ async def create_atom(request: AtomCreateRequest):
         db = state.memory_manager.db
 
         
-        valid_types = ["function", "class", "interface", "import", "goal", "scope", "task", "note"]
-        if request.type not in valid_types:
-            raise ValidationError(f"无效的 Atom 类型: {request.type}. 必须是 {valid_types}")
+        if request.type not in ATOM_VALID_TYPES:
+            raise ValidationError(f"无效的 Atom 类型: {request.type}. 必须是 {list(ATOM_VALID_TYPES)}")
 
         
         atom_data = {
@@ -274,8 +279,7 @@ async def batch_create_atoms(request: BatchAtomRequest):
             for i, atom_req in enumerate(request.atoms):
                 try:
                     # 验证类型
-                    valid_types = ["function", "class", "interface", "import", "goal", "scope", "task", "note"]
-                    if atom_req.type not in valid_types:
+                    if atom_req.type not in ATOM_VALID_TYPES:
                         raise ValidationError(f"无效的 Atom 类型: {atom_req.type}")
 
                     # 准备数据
@@ -490,7 +494,8 @@ async def update_atom(atom_id: str, request: AtomUpdateRequest, tenant_id: str =
                     params[key] = value
             
             set_clause = ", ".join(set_clauses)
-            query = f"UPDATE $atom_id SET {set_clause}, updated_at = time::now()"
+            # nosec B608: atom_record_id 来自已验证的 RecordID 对象，非用户输入
+            query = f"UPDATE $atom_id SET {set_clause}, updated_at = time::now()"  # nosec B608
             result = await db.query(query, params)
 
             if not result or len(result) == 0:

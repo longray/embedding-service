@@ -153,11 +153,11 @@ async def sync_code_fingerprints(request: CodeFingerprintRequest):
             try:
                 await db.query("CANCEL TRANSACTION")
             except Exception as cancel_error:
-                logger.error("[sync_code_fingerprints] 事务回滚失败: %s", cancel_error)
+                logger.error("[Sync] 事务回滚失败: %s", cancel_error)
             raise tx_error
 
         return CodeFingerprintResponse(**result)
 
     except Exception as e:
-        logger.error("[sync_code_fingerprints] 指纹同步失败: %s", e)
+        logger.error("[Sync] 指纹同步失败: %s", e)
         raise HTTPException(status_code=500, detail=f"指纹同步失败: {e!s}") from e
