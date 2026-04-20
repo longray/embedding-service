@@ -4459,6 +4459,505 @@ curl -X POST http://localhost:18008/api/v1/atoms/batch \
 | P1 | 1 | 0.5 天 |
 | P2 | 2 | 1.5 天 |
 | P3 | 2 | 1 天 |
-| **总计** | **5** | **3 天** |
+| **总计** | **5** | **3 天 |
+
+---
+
+## Phase 9: 代码质量修复与优化
+
+> **场景**: 场景十五 - 后端代码质量治理
+> **背景**: Phase 8 代码审查发现 20+ 项问题，需要系统性修复
+> **目标**: 修复 P0/P1 问题，提升代码质量和可维护性
+
+---
+
+### BL-B-104 [P0] 修复版本号更新逻辑错误
+
+#### 目标
+修复 atom.py 中版本号更新逻辑错误，将字符串赋值改为正确的数值递增。
+
+#### 涉及范围
+
+**文件**:
+- `wrapper/src/routers/atom.py` - `update_atom()` 函数 (line 458)
+
+**当前问题代码**:
+```python
+update_data["version"] = "version + 1"  # 字符串赋值，不会生效
+```
+
+**修复后代码**:
+```python
+# 先查询当前版本
+current = await db.query("SELECT version FROM atom WHERE id = $id", {"id": atom_id})
+current_version = current[0]["version"] if current else 0
+update_data["version"] = current_version + 1
+```
+
+#### 前置依赖
+- ✅ BL-B-96 Atom API 已实现
+
+#### 完成标准
+- [ ] 修复版本号更新逻辑
+- [ ] 添加版本号递增的单元测试
+- [ ] 验证并发更新时的版本号正确性
+- [ ] 所有现有测试通过
+
+#### 验证方式
+
+**单元测试**:
+```python
+async def test_update_atom_version_increment():
+    # 创建 atom
+    atom = await create_atom(version=1)
+    # 更新
+    updated = await update_atom(atom["id"], {"content": "new"})
+    # 验证版本号递增
+    assert updated["version"] == 2
+    # 再次更新
+    updated2 = await update_atom(atom["id"], {"content": "new2"})
+    assert updated2["version"] == 3
+```
+
+---
+
+### BL-B-105 [P0] 修复租户隔离缺失
+
+#### 目标
+修复 update_atom 和 update_entity 端点缺少 tenant_id 参数的问题，防止跨租户数据访问。
+
+#### 涉及范围
+
+**文件**:
+- `wrapper/src/routers/atom.py` - `update_atom()` 函数 (line 435)
+- `wrapper/src/routers/entity.py` - `update_entity()` 函数
+
+**当前问题**:
+```python
+# update_atom 缺少 tenant_id 参数
+check = await db.query("SELECT id FROM atom WHERE id = $atom_id", {"atom_id": atom_id})
+# 应该包含 tenant_id 验证
+check = await db.query("SELECT id FROM atom WHERE id = $atom_id AND tenant_id = $tenant_id", ...)
+```
+
+**修复内容**:
+1. 添加 `tenant_id` 参数到 update 端点
+2. 在查询中添加 tenant_id 验证
+3. 确保只能更新当前租户的数据
+
+#### 前置依赖
+- ✅ BL-B-96/97 Atom/Entity API 已实现
+
+#### 完成标准
+- [ ] update_atom 添加 tenant_id 参数
+- [ ] update_entity 添加 tenant_id 参数
+- [ ] 所有更新查询包含 tenant_id 验证
+- [ ] 添加跨租户访问测试（应返回 404）
+- [ ] 所有现有测试通过
+
+#### 验证方式
+
+**安全测试**:
+```python
+async def test_update_atom_tenant_isolation():
+    # 租户 A 创建 atom
+    atom_a = await create_atom(tenant_id="tenant_a")
+    # 租户 B 尝试更新
+    with pytest.raises(HTTPException) as exc:
+        await update_atom(atom_a["id"], {"content": "hacked"}, tenant_id="tenant_b")
+    assert exc.value.status_code == 404
+```
+
+---
+
+### BL-B-106 [P0] 修复 N+1 查询问题（Entity atoms 验证）
+
+#### 目标
+修复 entity.py 中验证 atoms 时的 N+1 查询问题，使用批量查询替代循环查询。
+
+#### 涉及范围
+
+**文件**:
+- `wrapper/src/routers/entity.py` - `create_entity()` 和 `update_entity()` (line 546-553)
+
+**当前问题代码**:
+```python
+for atom_id in request.atoms:
+    atom_check = await db.query("SELECT id FROM atom WHERE id = $atom_id", {"atom_id": atom_id})
+    if not atom_check:
+        raise ValidationError(f"Atom 不存在: {atom_id}")
+```
+
+**修复后代码**:
+```python
+# 批量验证 atoms
+atoms_check = await db.query(
+    "SELECT id FROM atom WHERE id IN $atom_ids AND tenant_id = $tenant_id",
+    {"atom_ids": request.atoms, "tenant_id": request.tenant_id}
+)
+found_ids = {str(r["id"]) for r in atoms_check} if atoms_check else set()
+missing = set(request.atoms) - found_ids
+if missing:
+    raise ValidationError(f"Atoms 不存在: {missing}")
+```
+
+#### 前置依赖
+- ✅ BL-B-97 Entity API 已实现
+- ✅ BL-B-99 N+1 查询修复经验
+
+#### 完成标准
+- [ ] 使用 IN 查询批量验证 atoms
+- [ ] 保持错误提示精度（列出所有不存在的 atoms）
+- [ ] 复杂度从 O(N) 降为 O(1)
+- [ ] 所有现有测试通过
+
+#### 验证方式
+
+**性能测试**:
+```python
+async def test_create_entity_with_many_atoms_performance():
+    # 创建 50 个 atoms
+    atoms = [await create_atom(f"atom_{i}") for i in range(50)]
+    # 创建 entity 引用所有 atoms - 应只执行 1 次查询
+    entity = await create_entity(atoms=[a["id"] for a in atoms])
+    assert len(entity["atoms"]) == 50
+```
+
+---
+
+### BL-B-107 [P1] 提取 RecordID 处理工具函数
+
+#### 目标
+提取重复的 RecordID 解析逻辑到工具函数，消除代码重复（DRY 原则）。
+
+#### 涉及范围
+
+**文件**:
+- `wrapper/src/utils/db_helpers.py` - 新建
+- `wrapper/src/routers/atom.py` - 替换 3 处重复代码
+- `wrapper/src/routers/entity.py` - 替换 3 处重复代码
+- `wrapper/src/routers/reference.py` - 替换 2 处重复代码
+
+**重复代码模式**（出现 8 次）:
+```python
+if isinstance(result, dict):
+    record = result
+elif isinstance(result, list) and result:
+    record = result[0]
+    if isinstance(record, list) and record:
+        record = record[0]
+else:
+    raise HTTPException(...)
+
+raw_id = record.get("id") if isinstance(record, dict) else record
+if raw_id and not isinstance(raw_id, list) and hasattr(raw_id, "table_name"):
+    record_id = f"{raw_id.table_name}:{raw_id.id}"
+else:
+    record_id = str(raw_id)
+```
+
+**工具函数设计**:
+```python
+# utils/db_helpers.py
+def extract_record_id(result: dict | list) -> str:
+    """从 SurrealDB 结果中提取记录 ID"""
+    ...
+
+def parse_surrealdb_result(result: dict | list) -> dict:
+    """解析 SurrealDB 返回结果，返回记录字典"""
+    ...
+```
+
+#### 前置依赖
+- ✅ BL-B-96/97/98 Atom/Entity/Reference API 已实现
+
+#### 完成标准
+- [ ] 创建 `utils/db_helpers.py`
+- [ ] 实现 `extract_record_id()` 函数
+- [ ] 实现 `parse_surrealdb_result()` 函数
+- [ ] 替换所有 8 处重复代码
+- [ ] 添加工具函数单元测试
+- [ ] 所有现有测试通过
+
+#### 验证方式
+
+**代码审查**:
+```bash
+# 验证重复代码已消除
+rg "isinstance(result, dict)" wrapper/src/routers/
+# 应该只出现在 db_helpers.py
+```
+
+**单元测试**:
+```python
+def test_extract_record_id():
+    # 测试 RecordID 对象
+    record_id = MockRecordID("atom", "abc123")
+    assert extract_record_id({"id": record_id}) == "atom:abc123"
+    
+    # 测试字符串 ID
+    assert extract_record_id({"id": "atom:abc123"}) == "atom:abc123"
+```
+
+---
+
+### BL-B-108 [P1] 统一事务处理逻辑
+
+#### 目标
+创建事务上下文管理器，统一所有事务处理逻辑，消除重复代码。
+
+#### 涉及范围
+
+**文件**:
+- `wrapper/src/utils/transaction.py` - 新建
+- `wrapper/src/routers/atom.py` - 替换 3 处事务代码
+- `wrapper/src/routers/entity.py` - 替换 3 处事务代码
+- `wrapper/src/routers/reference.py` - 替换 2 处事务代码
+
+**重复代码模式**（出现 8 次）:
+```python
+try:
+    await db.query("BEGIN TRANSACTION")
+    # ... 业务逻辑
+    await db.query("COMMIT TRANSACTION")
+except Exception:
+    try:
+        await db.query("CANCEL TRANSACTION")
+    except Exception as cancel_error:
+        logger.error("[X] 事务回滚失败: %s", cancel_error)
+    raise
+```
+
+**上下文管理器设计**:
+```python
+# utils/transaction.py
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def transaction(db, logger_name: str = "db"):
+    """SurrealDB 事务上下文管理器"""
+    await db.query("BEGIN TRANSACTION")
+    try:
+        yield db
+        await db.query("COMMIT TRANSACTION")
+    except Exception:
+        try:
+            await db.query("CANCEL TRANSACTION")
+        except Exception as e:
+            logging.getLogger(logger_name).error("事务回滚失败: %s", e)
+        raise
+```
+
+**使用示例**:
+```python
+async with transaction(db, "Atom"):
+    result = await db.create("atom", atom_data)
+    # 自动处理 COMMIT 或 CANCEL
+```
+
+#### 前置依赖
+- ✅ BL-B-100 事务支持已实现
+
+#### 完成标准
+- [ ] 创建 `utils/transaction.py`
+- [ ] 实现 `transaction()` 上下文管理器
+- [ ] 替换所有 8 处事务代码
+- [ ] 添加事务上下文管理器测试
+- [ ] 所有现有测试通过
+
+#### 验证方式
+
+**代码审查**:
+```bash
+# 验证重复代码已消除
+rg "BEGIN TRANSACTION" wrapper/src/routers/
+# 应该只出现在 transaction.py
+```
+
+**单元测试**:
+```python
+async def test_transaction_context_manager():
+    # 测试成功提交
+    async with transaction(db):
+        await db.create("test", {"data": 1})
+    # 验证数据已提交
+    
+    # 测试失败回滚
+    with pytest.raises(Exception):
+        async with transaction(db):
+            await db.create("test", {"data": 2})
+            raise ValueError("故意失败")
+    # 验证数据未提交
+```
+
+---
+
+### BL-B-109 [P1] 统一分页参数处理
+
+#### 目标
+提取分页参数解析逻辑到工具函数，消除 atom.py 和 entity.py 中的重复代码。
+
+#### 涉及范围
+
+**文件**:
+- `wrapper/src/utils/db_helpers.py` - 添加
+- `wrapper/src/routers/atom.py` - `list_atoms()` (line 365-371)
+- `wrapper/src/routers/entity.py` - `list_entities()` (line 452-458)
+
+**重复代码**（2 处完全相同）:
+```python
+# 向后兼容：如果提供了 limit/offset，使用它们
+if limit is not None and offset is not None:
+    skip = offset
+    take = limit
+else:
+    skip = (page - 1) * page_size
+    take = page_size
+```
+
+**工具函数设计**:
+```python
+def parse_pagination_params(
+    page: int, 
+    page_size: int,
+    limit: int | None, 
+    offset: int | None
+) -> tuple[int, int]:
+    """解析分页参数，返回 (skip, take)"""
+    if limit is not None and offset is not None:
+        return offset, limit
+    return (page - 1) * page_size, page_size
+```
+
+#### 前置依赖
+- ✅ BL-B-102 分页功能已实现
+
+#### 完成标准
+- [ ] 实现 `parse_pagination_params()` 函数
+- [ ] 替换 atom.py 中的分页参数处理
+- [ ] 替换 entity.py 中的分页参数处理
+- [ ] 添加单元测试
+- [ ] 所有现有测试通过
+
+#### 验证方式
+
+**单元测试**:
+```python
+def test_parse_pagination_params():
+    # 测试新参数
+    assert parse_pagination_params(2, 10, None, None) == (10, 10)
+    # 测试向后兼容
+    assert parse_pagination_params(1, 10, 20, 5) == (5, 20)
+```
+
+---
+
+### BL-B-110 [P2] 统一日志格式
+
+#### 目标
+统一所有模块的日志格式，使用 PascalCase 模块名。
+
+#### 涉及范围
+
+**文件**:
+- `wrapper/src/routers/atom.py` - 修改日志格式
+- `wrapper/src/routers/entity.py` - 修改日志格式
+- `wrapper/src/routers/reference.py` - 修改日志格式
+- `wrapper/src/routers/sync.py` - 修改日志格式
+
+**当前不一致**:
+```python
+atom.py:     "[Atom] 创建失败"
+entity.py:   "[Entity] 创建失败"
+sync.py:     "[sync_code_fingerprints] 指纹同步失败"  # snake_case
+```
+
+**统一格式**:
+```python
+"[ModuleName] 操作结果: 详情"
+# 例如:
+"[Atom] 创建成功: atom:abc123"
+"[Entity] 批量创建完成: 10/10"
+"[Sync] 指纹同步失败: 连接超时"
+```
+
+#### 前置依赖
+- ✅ 所有 Phase 8 任务已完成
+
+#### 完成标准
+- [ ] 统一所有日志为 PascalCase 模块名
+- [ ] 统一日志格式：`[Module] 操作: 详情`
+- [ ] 更新所有 logger.error/info/debug 调用
+- [ ] 所有现有测试通过
+
+#### 验证方式
+
+**代码审查**:
+```bash
+# 验证日志格式统一
+rg "logger\." wrapper/src/routers/ | grep -v "PascalCase"
+# 应该无输出
+```
+
+---
+
+### BL-B-111 [P2] 提取验证类型常量
+
+#### 目标
+将魔法字符串（验证类型列表）提取为模块级常量，避免每次调用重新创建。
+
+#### 涉及范围
+
+**文件**:
+- `wrapper/src/routers/atom.py` - line 150, 285
+- `wrapper/src/routers/entity.py` - line 147, 282
+
+**当前代码**:
+```python
+valid_types = ["function", "class", "interface", "import", "goal", "scope", "task", "note"]
+# 每次调用都重新创建列表
+```
+
+**优化后**:
+```python
+# 模块级常量
+ATOM_VALID_TYPES = frozenset([
+    "function", "class", "interface", "import", 
+    "goal", "scope", "task", "note"
+])
+
+# 使用
+if atom_req.type not in ATOM_VALID_TYPES:
+    raise ValidationError(...)
+```
+
+#### 前置依赖
+- ✅ 无
+
+#### 完成标准
+- [ ] 提取 ATOM_VALID_TYPES 常量
+- [ ] 提取 ENTITY_VALID_TYPES 常量
+- [ ] 替换所有验证代码
+- [ ] 所有现有测试通过
+
+#### 验证方式
+
+**代码审查**:
+```bash
+# 验证无魔法字符串
+rg "valid_types = \[" wrapper/src/routers/
+# 应该无输出
+```
+
+---
+
+## 场景十五统计
+
+| 优先级 | 任务数 | 预估工时 |
+|--------|--------|----------|
+| P0 | 3 | 1.5 天 |
+| P1 | 3 | 2 天 |
+| P2 | 2 | 0.5 天 |
+| **总计** | **8** | **4 天** |
 
 ---

@@ -5,6 +5,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
+from surrealdb.data.types.record_id import RecordID
 
 from .. import state
 from ..utils.exceptions import ValidationError
@@ -534,29 +535,65 @@ async def update_entity(entity_id: str, request: EntityUpdateRequest):
     try:
         db = state.memory_manager.db
 
-        
+        # BL-B-105: 将字符串 ID 转换为 RecordID 对象
+        if ":" in entity_id:
+            parts = entity_id.split(":", 1)
+            entity_record_id = RecordID(parts[0], parts[1])
+        else:
+            entity_record_id = entity_id
+
         check = await db.query(
             "SELECT id FROM entity WHERE id = $entity_id",
-            {"entity_id": entity_id}
+            {"entity_id": entity_record_id}
         )
         if not check or len(check) == 0:
             raise HTTPException(status_code=404, detail="Entity 不存在")
 
         
         if request.atoms:
+            # BL-B-106: 修复 N+1 查询问题 - 使用批量查询
+            record_ids = []
             for atom_id in request.atoms:
-                atom_check = await db.query(
-                    "SELECT id FROM atom WHERE id = $atom_id",
-                    {"atom_id": atom_id}
-                )
-                if not atom_check or len(atom_check) == 0:
-                    raise ValidationError(f"Atom 不存在: {atom_id}")
+                if ":" in atom_id:
+                    parts = atom_id.split(":", 1)
+                    record_ids.append(RecordID(parts[0], parts[1]))
+                else:
+                    record_ids.append(atom_id)
+            
+            atoms_check = await db.query(
+                "SELECT id FROM atom WHERE id IN $atom_ids",
+                {"atom_ids": record_ids}
+            )
+            
+            found_ids = set()
+            if atoms_check:
+                for record in atoms_check:
+                    record_id = record["id"]
+                    if hasattr(record_id, "table_name"):
+                        found_ids.add(f"{record_id.table_name}:{record_id.id}")
+                    else:
+                        found_ids.add(str(record_id))
+            
+            missing = set(request.atoms) - found_ids
+            if missing:
+                raise ValidationError(f"Atoms 不存在: {missing}")
 
         
         update_data = {}
         for field, value in request.model_dump(exclude_unset=True).items():
             if value is not None:
-                update_data[field] = value
+                # 将 atoms 字符串列表转换为 RecordID 对象列表
+                if field == "atoms" and isinstance(value, list):
+                    record_ids = []
+                    for atom_id in value:
+                        if ":" in atom_id:
+                            parts = atom_id.split(":", 1)
+                            record_ids.append(RecordID(parts[0], parts[1]))
+                        else:
+                            record_ids.append(atom_id)
+                    update_data[field] = record_ids
+                else:
+                    update_data[field] = value
 
         if not update_data:
             raise HTTPException(status_code=400, detail="没有要更新的字段")
@@ -566,14 +603,63 @@ async def update_entity(entity_id: str, request: EntityUpdateRequest):
         # BL-B-100: 使用事务执行更新操作
         try:
             await db.query("BEGIN TRANSACTION")
-            result = await db.update(entity_id, update_data)
 
-            if not result or len(result) == 0:
-                await db.query("CANCEL TRANSACTION")
-                raise HTTPException(status_code=500, detail="更新失败")
+            # 使用 SurrealQL UPDATE 语句来更新字段
+            set_clauses = []
+            params: dict[str, Any] = {"entity_id": entity_record_id}
+            for field, value in update_data.items():
+                if field == "atoms":
+                    # atoms 是 RecordID 列表
+                    set_clauses.append("atoms = $atoms")
+                    params["atoms"] = value
+                elif field == "updated_at":
+                    set_clauses.append(f"{field} = time::now()")
+                elif isinstance(value, str):
+                    set_clauses.append(f"{field} = ${field}")
+                    params[field] = value
+                elif isinstance(value, (list, dict)):
+                    set_clauses.append(f"{field} = ${field}")
+                    params[field] = value
+                else:
+                    set_clauses.append(f"{field} = ${field}")
+                    params[field] = value
+
+            # 获取 RecordID 的 ID 部分
+            if isinstance(entity_record_id, RecordID):
+                record_id_str = str(entity_record_id.id)
+            else:
+                record_id_str = str(entity_record_id)
+            # nosec B608: record_id_str 来自已验证的 RecordID 对象，非用户输入
+            query = f"UPDATE entity:{record_id_str} SET {', '.join(set_clauses)}"  # nosec B608
+            await db.query(query, params)
 
             await db.query("COMMIT TRANSACTION")
-            return result[0]
+
+            # 重新查询获取完整 Entity 数据
+            updated = await db.query(
+                "SELECT * FROM entity WHERE id = $entity_id",
+                {"entity_id": entity_record_id}
+            )
+            if updated and len(updated) > 0:
+                record = updated[0]
+                # 处理 RecordID
+                raw_id = record.get("id")
+                if raw_id and hasattr(raw_id, "table_name"):
+                    record["id"] = f"{raw_id.table_name}:{raw_id.id}"
+                # 处理 atoms 中的 RecordID
+                if record.get("atoms"):
+                    record["atoms"] = [
+                        f"{a.table_name}:{a.id}" if hasattr(a, "table_name") else str(a)
+                        for a in record["atoms"]
+                    ]
+                # 处理 datetime
+                for field in ["created_at", "updated_at"]:
+                    if field in record and record[field] is not None:
+                        if hasattr(record[field], "isoformat"):
+                            record[field] = record[field].isoformat()
+                return record
+            else:
+                raise HTTPException(status_code=500, detail="更新后查询失败")
 
         except Exception:
             try:

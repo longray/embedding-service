@@ -5,6 +5,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
+from surrealdb.data.types.record_id import RecordID
 
 from .. import state
 from ..utils.exceptions import ValidationError
@@ -227,10 +228,13 @@ async def get_atom(atom_id: str, tenant_id: str = Query(default="default")):
     try:
         db = state.memory_manager.db
 
+        # 将字符串 ID 转换为 RecordID
+        atom_parts = atom_id.split(":", 1)
+        atom_record_id = RecordID(atom_parts[0], atom_parts[1])
         
         result = await db.query(
             "SELECT * FROM atom WHERE id = $atom_id AND tenant_id = $tenant_id",
-            {"atom_id": atom_id, "tenant_id": tenant_id}
+            {"atom_id": atom_record_id, "tenant_id": tenant_id}
         )
 
         if not result or len(result) == 0:
@@ -433,7 +437,7 @@ async def list_atoms(
 
 
 @router.put("/atoms/{atom_id}")
-async def update_atom(atom_id: str, request: AtomUpdateRequest):
+async def update_atom(atom_id: str, request: AtomUpdateRequest, tenant_id: str = Query(default="default")):
     """更新 Atom"""
     if not state.memory_manager:
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
@@ -441,8 +445,15 @@ async def update_atom(atom_id: str, request: AtomUpdateRequest):
     try:
         db = state.memory_manager.db
 
-        
-        check = await db.query("SELECT id FROM atom WHERE id = $atom_id", {"atom_id": atom_id})
+        # 将字符串 ID 转换为 RecordID
+        atom_parts = atom_id.split(":", 1)
+        atom_record_id = RecordID(atom_parts[0], atom_parts[1])
+
+        # BL-B-105: 添加 tenant_id 验证
+        check = await db.query(
+            "SELECT id FROM atom WHERE id = $atom_id AND tenant_id = $tenant_id",
+            {"atom_id": atom_record_id, "tenant_id": tenant_id}
+        )
         if not check or len(check) == 0:
             raise HTTPException(status_code=404, detail="Atom 不存在")
 
@@ -455,20 +466,39 @@ async def update_atom(atom_id: str, request: AtomUpdateRequest):
         if not update_data:
             raise HTTPException(status_code=400, detail="没有要更新的字段")
 
-        update_data["version"] = "version + 1"
+        # BL-B-104: 修复版本号更新逻辑 - 先查询当前版本
+        current_result = await db.query(
+            "SELECT version FROM atom WHERE id = $atom_id AND tenant_id = $tenant_id",
+            {"atom_id": atom_record_id, "tenant_id": tenant_id}
+        )
+        current_version = current_result[0]["version"] if current_result and len(current_result) > 0 else 0
+        update_data["version"] = current_version + 1
         update_data["updated_at"] = "time::now()"
 
         # BL-B-100: 使用事务执行更新操作
         try:
             await db.query("BEGIN TRANSACTION")
-            result = await db.update(atom_id, update_data)
+            # 使用 SurrealQL UPDATE 语句，将字符串 ID 转换为 RecordID
+            atom_parts = atom_id.split(":", 1)
+            atom_record_id = RecordID(atom_parts[0], atom_parts[1])
+            
+            set_clauses = []
+            params = {"atom_id": atom_record_id}
+            for key, value in update_data.items():
+                if key != "updated_at":
+                    set_clauses.append(f"{key} = ${key}")
+                    params[key] = value
+            
+            set_clause = ", ".join(set_clauses)
+            query = f"UPDATE $atom_id SET {set_clause}, updated_at = time::now()"
+            result = await db.query(query, params)
 
             if not result or len(result) == 0:
                 await db.query("CANCEL TRANSACTION")
                 raise HTTPException(status_code=500, detail="更新失败")
 
             await db.query("COMMIT TRANSACTION")
-            return result[0]
+            return result[0] if isinstance(result, list) else result
 
         except Exception:
             try:
@@ -493,10 +523,13 @@ async def delete_atom(atom_id: str, tenant_id: str = Query(default="default")):
     try:
         db = state.memory_manager.db
 
+        # 将字符串 ID 转换为 RecordID
+        atom_parts = atom_id.split(":", 1)
+        atom_record_id = RecordID(atom_parts[0], atom_parts[1])
         
         check = await db.query(
             "SELECT id FROM atom WHERE id = $atom_id AND tenant_id = $tenant_id",
-            {"atom_id": atom_id, "tenant_id": tenant_id}
+            {"atom_id": atom_record_id, "tenant_id": tenant_id}
         )
         if not check or len(check) == 0:
             raise HTTPException(status_code=404, detail="Atom 不存在")
