@@ -56,3 +56,28 @@ def parse_record_id(record_id_str: str) -> tuple[str, str] | None:
         return None
     parts = record_id_str.split(":", 1)
     return parts[0], parts[1]
+
+
+def parse_pagination_params(
+    page: int,
+    page_size: int,
+    limit: int | None,
+    offset: int | None,
+) -> tuple[int, int]:
+    """解析分页参数，返回 (skip, take)。
+
+    向后兼容：如果提供了 limit/offset，使用它们
+    否则使用 page/page_size 计算
+
+    Args:
+        page: 页码（从1开始）
+        page_size: 每页大小
+        limit: 返回数量限制（向后兼容）
+        offset: 偏移量（向后兼容）
+
+    Returns:
+        (skip, take) 元组
+    """
+    if limit is not None and offset is not None:
+        return offset, limit
+    return (page - 1) * page_size, page_size

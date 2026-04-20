@@ -2,7 +2,12 @@
 
 from surrealdb.data.types.record_id import RecordID
 
-from wrapper.src.utils.db_helpers import extract_record_id, parse_record_id, parse_surrealdb_result
+from wrapper.src.utils.db_helpers import (
+    extract_record_id,
+    parse_pagination_params,
+    parse_record_id,
+    parse_surrealdb_result,
+)
 
 
 class TestParseSurrealdbResult:
@@ -70,3 +75,25 @@ class TestParseRecordId:
         """测试解析无效的 RecordID"""
         assert parse_record_id("invalid") is None
         assert parse_record_id("") is None
+
+
+class TestParsePaginationParams:
+    """测试 parse_pagination_params 函数"""
+
+    def test_parse_with_limit_offset(self):
+        """测试使用 limit/offset 参数"""
+        skip, take = parse_pagination_params(page=1, page_size=50, limit=10, offset=20)
+        assert skip == 20
+        assert take == 10
+
+    def test_parse_with_page_page_size(self):
+        """测试使用 page/page_size 参数"""
+        skip, take = parse_pagination_params(page=3, page_size=50, limit=None, offset=None)
+        assert skip == 100  # (3-1) * 50
+        assert take == 50
+
+    def test_parse_page_1(self):
+        """测试第一页"""
+        skip, take = parse_pagination_params(page=1, page_size=20, limit=None, offset=None)
+        assert skip == 0
+        assert take == 20
