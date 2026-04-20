@@ -108,7 +108,21 @@ class PaginatedAtomResponse(BaseModel):
     has_more: bool = Field(..., description="是否还有更多")
 
 
+class BatchAtomRequest(BaseModel):
+    """批量创建 Atom 请求"""
 
+    atoms: list[AtomCreateRequest] = Field(..., description="Atom 创建请求列表")
+    tenant_id: str = Field(default="default", description="租户ID")
+
+
+class BatchAtomResponse(BaseModel):
+    """批量创建 Atom 响应"""
+
+    success: list[AtomResponse] = Field(default_factory=list, description="成功创建的 Atoms")
+    failed: list[dict] = Field(default_factory=list, description="失败的条目 {index: int, error: str}")
+    total: int = Field(..., description="总请求数")
+    success_count: int = Field(..., description="成功数")
+    failed_count: int = Field(..., description="失败数")
 
 
 @router.post("/atoms", response_model=AtomResponse)
@@ -229,6 +243,106 @@ async def get_atom(atom_id: str, tenant_id: str = Query(default="default")):
     except Exception as e:
         logger.error("[Atom] 查询失败: %s", e)
         raise HTTPException(status_code=500, detail=f"查询失败: {e!s}") from e
+
+
+@router.post("/atoms/batch", response_model=BatchAtomResponse)
+async def batch_create_atoms(request: BatchAtomRequest):
+    """批量创建 Atoms"""
+    if not state.memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    # 限制批量大小
+    MAX_BATCH_SIZE = 100
+    if len(request.atoms) > MAX_BATCH_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"批量创建数量超过限制: {len(request.atoms)} > {MAX_BATCH_SIZE}"
+        )
+
+    try:
+        db = state.memory_manager.db
+
+        results = {"success": [], "failed": []}
+
+        # 使用事务执行批量创建
+        await db.query("BEGIN TRANSACTION")
+        try:
+            for i, atom_req in enumerate(request.atoms):
+                try:
+                    # 验证类型
+                    valid_types = ["function", "class", "interface", "import", "goal", "scope", "task", "note"]
+                    if atom_req.type not in valid_types:
+                        raise ValidationError(f"无效的 Atom 类型: {atom_req.type}")
+
+                    # 准备数据
+                    atom_data = {
+                        "type": atom_req.type,
+                        "content": atom_req.content,
+                        "tenant_id": request.tenant_id,
+                        "name": atom_req.name,
+                        "signature": atom_req.signature,
+                        "params": atom_req.params,
+                        "return_type": atom_req.return_type,
+                        "is_exported": atom_req.is_exported,
+                        "is_async": atom_req.is_async,
+                        "complexity": atom_req.complexity,
+                        "max_nesting_depth": atom_req.max_nesting_depth,
+                        "docstring": atom_req.docstring,
+                        "start_line": atom_req.start_line,
+                        "end_line": atom_req.end_line,
+                        "status": atom_req.status,
+                        "metadata": atom_req.metadata,
+                        "project": atom_req.project,
+                        "version": 1,
+                    }
+                    atom_data = {k: v for k, v in atom_data.items() if v is not None}
+
+                    # 创建 atom
+                    result = await db.create("atom", atom_data)
+
+                    if not result:
+                        raise HTTPException(status_code=500, detail="创建 Atom 失败")
+
+                    # 处理返回结果
+                    if isinstance(result, dict):
+                        record = result
+                    elif isinstance(result, list) and result:
+                        record = result[0]
+                        if isinstance(record, list) and record:
+                            record = record[0]
+                    else:
+                        raise HTTPException(status_code=500, detail="创建 Atom 失败: 无效的响应格式")
+
+                    raw_id = record.get("id") if isinstance(record, dict) else record
+                    if raw_id and not isinstance(raw_id, list) and hasattr(raw_id, "table_name"):
+                        record_id = f"{raw_id.table_name}:{raw_id.id}"
+                    else:
+                        record_id = str(raw_id)
+
+                    results["success"].append(AtomResponse(id=record_id, **atom_data))
+
+                except Exception as e:
+                    results["failed"].append({"index": i, "error": str(e)})
+
+            await db.query("COMMIT TRANSACTION")
+
+        except Exception:
+            await db.query("CANCEL TRANSACTION")
+            raise
+
+        return BatchAtomResponse(
+            success=results["success"],
+            failed=results["failed"],
+            total=len(request.atoms),
+            success_count=len(results["success"]),
+            failed_count=len(results["failed"])
+        )
+
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.message) from e
+    except Exception as e:
+        logger.error("[Atom] 批量创建失败: %s", e)
+        raise HTTPException(status_code=500, detail=f"批量创建失败: {e!s}") from e
 
 
 @router.get("/atoms", response_model=PaginatedAtomResponse)

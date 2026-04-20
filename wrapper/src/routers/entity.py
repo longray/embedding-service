@@ -110,6 +110,23 @@ class PaginatedEntityResponse(BaseModel):
     has_more: bool = Field(..., description="是否还有更多")
 
 
+class BatchEntityRequest(BaseModel):
+    """批量创建 Entity 请求"""
+
+    entities: list[EntityCreateRequest] = Field(..., description="Entity 创建请求列表")
+    tenant_id: str = Field(default="default", description="租户ID")
+
+
+class BatchEntityResponse(BaseModel):
+    """批量创建 Entity 响应"""
+
+    success: list[EntityResponse] = Field(default_factory=list, description="成功创建的 Entities")
+    failed: list[dict] = Field(default_factory=list, description="失败的条目 {index: int, error: str}")
+    total: int = Field(..., description="总请求数")
+    success_count: int = Field(..., description="成功数")
+    failed_count: int = Field(..., description="失败数")
+
+
 @router.post("/entities", response_model=EntityResponse)
 async def create_entity(request: EntityCreateRequest):
     """
@@ -249,6 +266,124 @@ async def create_entity(request: EntityCreateRequest):
     except Exception as e:
         logger.error("[Entity] 创建失败: %s", e)
         raise HTTPException(status_code=500, detail=f"创建失败: {e!s}") from e
+
+
+@router.post("/entities/batch", response_model=BatchEntityResponse)
+async def batch_create_entities(request: BatchEntityRequest):
+    """批量创建 Entities"""
+    if not state.memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    # 限制批量大小
+    MAX_BATCH_SIZE = 100
+    if len(request.entities) > MAX_BATCH_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"批量创建数量超过限制: {len(request.entities)} > {MAX_BATCH_SIZE}"
+        )
+
+    try:
+        db = state.memory_manager.db
+
+        results = {"success": [], "failed": []}
+
+        # 使用事务执行批量创建
+        await db.query("BEGIN TRANSACTION")
+        try:
+            for i, entity_req in enumerate(request.entities):
+                try:
+                    # 验证类型
+                    valid_types = ["memory", "backlog", "wiki", "code"]
+                    if entity_req.type not in valid_types:
+                        raise ValidationError(f"无效的 Entity 类型: {entity_req.type}")
+
+                    # 准备数据
+                    entity_data = {
+                        "type": entity_req.type,
+                        "tenant_id": request.tenant_id,
+                        "abstract": entity_req.abstract,
+                        "overview": entity_req.overview,
+                        "atoms": [],
+                        "tags": entity_req.tags,
+                        "project": entity_req.project,
+                        "created_by": entity_req.created_by,
+                    }
+
+                    # 根据类型添加特定字段
+                    if entity_req.type == "wiki":
+                        entity_data.update({
+                            "title": entity_req.title,
+                            "aliases": entity_req.aliases,
+                        })
+                    elif entity_req.type == "backlog":
+                        entity_data.update({
+                            "priority": entity_req.priority,
+                            "status": entity_req.status,
+                            "scene": entity_req.scene,
+                            "estimated_hours": entity_req.estimated_hours,
+                            "actual_hours": entity_req.actual_hours,
+                        })
+                    elif entity_req.type == "code":
+                        entity_data.update({
+                            "file_path": entity_req.file_path,
+                            "language": entity_req.language,
+                            "quality_score": entity_req.quality_score,
+                            "complexity_metrics": entity_req.complexity_metrics,
+                        })
+
+                    entity_data = {k: v for k, v in entity_data.items() if v is not None}
+
+                    # 创建 entity
+                    result = await db.create("entity", entity_data)
+
+                    if not result:
+                        raise HTTPException(status_code=500, detail="创建 Entity 失败")
+
+                    # 处理返回结果
+                    if isinstance(result, dict):
+                        record = result
+                    elif isinstance(result, list) and result:
+                        record = result[0]
+                        if isinstance(record, list) and record:
+                            record = record[0]
+                    else:
+                        raise HTTPException(status_code=500, detail="创建 Entity 失败: 无效的响应格式")
+
+                    raw_id = record.get("id") if isinstance(record, dict) else record
+                    if raw_id and not isinstance(raw_id, list) and hasattr(raw_id, "table_name"):
+                        record_id = f"{raw_id.table_name}:{raw_id.id}"
+                    else:
+                        record_id = str(raw_id)
+
+                    # 转换 atoms 回字符串 IDs
+                    response_data = entity_data.copy()
+                    if response_data.get("atoms"):
+                        response_data["atoms"] = []
+
+                    results["success"].append(EntityResponse(id=record_id, **response_data))
+
+                except Exception as e:
+                    results["failed"].append({"index": i, "error": str(e)})
+
+            await db.query("COMMIT TRANSACTION")
+
+        except Exception:
+            await db.query("CANCEL TRANSACTION")
+            raise
+
+        return BatchEntityResponse(
+            success=results["success"],
+            failed=results["failed"],
+            total=len(request.entities),
+            success_count=len(results["success"]),
+            failed_count=len(results["failed"])
+        )
+
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.message) from e
+    except Exception as e:
+        logger.error("[Entity] 批量创建失败: %s", e)
+        raise HTTPException(status_code=500, detail=f"批量创建失败: {e!s}") from e
 
 
 @router.get("/entities/{entity_id}")
