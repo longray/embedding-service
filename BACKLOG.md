@@ -3,15 +3,15 @@
 > **版本**: v3.2.0  
 > **创建日期**: 2026-04-12  
 > **最后更新**: 2026-04-21  
-> **总任务数**: 71  
+> **总任务数**: 73  
 > **已完成**: 66（已归档）  
-> **未完成**: 5  
+> **未完成**: 7  
 > **预估总工时**: 28 天  
 > **协议**: AGENT-COLLABORATION-PROTOCOL-v1.0
 
 **历史场景**: 场景 1-4 已完成并归档至 [backlog_archive.md](./backlog_archive.md)
 
-**📊 完成状态**: ✅ **93%** (66/71 任务完成)
+**📊 完成状态**: ✅ **90%** (66/73 任务完成)
 
 **📚 相关文档**:
 
@@ -68,6 +68,115 @@
 | BL-B-87 | 代码指纹批量 SQL 优化 | P1 | 0.5 天 | 🆕 | [详情](#bl-b-87-p1-代码指纹批量-sql-优化) |
 | BL-B-88 | 添加事务保护 | P1 | 0.5 天 | 🆕 | [详情](#bl-b-88-p1-添加事务保护) |
 | BL-B-89 | 测试质量提升 | P2 | 1 天 | 🆕 | [详情](#bl-b-89-p2-测试质量提升) |
+| **场景十四** |
+| BL-B-32 | 修复 Entity GET 端点返回 404 | P0 | 2 小时 | 🆕 | [详情](#bl-b-32-p0-修复-entity-get-端点返回-404) |
+| BL-B-33 | 修复 Reference 创建失败 | P0 | 2 小时 | 🆕 | [详情](#bl-b-33-p0-修复-reference-创建失败) |
+
+---
+
+## 场景十四：后端 Bug 修复（v3.2.3）
+
+> **背景**: Layer 1 数据层测试发现 2 个严重后端 Bug
+>
+> **目标**: 修复 Entity GET 端点和 Reference 创建端点的 Bug
+>
+> **状态**: 🆕 新建
+
+---
+
+### BL-B-32 [P0] 修复 Entity GET 端点返回 404
+
+**目标**: 修复 `GET /api/v1/entities/:id` 端点返回 404 的问题，即使 Entity 刚创建成功
+
+**涉及范围**:
+
+1. `wrapper/src/routers/entities.py` — 检查 GET 端点实现
+2. `wrapper/src/services/entity_service.py` — 检查查询逻辑
+3. SurrealDB 查询语句 — 验证 ID 格式匹配
+
+**前置依赖**:
+
+- 无
+
+**完成标准**:
+
+1. `GET /api/v1/entities/{id}` 返回正确的 Entity 数据
+2. 支持 `level` 参数（0=abstract, 1=overview, 2=full）
+3. 响应时间 < 50ms
+4. 现有 Entity 创建测试不受影响
+
+**验证方式**:
+
+1. **API 测试**: 创建 Entity 后立即查询
+
+   ```bash
+   # 创建
+   curl -X POST http://localhost:18008/api/v1/entities \
+     -H "Content-Type: application/json" \
+     -H "WRAPPER_MEILI_API_KEY: your-key" \
+     -d '{"type":"code","abstract":"test"}'
+
+   # 查询（应返回 200）
+   curl http://localhost:18008/api/v1/entities/{id} \
+     -H "WRAPPER_MEILI_API_KEY: your-key"
+   ```
+
+2. **Level 参数测试**: 验证 level=0/1/2 返回正确字段
+3. **单元测试**: Mock SurrealDB 查询，验证逻辑正确
+4. **集成测试**: 实际调用后端 API
+
+**工时**: 2 小时
+
+**状态**: 🆕 新建
+
+---
+
+### BL-B-33 [P0] 修复 Reference 创建失败（from_id 不存在）
+
+**目标**: 修复 `POST /api/v1/references` 返回 "from_id 不存在" 的问题，即使 Atom 确实存在
+
+**涉及范围**:
+
+1. `wrapper/src/routers/references.py` — 检查 POST 端点实现
+2. `wrapper/src/services/reference_service.py` — 检查 Atom 存在性验证逻辑
+3. SurrealDB 查询 — 验证 Atom ID 解析逻辑
+
+**前置依赖**:
+
+- 无
+
+**完成标准**:
+
+1. `POST /api/v1/references` 成功创建 Reference
+2. 正确验证 `from_id` 和 `to_id` 存在性
+3. 支持所有 Reference 类型（calls, imports, extends, implements, related）
+4. 响应时间 < 100ms
+
+**验证方式**:
+
+1. **API 测试**: 创建 Atom 后创建 Reference
+
+   ```bash
+   # 创建 Atom
+   curl -X POST http://localhost:18008/api/v1/atoms \
+     -H "Content-Type: application/json" \
+     -H "WRAPPER_MEILI_API_KEY: your-key" \
+     -d '{"type":"function","name":"testFunc"}'
+
+   # 创建 Reference（应返回 201）
+   curl -X POST http://localhost:18008/api/v1/references \
+     -H "Content-Type: application/json" \
+     -H "WRAPPER_MEILI_API_KEY: your-key" \
+     -d '{"from_id":"atom:xxx","to_id":"atom:yyy","type":"calls"}'
+   ```
+
+2. **存在性验证测试**: 验证不存在的 ID 返回 400
+3. **单元测试**: Mock SurrealDB 查询，验证逻辑正确
+4. **集成测试**: 实际调用后端 API
+
+**工时**: 2 小时
+
+**状态**: 🆕 新建
 
 ---
 
@@ -541,7 +650,8 @@ uv run pytest tests/ --cov=wrapper/src --cov-report=html
 | 测试补充 | 6 | 0 | 6 | 0% |
 | Phase 8 | 4 | 0 | 4 | 0% |
 | Phase 9 | 6 | 0 | 6 | 0% |
-| **总计** | **71** | **66** | **5** | **93%** |
+| 场景十四 | 2 | 0 | 2 | 0% |
+| **总计** | **73** | **66** | **7** | **90%** |
 
 ### 工时统计
 
