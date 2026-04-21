@@ -797,8 +797,8 @@ class TestRRFHybridSearch:
 
         if data["results"]:
             score = data["results"][0]["score"]
-            # 相似度分数应在 [0, 1] 范围内
-            assert 0.0 <= score <= 1.0, f"分数超出范围: {score}"
+            # 相似度分数应在 [0, 1] 范围内（允许浮点数精度误差）
+            assert 0.0 <= score <= 1.0001, f"分数超出范围: {score}"
 
     @pytest.mark.asyncio
     async def test_keyword_search_with_bm25(self, client):
