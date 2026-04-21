@@ -366,24 +366,31 @@ async def get_entity(
     try:
         db = state.memory_manager.db
 
+        # BL-B-32: 将字符串 ID 转换为 RecordID 对象
+        if ":" in entity_id:
+            parts = entity_id.split(":", 1)
+            entity_record_id = RecordID(parts[0], parts[1])
+        else:
+            entity_record_id = entity_id
+
         
         if level == 0:
             
             result = await db.query(
                 "SELECT id, type, abstract, tenant_id, created_at FROM entity WHERE id = $entity_id AND tenant_id = $tenant_id",
-                {"entity_id": entity_id, "tenant_id": tenant_id}
+                {"entity_id": entity_record_id, "tenant_id": tenant_id}
             )
         elif level == 1:
             
             result = await db.query(
                 "SELECT id, type, abstract, overview, tags, project, created_at FROM entity WHERE id = $entity_id AND tenant_id = $tenant_id",
-                {"entity_id": entity_id, "tenant_id": tenant_id}
+                {"entity_id": entity_record_id, "tenant_id": tenant_id}
             )
         else:
             
             result = await db.query(
                 "SELECT * FROM entity WHERE id = $entity_id AND tenant_id = $tenant_id",
-                {"entity_id": entity_id, "tenant_id": tenant_id}
+                {"entity_id": entity_record_id, "tenant_id": tenant_id}
             )
 
         if not result or len(result) == 0:

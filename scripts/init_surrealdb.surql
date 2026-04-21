@@ -443,10 +443,11 @@ DEFINE INDEX IF NOT EXISTS idx_entity_project ON entity FIELDS project;
 DEFINE INDEX IF NOT EXISTS idx_entity_created_at ON entity FIELDS created_at;
 
 -- 3. reference 表 - 引用关系（图关系）
-DEFINE TABLE IF NOT EXISTS reference TYPE RELATION;
+-- 使用 OVERWRITE 强制更新 Schema
+DEFINE TABLE OVERWRITE reference TYPE RELATION;
 
-DEFINE FIELD IF NOT EXISTS in ON reference TYPE record<entity>;
-DEFINE FIELD IF NOT EXISTS out ON reference TYPE record<entity>;
+DEFINE FIELD in ON reference TYPE record<atom|entity>;
+DEFINE FIELD out ON reference TYPE record<atom|entity>;
 DEFINE FIELD IF NOT EXISTS tenant_id ON reference TYPE string
     ASSERT $value != NONE AND string::len($value) > 0;
 DEFINE FIELD IF NOT EXISTS type ON reference TYPE string

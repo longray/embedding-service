@@ -7,7 +7,8 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from .. import state
-from ..utils.db_helpers import extract_record_id, parse_surrealdb_result
+from ..utils.db_helpers import extract_record_id
+from ..utils.db_utils import extract_records
 from ..utils.exceptions import ValidationError
 from ..utils.transaction import transaction
 
@@ -78,35 +79,46 @@ async def create_reference(request: ReferenceCreateRequest):
     try:
         db = state.memory_manager.db
 
-        
-        from_check = await db.query(
-            "SELECT id FROM atom WHERE id = $from_id",
-            {"from_id": request.from_id}
-        )
-        if not from_check:
+        # BL-B-33: 验证 from_id 和 to_id 格式
+        if ":" not in request.from_id:
+            raise ValidationError(f"from_id 格式无效: {request.from_id}，应为 table:id 格式")
+        if ":" not in request.to_id:
+            raise ValidationError(f"to_id 格式无效: {request.to_id}，应为 table:id 格式")
+
+        from_table, from_id_part = request.from_id.split(":", 1)
+        to_table, to_id_part = request.to_id.split(":", 1)
+
+        # 验证 from_id 存在性 - 使用 type::record 函数
+        try:
             from_check = await db.query(
-                "SELECT id FROM entity WHERE id = $from_id",
+                f"SELECT id FROM {from_table} WHERE id = type::record($from_id)",  # nosec B608
                 {"from_id": request.from_id}
             )
-        if not from_check or len(from_check) == 0:
+        except Exception as e:
+            logger.error(f"from_check query error: {e}")
+            raise ValidationError(f"from_id 查询失败: {e}")
+
+        from_records = extract_records(from_check)
+        if not from_records:
             raise ValidationError(f"from_id 不存在: {request.from_id}")
 
-        
-        to_check = await db.query(
-            "SELECT id FROM atom WHERE id = $to_id",
-            {"to_id": request.to_id}
-        )
-        if not to_check:
+        # 验证 to_id 存在性 - 使用 type::record 函数
+        try:
             to_check = await db.query(
-                "SELECT id FROM entity WHERE id = $to_id",
+                f"SELECT id FROM {to_table} WHERE id = type::record($to_id)",  # nosec B608
                 {"to_id": request.to_id}
             )
-        if not to_check or len(to_check) == 0:
+        except Exception as e:
+            logger.error(f"to_check query error: {e}")
+            raise ValidationError(f"to_id 查询失败: {e}")
+
+        to_records = extract_records(to_check)
+        if not to_records:
             raise ValidationError(f"to_id 不存在: {request.to_id}")
 
-        
-        query = """
-        RELATE $from_id->reference->$to_id CONTENT {
+        # 使用字符串插值构建 RELATE 语句（SurrealDB RELATE 不支持参数化 RecordID）
+        query = f"""
+        RELATE {request.from_id}->reference->{request.to_id} CONTENT {{
             type: $type,
             tenant_id: $tenant_id,
             weight: $weight,
@@ -114,11 +126,9 @@ async def create_reference(request: ReferenceCreateRequest):
             line: $line,
             column: $column,
             metadata: $metadata
-        }
+        }}
         """
         params = {
-            "from_id": request.from_id,
-            "to_id": request.to_id,
             "type": request.type,
             "tenant_id": request.tenant_id,
             "weight": request.weight,
@@ -135,10 +145,11 @@ async def create_reference(request: ReferenceCreateRequest):
             if not result:
                 raise HTTPException(status_code=500, detail="创建关系失败")
 
-            record = parse_surrealdb_result(result)
-            if not record:
+            records = extract_records(result)
+            if not records:
                 raise HTTPException(status_code=500, detail="创建关系失败: 无效的响应格式")
 
+            record = records[0]
             record_id = extract_record_id(record)
             return ReferenceResponse(
                 id=record_id,
