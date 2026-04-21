@@ -1,0 +1,47 @@
+{
+  "timestamp": "2026-04-21T00:26:42.407749",
+  "total_tests": 3,
+  "passed_tests": 0,
+  "failed_tests": 3,
+  "results": [
+    {
+      "name": "concurrent",
+      "passed": false,
+      "duration": 12.568007707595825,
+      "metrics": {},
+      "errors": [
+        "INFO:__main__:Starting concurrent WebSocket test\nINFO:__main__:URL: ws://localhost:18008/ws/memories/live\nINFO:__main__:Clients: 50\nINFO:__main__:Duration: 10s\nINFO:__main__:Connecting 50 clients...\nINFO:__main__:Connected: 50/50\nINFO:__main__:Running test for 10 seconds...\nINFO:__main__:Disconnecting all clients...\n"
+      ]
+    },
+    {
+      "name": "latency",
+      "passed": false,
+      "duration": 4.358564138412476,
+      "metrics": {
+        "p50_ms": 21.7,
+        "p95_ms": 54.49,
+        "p99_ms": 96.4
+      },
+      "errors": [
+        "INFO:__main__:Starting WebSocket latency test\nINFO:__main__:URL: ws://localhost:18008/ws/memories/live\nINFO:__main__:Clients: 5\nINFO:__main__:Messages per client: 50\nINFO:__main__:Total messages: 250\nINFO:__main__:Starting 5 clients...\nINFO:__main__:All clients completed\n"
+      ]
+    },
+    {
+      "name": "reliability",
+      "passed": false,
+      "duration": 61.1057403087616,
+      "metrics": {},
+      "errors": [
+        "INFO:__main__:============================================================\nINFO:__main__:WebSocket Reliability Test\nINFO:__main__:============================================================\nINFO:__main__:URL: ws://localhost:18008/ws/memories/live\nINFO:__main__:Duration: 60 seconds (0.0 hours)\nINFO:__main__:Heartbeat interval: 30.0 seconds\nINFO:__main__:============================================================\nINFO:__main__:Connected to ws://localhost:18008/ws/memories/live\nINFO:__main__:Starting reliability test for 60 seconds\nINFO:__main__:Heartbeat interval: 30.0 seconds\nWARNING:__main__:Heartbeat cycle failed\nINFO:__main__:Running for 0 seconds - Success rate: 0.00% (0/1)\nWARNING:__main__:Heartbeat cycle failed\nINFO:__main__:Disconnected\n"
+      ]
+    }
+  ],
+  "summary": {
+    "concurrent_clients": 50,
+    "concurrent_duration": 10,
+    "latency_clients": 5,
+    "latency_messages": 50,
+    "reliability_duration": 60,
+    "latency_p99_check": "PASS"
+  }
+}

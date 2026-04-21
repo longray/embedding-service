@@ -1,206 +1,245 @@
-# Backlog Archive
+# Backlog Archive v3.2
 
-> 已完成任务归档，采用 Agent 手册规范格式
-
-**归档时间**: 2026-04-07
-
----
-
-## 2026-03-28 归档批次
-
-### v2.4.1 - sync_preview conflict 检测修复
-
-- [x] B-005 [P0] upload_memories 上传后 get_fingerprints 返回空 #bug #sync (完成于 2026-03-28)
-  - [x] B-005-A [P0] SCHEMAFULL 字段未定义 (完成于 2026-03-28)
-  - [x] B-005-B [P0] SurrealDB 3.0 SDK 结果解析逻辑错误 (完成于 2026-03-28)
-  - [x] B-005-C [P0] get_conflict_detail 参数化表名语法错误 (完成于 2026-03-28)
-- [x] B-006 [P1] SCHEMA_TARGET_VERSION 版本号未更新 #quality (完成于 2026-03-28)
-- [x] B-007 [P1] FastAPI app 定义位置错误 #quality (完成于 2026-03-28)
-- [x] B-008 [P1] 重复 API 端点定义 #quality (完成于 2026-03-28)
-- [x] B-009 [P1] tree_sitter 导入类型错误 #quality (完成于 2026-03-28)
-
-### v2.4.2 - API 稳定性修复
-
-- [x] B-010 [P0] sync_preview 返回 500（to_delete 含 None）#bug #api (完成于 2026-03-28)
-- [x] B-011 [P1] 项目文档三分类整理 #docs (完成于 2026-03-28)
-- [x] B-012 [P1] Cache/HNSW 500 错误修复 #bug (完成于 2026-03-28)
-- [x] B-014 [P1] LLM 服务并发请求导致 OOM 崩溃 #bug #llm (完成于 2026-03-28)
-- [x] B-015 [P1] LLM 服务 Pydantic @validator 弃用警告 #quality #llm (完成于 2026-03-28)
-- [x] B-016 [P1] LLM 服务版本号硬编码未更新 #quality #llm (完成于 2026-03-28)
-- [x] B-017 [P2] wrapper 层 llm_service_url 配而不用 #cleanup (完成于 2026-03-28)
-- [x] B-018 [P1] SurrealDB count(*) 语法不兼容 #bug (完成于 2026-03-28)
-- [x] B-025 [P1] B608 record_id SQL 注入修复 #security (完成于 2026-03-28)
-- [x] B-026 [P1] Bandit 安全扫描标记 # nosec #security (完成于 2026-03-28)
-
-### v2.4.0 - API 行为优化
-
-- [x] B-001 [P1] relationship_type 错误提示优化 #api (完成于 2026-03-28)
-- [x] B-002 [P1] conflict resolution 大小写兼容 #api #sync (完成于 2026-03-28)
-- [x] B-003 [P1] full_sync 返回 skipped 列表 #api #sync (完成于 2026-03-28)
-- [x] B-004 [P1] sync_incremental → sync_preview 重命名 #api (完成于 2026-03-28)
-
-### Markdown 质量门禁 (v2.4.3)
-
-- [x] BL-MD-01 [P1] 建立 Markdown 检查基础配置 #docs #quality (完成于 2026-03-28)
-- [x] BL-MD-02 [P1] 集成 Pre-commit 质量门禁 #docs #quality (完成于 2026-03-28)
-- [x] BL-MD-03 [P1] 全局存量 Markdown 错误修复 #docs #quality (完成于 2026-03-28)
-- [x] BL-MD-04 [P1] 文档体系同步更新 #docs (完成于 2026-03-28)
+> 已完成任务归档
+>
+> **归档日期**: 2026-04-21
+> **归档任务数**: 66
+> **原始文件**: BACKLOG.md
 
 ---
 
-## 2026-04-10 归档批次
+## 归档说明
 
-### 场景 9: 代码分析增强
-
-- [x] BL-CA-34 [P1] 实现 Memory Lookup API #feature (完成于 2026-04-09)
-  - 支持 source_id、file_path、hash 三种查询方式
-  - 用于缓存重建和多设备同步
-  - 添加 SurrealDB 索引优化查询性能
-- [x] BL-CA-35 [P1] SurrealDB SessionExpired 自动重连 #bug #reliability (完成于 2026-04-10)
-  - 添加 reconnect() 方法到 SurrealDBManager
-  - 传入 reauthenticate_fn 到 MemoryManager
-  - 自动检测会话过期并重试查询
-
-### 场景 10: 代码分析数据上传修复
-
-- [x] BL-CA-FIX-01 [P0] 代码数据被 hash 去重跳过 #bug (完成于 2026-04-08)
-- [x] BL-CA-FIX-02 [P0] 新代码文件未写入 #bug (完成于 2026-04-08)
-- [x] BL-CA-FIX-03 [P0] 相同 file_path 不更新 #bug (完成于 2026-04-08)
-- [x] BL-CA-FIX-04 [P1] 字段名不一致 #quality (完成于 2026-04-08)
-- [x] BL-CA-FIX-05 [P1] Schema 未初始化 #bug (完成于 2026-04-08)
-- [x] BL-CA-FIX-06 [P1] 验证脚本错误 #bug (完成于 2026-04-08)
-- [x] BL-CA-FIX-07 [P1] 项目地图 module_dependencies 为空 #bug (完成于 2026-04-08)
-- [x] BL-CA-FIX-08 [P1] 模块依赖重复 #bug (完成于 2026-04-08)
-- [x] BL-CA-FIX-09 [P1] 项目地图查询返回空 #bug (完成于 2026-04-08)
-- [x] BL-CA-FIX-API-01 [P1] 字段缺失导致查询 404 #bug (完成于 2026-04-08)
-- [x] BL-CA-FIX-API-02 [P1] 可选字段校验过严 #bug (完成于 2026-04-08)
-
-### 优化项
-
-- [x] BL-CA-OPT-01 [P1] RELATE SQL 注入防护 #security (完成于 2026-04-08)
-- [x] BL-CA-OPT-02 [P0] RecordID 格式统一 #quality (完成于 2026-04-08)
-- [x] BL-CA-OPT-03 [P2] 嵌套字段查询优化 #performance (完成于 2026-04-08)
-- [x] BL-CA-OPT-04 [P1] 批量插入分批处理 #performance (完成于 2026-04-08)
-- [x] BL-CA-OPT-05 [P2] SQL 查询规范文档 #docs (完成于 2026-04-08)
-- [x] BL-CA-OPT-06 [P1] Meilisearch 同步分批 #performance (完成于 2026-04-08)
-- [x] BL-CA-OPT-08 [P1] embedding 字段优化 #performance (完成于 2026-04-08)
+本文档包含 BACKLOG v3.2 中所有已完成的任务（状态 ✅）。
+活跃任务请查看 [BACKLOG.md](./BACKLOG.md)。
 
 ---
 
-## 2026-04-10 取消批次（v3.2 准备）
+## 按阶段归档
 
-> 以下任务因 v3.2 重新规划而取消，不再执行。
+### Phase 1: 依赖升级（1 任务）
 
-### 场景 4: 测试架构优化
+| 编号 | 任务 | 工时 |
+|------|------|------|
+| BL-B-31 | 依赖升级 — pyproject.toml | 1 天 |
 
-- [x] BL-T10 [P3] 语义去重阈值测试修复 #quality (取消于 2026-04-10)
-  - 原因：P3 可选任务，去重阈值与当前业务无关
+**关键成果**:
 
-### 场景 5: 生产运维与合规审计
-
-- [x] P3-5 [P3] 审计日志系统 #feature (取消于 2026-04-10)
-  - 原因：非核心需求，v3.2 重新规划
-
-### 场景 7: 系统可观测性与开发者工具
-
-- [x] BL-DOC-01 [P0] 修复 README 端点状态 #docs (取消于 2026-04-10)
-- [x] BL-DOC-02 [P1] 更新 README 端口说明 #docs (取消于 2026-04-10)
-- [x] BL-DOC-03 [P1] 添加场景 7 到 BACKLOG #docs (取消于 2026-04-10)
-- [x] BL-DOC-04 [P2] E2E 验证场景 7 #quality (取消于 2026-04-10)
-  - 原因：文档完善类任务，优先级低
-
-### 场景 9: 代码分析增强
-
-- [x] BL-CA-18 [P0] 后端存储 schema 扩展 #schema (取消于 2026-04-10)
-- [x] BL-CA-26 [P2] 实现批量分析 API #feature (取消于 2026-04-10)
-- [x] BL-CA-27 [P2] 实现增量分析 API #feature (取消于 2026-04-10)
-- [x] BL-CA-29 [P2] 实现分析任务队列 #feature (取消于 2026-04-10)
-- [x] BL-CA-30 [P2] 实现分析进度查询 #feature (取消于 2026-04-10)
-- [x] BL-CA-31 [P3] 实现分析结果导出 #feature (取消于 2026-04-10)
-- [x] BL-CA-32 [P3] 实现分析结果导入 #feature (取消于 2026-04-10)
-- [x] BL-CA-33 [P3] 集成测试与性能优化 #quality (取消于 2026-04-10)
-  - 原因：代码分析增强后续任务，v3.2 重新规划
-
-### 优化项
-
-- [x] BL-CA-OPT-07 [P2] 大批量上传异步化 #architecture (取消于 2026-04-10)
-  - 原因：架构优化，投入产出比低（16h+）
-
-### 执行路线
-
-- [x] BL-D6 [P2] E2E 完整验证 #quality (取消于 2026-04-10)
-  - 原因：v2.7 已完成核心验证，无需额外 E2E
+- surrealdb: >=1.0.8,<1.1.0
+- meilisearch: >=0.40.0,<0.41.0
+- websockets: >=12.0,<13.0
+- tree-sitter: >=0.25.0,<0.26.0
 
 ---
 
-## 历史归档
+### Phase 2: WebSocket 重写（9 任务）
 
-> v2.4.0 之前的已完成任务已归档至 CHANGELOG.md
+| 编号 | 任务 | 工时 |
+|------|------|------|
+| BL-B-1 | WebSocket — 心跳机制 | 1 天 |
+| BL-B-2 | WebSocket — 指数退避重连 | 1 天 |
+| BL-B-3 | WebSocket — ACK 确认系统 | 1 天 |
+| BL-B-4 | WebSocket — DIFF 模式 | 1 天 |
+| BL-B-5 | WebSocket — 状态恢复 | 1 天 |
+| BL-B-6 | WebSocket — 并发连接测试 | 0.5 天 |
+| BL-B-7 | WebSocket — 消息延迟测试 | 0.5 天 |
+| BL-B-51 | WebSocket — 心跳成功率 ≥99% | 0.5 天 |
 
----
+**关键成果**:
 
-## 2026-04-07 归档批次
-
-### 场景 1: 记忆上传与搜索
-
-- [x] BL-18 [P0] 修复测试用例适配 abstract/overview 必填 #quality (完成于 2026-04-04)
-- [x] BL-19 [P0] 修复双写测试验证上传→Meilisearch 流程 #quality (完成于 2026-04-04)
-- [x] BL-20 [P0] 端到端验证上传→搜索全链路（87/87）#e2e (完成于 2026-04-04)
-- [x] BL-24 [P1] 修复 get_memory_summary 连接泄露 #bug (完成于 2026-04-04)
-- [x] BL-25 [P2] 清理调试日志 #cleanup (完成于 2026-04-04)
-- [x] BL-26 [P1] 实现智能去重决策（替代硬编码 KEEP_BOTH）#feature (完成于 2026-04-04)
-- [x] BL-27 [P1] 实现 _update_memory（SurrealDB UPDATE + Meilisearch 同步）#feature (完成于 2026-04-04)
-
-### 场景 2: 代码分析
-
-- [x] BL-4 [P0] 代码分析结果持久化（Phase A）#feature (完成于 2026-04-03)
-- [x] BL-6 [P0] LLM 代码摘要生成（Phase C）#feature (完成于 2026-04-03)
-- [x] BL-28 [P0] analyze_memory_code 实现（CodeAnalyzer 集成）#feature (完成于 2026-04-04)
-- [x] BL-CA-05 [P1] code_filter 添加 max_complexity 支持 #feature (完成于 2026-04-03)
-- [x] BL-CA-06 [P1] 修复 v1.2 设计文档 4 个小问题 #docs (完成于 2026-04-03)
-- [x] BL-CA-07 [P1] 代码文件指纹同步 API #feature (完成于 2026-04-03)
-- [x] BL-CA-08 [P1] 代码文件 Upsert #feature (完成于 2026-04-03)
-- [x] BL-CA-09 [P1] 代码分析集成测试补充 #quality (完成于 2026-04-03)
-- [x] BL-CA-10 [P1] 代码分析 API 文档更新 #docs (完成于 2026-04-03)
-
-### 场景 3: 多设备同步
-
-- [x] BL-29 [P0] get_fingerprints 查询 SurrealDB 指纹 #sync (完成于 2026-04-04)
-- [x] BL-30 [P0] sync_preview 三分类比对 + conflict 表写入 #sync (完成于 2026-04-04)
-- [x] BL-31 [P0] sync_full 透传 upload_memories #sync (完成于 2026-04-04)
-- [x] BL-32 [P0] resolve_conflict 三种策略 + 辅助方法 #sync (完成于 2026-04-04)
-
-### 场景 4: 测试架构优化
-
-- [x] BL-T1 [P0] 定义测试分层标记 (pytest.mark) #quality (完成于 2026-04-04)
-- [x] BL-T2 [P1] 优化 conftest fixture scope #quality (完成于 2026-04-04)
-- [x] BL-T3 [P0] 修复 Mixin 模式导致的 mock 断言失败 #bug (完成于 2026-04-04)
-- [x] BL-T4 [P1] 修复接口变更导致的测试失败 #bug (完成于 2026-04-04)
-- [x] BL-T5 [P2] 清理无效测试文件 #cleanup (完成于 2026-04-04)
-- [x] BL-T6 [P0] pre-commit 配置调整 #quality (完成于 2026-04-04)
-- [x] BL-T7 [P2] 合并小型测试文件 #cleanup (完成于 2026-04-04)
-- [x] BL-T8 [P0] 修复 conftest 配置错误和 session scope 回归 #bug (完成于 2026-04-04)
-- [x] BL-T9 [P1] LLM 服务和 SDK 变更测试条件跳过 #quality (完成于 2026-04-04)
-- [x] BL-T11 [P1] 修复 wrapper 接口变更测试 #bug (完成于 2026-04-04)
-
-### 场景 7: 系统可观测性与开发者工具
-
-- [x] BL-OBS-00 [P0] 修复 docker-compose.yml 端口映射 #bug (完成于 2026-04-04)
-- [x] BL-OBS-01 [P1] 实现 HNSW 统计端点 #feature (完成于 2026-04-04)
-- [x] BL-OBS-02 [P1] 实现缓存统计端点 #feature (完成于 2026-04-04)
-- [x] BL-OBS-03 [P2] 创建 CLI 诊断工具 #feature (完成于 2026-04-04)
-- [x] BL-OBS-04 [P2] 创建 CONTRIBUTING.md #docs (完成于 2026-04-04)
+- HeartbeatManager (151行)
+- ReconnectionManager (160行)
+- AckManager (166行)
+- PatchGenerator + DiffManager (398行)
+- StateRecoveryManager (254行)
+- 81个测试通过
 
 ---
 
-## 归档规范
+### Phase 3: PrecomputeService（7 任务）
 
-**格式**: `- [x] {ID} [{Priority}] {描述} #{标签} (完成于 YYYY-MM-DD)`
+| 编号 | 任务 | 工时 |
+|------|------|------|
+| BL-B-8 | PrecomputeService — 基础架构 | 1 天 |
+| BL-B-9 | PrecomputeService — tree-sitter + 指纹 | 1.5 天 |
+| BL-B-10 | PrecomputeService — 调用关系创建 | 1 天 |
+| BL-B-11 | PrecomputeService — 循环检测 | 0.5 天 |
+| BL-B-12 | PrecomputeService — 权重计算 | 0.5 天 |
+| BL-B-13 | PrecomputeService — 性能监控 | 0.5 天 |
+| BL-B-14 | PrecomputeService — 并发控制 | 0.5 天 |
 
-**优先级**: P0 = 紧急, P1 = 重要, P2 = 普通, P3 = 低优先级
+**关键成果**:
 
-**状态**: ✅ 已完成, ⏳ 进行中, 📋 规划中, ⚪ 暂缓
+- PrecomputeService (154行)
+- CodeParser (236行)
+- FingerprintManager (135行)
+- RelationBuilder (241行)
+- CycleDetector (191行)
+- WeightCalculator (195行)
+- PerformanceMonitor (277行)
+- ConcurrencyControl (282行)
+- 42个测试通过
 
 ---
 
-*最后更新: 2026-04-10（v2.7 完成，取消 12 项任务，准备 v3.2 开发）*
+### Phase 4: Meilisearch SDK 升级（6 任务）
+
+| 编号 | 任务 | 工时 |
+|------|------|------|
+| BL-B-15 | Meilisearch SDK — 客户端迁移 | 1 天 |
+| BL-B-16 | Meilisearch SDK — 索引设置迁移 | 0.5 天 |
+| BL-B-17 | Meilisearch SDK — 批量操作 | 0.5 天 |
+| BL-B-73 | Meilisearch SDK — 与现有代码集成 | 0.5 天 |
+| BL-B-74 | Meilisearch SDK — 异步支持优化 | 0.5 天 |
+| BL-B-75 | Meilisearch SDK — code_search_index 配置 | 0.5 天 |
+
+**关键成果**:
+
+- MeilisearchSDKClient (357行)
+- 批量操作支持（默认100条/批）
+- 56个测试通过
+
+---
+
+### Phase 5: SurrealDB Schema 升级（6 任务）
+
+| 编号 | 任务 | 工时 |
+|------|------|------|
+| BL-B-18 | Schema — 核心表创建 | 1 天 |
+| BL-B-19 | Schema — ChangeFeed 配置 | 0.5 天 |
+| BL-B-20 | Schema — 辅助表创建 | 0.5 天 |
+| BL-B-21 | Schema — 迁移脚本 | 0.5 天 |
+| BL-B-76 | Schema — 迁移脚本实际测试 | 0.5 天 |
+| BL-B-77 | Schema — 迁移性能优化 | 0.5 天 |
+
+**关键成果**:
+
+- atom/entity/reference 核心表
+- ChangeFeedClient (支持LIVE SELECT)
+- V2ToV3Migration (支持dry-run/execute)
+- 40个测试通过
+
+---
+
+### Phase 6: 端口迁移（6 任务）
+
+| 编号 | 任务 | 工时 |
+|------|------|------|
+| BL-B-22 | 端口迁移 17999 → 18008 | 1 天 |
+| BL-B-78 | 端口迁移文档更新 | 0.5 天 |
+| BL-B-23 | Docker 多阶段构建优化 | 0.5 天 |
+| BL-B-24 | docker-compose 健康检查 | 0.5 天 |
+| BL-B-25 | SSL 自动续期 | 0.5 天 |
+| BL-B-79 | SSL 配置文档 | 0.5 天 |
+
+**关键成果**:
+
+- 双端口并行支持（14天过渡期）
+- Dockerfile.multistage（3阶段构建）
+- docker-compose.ssl.yml + nginx.conf
+- SSL-SETUP.md 文档
+- 54个测试通过
+
+---
+
+### Phase 7: 测试（5 任务）
+
+| 编号 | 任务 | 工时 |
+|------|------|------|
+| BL-B-26 | 单元测试 — WebSocket 模块 | 1 天 |
+| BL-B-27 | 单元测试 — Precompute 模块 | 1 天 |
+| BL-B-28 | 集成测试 — WebSocket 端到端 | 1 天 |
+| BL-B-29 | 集成测试 — API 端到端 | 0.5 天 |
+| BL-B-30 | 性能基准测试 | 0.5 天 |
+
+**关键成果**:
+
+- 81个 WebSocket 测试
+- 42个 Precompute 测试
+- PerformanceBenchmark (580+行，支持quick/standard/full模式)
+
+---
+
+### WebSocket 后续（12 任务）
+
+| 编号 | 任务 | 工时 |
+|------|------|------|
+| BL-B-52 | WebSocket — AckManager 集成 | 0.5 天 |
+| BL-B-53 | WebSocket — ACK 消息协议定义 | 0.5 天 |
+| BL-B-54 | WebSocket — 消息持久化 | 1 天 |
+| BL-B-55 | WebSocket — DiffManager 集成 | 0.5 天 |
+| BL-B-56 | WebSocket — LIVE SELECT DIFF 订阅 | 1 天 |
+| BL-B-57 | WebSocket — DIFF 客户端配置接口 | 0.5 天 |
+| BL-B-58 | WebSocket — StateRecoveryManager 集成 | 0.5 天 |
+| BL-B-59 | WebSocket — 同步丢失消息 (from_offset) | 1 天 |
+| BL-B-60 | WebSocket — 断线重连自动恢复 | 0.5 天 |
+| BL-B-61 | WebSocket — 性能测试实际运行 | 0.5 天 |
+| BL-B-62 | WebSocket — CI/CD 性能测试集成 | 0.5 天 |
+| BL-B-63 | WebSocket — 性能测试套件整合 | 0.5 天 |
+
+---
+
+### PrecomputeService 后续（8 任务）
+
+| 编号 | 任务 | 工时 |
+|------|------|------|
+| BL-B-64 | PrecomputeService — SurrealDB RELATE 集成 | 0.5 天 |
+| BL-B-65 | PrecomputeService — CycleDetector 集成 | 0.5 天 |
+| BL-B-66 | PrecomputeService — 循环依赖解决策略 | 0.5 天 |
+| BL-B-67 | PrecomputeService — 权重持久化 | 0.5 天 |
+| BL-B-68 | PrecomputeService — WeightCalculator 集成 | 0.5 天 |
+| BL-B-69 | PrecomputeService — PerformanceMonitor 集成 | 0.5 天 |
+| BL-B-70 | PrecomputeService — 性能指标持久化 | 0.5 天 |
+| BL-B-71 | PrecomputeService — ConcurrencyControl 集成 | 0.5 天 |
+| BL-B-72 | PrecomputeService — 队列状态持久化 | 0.5 天 |
+
+---
+
+### 文档完善（8 任务）
+
+| 编号 | 任务 | 工时 |
+|------|------|------|
+| BL-CA-43 | 补充 WebSocket 性能测试基准 | 0.5 天 |
+| BL-CA-44 | 完善 PrecomputeService 关系创建 | 1 天 |
+| BL-CA-45 | 统一预计算批处理大小参数 | 0.5 天 |
+| BL-CA-46 | 扩充后端实施指南 | 1 天 |
+| BL-CA-47 | 添加 WebSocket 错误处理示例 | 0.5 天 |
+| BL-CA-48 | 添加 Kubernetes 部署配置 | 1 天 |
+| BL-CA-49 | 添加数据库 ER 关系图 | 0.5 天 |
+| BL-CA-50 | 添加 SSL 自动续期配置 | 0.5 天 |
+
+---
+
+## 统计汇总
+
+| 阶段 | 任务数 | 总工时 |
+|------|--------|--------|
+| Phase 1 | 1 | 1 天 |
+| Phase 2 | 9 | 6.5 天 |
+| Phase 3 | 7 | 5 天 |
+| Phase 4 | 6 | 3.5 天 |
+| Phase 5 | 6 | 3.5 天 |
+| Phase 6 | 6 | 3.5 天 |
+| Phase 7 | 5 | 4 天 |
+| WebSocket 后续 | 12 | 7.5 天 |
+| PrecomputeService 后续 | 8 | 4.5 天 |
+| 文档 | 8 | 5.5 天 |
+| **总计** | **66** | **~44 天** |
+
+---
+
+## 测试覆盖
+
+| 模块 | 测试数 | 覆盖率 |
+|------|--------|--------|
+| WebSocket | 81 | >80% |
+| Precompute | 42 | >80% |
+| Meilisearch SDK | 56 | >80% |
+| Schema | 40 | >80% |
+| 端口迁移 | 54 | >80% |
+| **总计** | **273+** | **>80%** |
+
+---
+
+_归档创建: 2026-04-21_
+_最后更新: 2026-04-21_
