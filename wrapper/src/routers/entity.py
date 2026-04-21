@@ -449,7 +449,7 @@ async def list_entities(
         total = count_result[0]["count"] if count_result and len(count_result) > 0 else 0
 
         # 查询数据
-        query = "SELECT id, type, abstract, tags, status, project, created_at FROM entity WHERE tenant_id = $tenant_id"
+        query = "SELECT id, type, tenant_id, abstract, tags, status, project, created_at FROM entity WHERE tenant_id = $tenant_id"
         params = {"tenant_id": tenant_id}
 
         if type:

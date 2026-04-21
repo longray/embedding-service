@@ -3,9 +3,37 @@
 从 main.py 提取的所有请求/响应模型，供各 router 模块共用。
 """
 
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field
+
+
+class ReferenceType(str, Enum):
+    """关系类型枚举 - 统一管理，避免字符串拼写错误"""
+
+    # 代码调用关系
+    CALLS = "calls"
+    IMPORTS = "imports"
+    EXTENDS = "extends"
+    IMPLEMENTS = "implements"
+    DEPENDS_ON = "depends_on"
+
+    # 知识关联
+    WIKI_LINK = "wiki_link"
+    PART_OF = "part_of"
+    RELATED = "related"
+    FOLLOW_UP = "follow_up"
+    ELABORATION = "elaboration"
+    CONTRADICTION = "contradiction"
+    REFERENCE = "reference"
+    DERIVED_FROM = "derived_from"
+    SIMILAR_TO = "similar_to"
+
+    @classmethod
+    def all_values(cls) -> list[str]:
+        """获取所有允许的关系类型值"""
+        return [e.value for e in cls]
 
 
 class EmbeddingRequest(BaseModel):

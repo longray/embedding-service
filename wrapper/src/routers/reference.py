@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from .. import state
+from ..models import ReferenceType
 from ..utils.db_helpers import extract_record_id
 from ..utils.db_utils import extract_records
 from ..utils.exceptions import ValidationError
@@ -25,7 +26,7 @@ class ReferenceCreateRequest(BaseModel):
     type: str = Field(
         ...,
         description="关系类型",
-        examples=["calls", "imports", "depends_on", "implements", "wiki_link", "part_of"],
+        examples=ReferenceType.all_values(),
     )
     tenant_id: str = Field(default="default", description="租户ID")
     weight: float = Field(default=0.5, ge=0.0, le=1.0, description="关系权重")
@@ -78,6 +79,13 @@ async def create_reference(request: ReferenceCreateRequest):
 
     try:
         db = state.memory_manager.db
+
+        # 验证 type 是否为有效的关系类型
+        valid_types = ReferenceType.all_values()
+        if request.type not in valid_types:
+            raise ValidationError(
+                f"无效的关系类型: {request.type}，必须是 {', '.join(valid_types)} 之一"
+            )
 
         # BL-B-33: 验证 from_id 和 to_id 格式
         if ":" not in request.from_id:
