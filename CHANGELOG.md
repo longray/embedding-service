@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.2] - 2026-04-22
+
+### Fixed
+
+- **Layer 1 数据层测试修复** (插件端反馈)
+  - 修复 Entity 列表查询缺失 `tenant_id` 字段导致的 Pydantic 验证错误
+  - 修复 Reference 创建失败的 `type` 字段验证问题
+  - 更新 SurrealDB Schema 支持 atom-atom 关系（`record<atom|entity>`）
+
+### Added
+
+- **ReferenceType 枚举**：统一管理 14 种关系类型
+  - 代码调用：`calls`, `imports`, `extends`, `implements`, `depends_on`
+  - 知识关联：`wiki_link`, `part_of`, `related`, `follow_up`, `elaboration`, `contradiction`, `reference`, `derived_from`, `similar_to`
+  - 避免字符串拼写错误导致的查询失败
+
+### Changed
+
+- `reference.py` 添加类型验证，使用 `ReferenceType.all_values()` 检查
+- SurrealDB `reference.type` 字段更新为 14 种枚举值
+
 ## [2.8.1] - 2026-04-18
 
 ### Fixed
