@@ -138,6 +138,7 @@ class CrudMixin:
             memory_ids: list[str] = []
             errors: list[str | dict[str, Any]] = []
             meili_docs: list[dict[str, Any]] = []
+            dedup_info: list[dict[str, Any]] = []
 
             # Phase A-B5: 批量获取 embeddings（优化为单次批量调用）
             texts = [m.get("content", "") for m in memories]
@@ -234,18 +235,29 @@ class CrudMixin:
 
                     # 通用去重：检查 content_hash（仅非代码类型）
                     existing = await self._db_query(
-                        "SELECT id FROM memory WHERE tenant_id = $tenant_id AND content_hash = $hash LIMIT 1",
+                        "SELECT id, source_id, local_id FROM memory WHERE tenant_id = $tenant_id AND content_hash = $hash LIMIT 1",
                         {"tenant_id": effective_tenant_id, "hash": memory_data["content_hash"]},
                     )
                     existing_records = self._extract_records(existing)
                     if existing_records:
-                        existing_id = str(existing_records[0].get("id", ""))
-
-                        # TC-LOOKUP-001: 更新已有记录的 source_id 和 local_id
-                        await self._update_memory(existing_id, memory_data)
-                        memory_ids.append(existing_id)
-                        updated_count += 1
-                        success_count += 1
+                        existing_record = existing_records[0]
+                        existing_id = str(existing_record.get("id", ""))
+                        failed_count += 1
+                        skipped.append(
+                            {
+                                "local_id": memory.get("local_id") or memory.get("source_id"),
+                                "existing_id": existing_id,
+                                "reason": "hash",
+                                "similarity": None,
+                            }
+                        )
+                        # TC-LOOKUP-001: 记录去重信息，让插件端自行决策
+                        dedup_info.append({
+                            "memory_id": existing_id,
+                            "source_id": existing_record.get("source_id"),
+                            "local_id": existing_record.get("local_id"),
+                            "reason": "content_hash",
+                        })
                         continue
 
                     # Phase A-B7: 语义相似度检查 + 智能决策
@@ -390,6 +402,8 @@ class CrudMixin:
             "skipped": skipped,
             "memory_ids": memory_ids,
         }
+        if dedup_info:
+            result_data["dedup_info"] = dedup_info
         if errors:
             result_data["errors"] = errors[:10]
         return result_data
@@ -412,8 +426,6 @@ class CrudMixin:
                 tags = $tags,
                 metadata = $metadata,
                 content_hash = $content_hash,
-                source_id = $source_id,
-                local_id = $local_id,
                 source_timestamp = $source_timestamp,
                 classification_confidence = $classification_confidence,
                 mtime = $mtime
@@ -430,8 +442,6 @@ class CrudMixin:
                 "tags": memory_data.get("tags", []),
                 "metadata": memory_data.get("metadata", {}),
                 "content_hash": memory_data.get("content_hash", ""),
-                "source_id": memory_data.get("source_id"),
-                "local_id": memory_data.get("local_id"),
                 "source_timestamp": memory_data.get("source_timestamp"),
                 "classification_confidence": memory_data.get("classification_confidence"),
                 "mtime": memory_data.get("mtime"),
