@@ -192,13 +192,34 @@ async def websocket_live_memories(
 
 async def _forward_notifications(db_manager, query_uuid, reliable_ws):
     """转发 LIVE SELECT 通知到 WebSocket 客户端"""
+    import time
+    from datetime import datetime
     try:
         # subscribe_live 返回 coroutine，需要 await
         subscription = await db_manager.db.subscribe_live(query_uuid)
         async for notification in subscription:
             if not reliable_ws.is_connected:
                 break
-            await reliable_ws.send_json(notification)
+            
+            # 格式化消息为插件端期望的格式
+            action = notification.get("action", "").upper()
+            result = notification.get("result", {})
+            
+            # 处理 datetime 对象
+            for key, value in result.items():
+                if isinstance(value, datetime):
+                    result[key] = value.isoformat()
+            
+            # 转换消息格式
+            change_message = {
+                "type": "memory_change",
+                "action": action,
+                "data": result,
+                "timestamp": time.time()
+            }
+            
+            logger.info("[WebSocket] 推送变更: action=%s, id=%s", action, result.get("id"))
+            await reliable_ws.send_json(change_message)
     except asyncio.CancelledError:
         logger.debug("[WebSocket] 转发任务已取消")
         raise
