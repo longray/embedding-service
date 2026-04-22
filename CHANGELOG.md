@@ -27,6 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 改用 `db.live("memory")` 确保正确注册到 `live_queues`
   - 添加客户端 `tenant_id` 过滤
 
+- **source_id 去重更新缺失** (TC-LOOKUP-001)
+  - 修复内容去重时 `source_id` 和 `local_id` 未更新的问题
+  - 修改 hash 去重逻辑，调用 `_update_memory` 更新已有记录
+  - 在 `_update_memory` SQL 中添加 `source_id` 和 `local_id` 字段
+  - 确保去重后通过新 `source_id` 可以正确查找到记忆
+
 ## [2.8.2] - 2026-04-22
 
 ### Fixed
