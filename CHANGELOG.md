@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.3] - 2026-04-22
+
+### Added
+
+- **WebSocket Session 恢复** (TC-WS-004)
+  - 断线重连时保持 session_id 一致性
+  - 支持通过 `session_id` 查询参数恢复现有 session
+  - 自动清理过期 session（7 天 TTL）
+
+- **WebSocket 变更推送** (TC-WS-003)
+  - 使用 `db.live()` + `subscribe_live()` 监听 memory 表变更
+  - 自动推送 CREATE/UPDATE/DELETE 通知到所有连接的客户端
+  - 消息格式：`{"type": "memory_change", "action": "UPDATE", "data": {...}, "timestamp": ...}`
+  - 处理 RecordID 和 datetime 对象序列化
+
+### Fixed
+
+- **WebSocket 变更推送空数据问题**
+  - 修复 UUID 不匹配导致通知未路由到队列的问题
+  - 改用 `db.live("memory")` 确保正确注册到 `live_queues`
+  - 添加客户端 `tenant_id` 过滤
+
 ## [2.8.2] - 2026-04-22
 
 ### Fixed
