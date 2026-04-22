@@ -73,18 +73,19 @@ async def websocket_live_memories(
             if cleaned > 0:
                 logger.debug("[WebSocket] 清理过期 session: %d", cleaned)
 
-        # 创建 Session（必须在 accept 之前，这样 connected 消息才有 session_id）
-        session_id = reliable_ws.create_session()
-
-        # 接受连接并启动心跳
-        await reliable_ws.accept()
-
-        # 如果有恢复的状态，尝试恢复
+        # 获取客户端传入的 session_id（用于恢复）
         restore_session_id = websocket.query_params.get("session_id")
-        if restore_session_id:
-            if await reliable_ws.restore_session(restore_session_id):
-                session_id = restore_session_id
-                logger.info("[WebSocket] 恢复 Session: %s", session_id)
+
+        # 接受连接并启动心跳（内部会处理 session 恢复或创建）
+        await reliable_ws.accept(session_id=restore_session_id)
+
+        session_id = reliable_ws.session_id
+        is_restored = restore_session_id == session_id
+
+        if is_restored:
+            logger.info("[WebSocket] Session 已恢复: %s", session_id)
+        else:
+            logger.info("[WebSocket] 创建新 Session: %s", session_id)
 
         logger.info(
             "[WebSocket] 客户端已连接，租户: %s, 模式: %s, Session: %s",

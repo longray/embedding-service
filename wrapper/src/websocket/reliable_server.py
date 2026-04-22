@@ -108,8 +108,35 @@ class ReliableWebSocketServer:
             diff_mode,
         )
 
-    async def accept(self) -> None:
-        """接受 WebSocket 连接并启动心跳机制"""
+    async def accept(self, session_id: Optional[str] = None) -> None:
+        """接受 WebSocket 连接并启动心跳机制
+
+        Args:
+            session_id: 可选的 session_id，用于恢复现有 session
+        """
+        # 先初始化状态恢复管理器
+        self._state_recovery = StateRecoveryManager()
+        self._message_queue = MessageQueue()
+        self._reconnection_manager = ReconnectionManager()
+
+        # 尝试恢复 session 或创建新 session
+        if session_id:
+            state = self._state_recovery.restore_state(session_id)
+            if state is not None:
+                self._session_id = session_id
+                self._message_offset = state.get("offset", 0)
+                logger.info("[ReliableWebSocketServer] 恢复 Session: %s, offset=%d", session_id, self._message_offset)
+            else:
+                # Session 不存在或已过期，创建新 session
+                self._session_id = self._state_recovery.generate_session_id()
+                self._message_offset = 0
+                logger.info("[ReliableWebSocketServer] Session 恢复失败，创建新 Session: %s", self._session_id)
+        else:
+            # 没有 session_id，创建新 session
+            self._session_id = self._state_recovery.generate_session_id()
+            self._message_offset = 0
+            logger.info("[ReliableWebSocketServer] 创建新 Session: %s", self._session_id)
+
         await self._websocket.accept()
         self._is_connected = True
 
@@ -131,12 +158,6 @@ class ReliableWebSocketServer:
             threshold=self._diff_threshold,
             min_diff_size=self._diff_min_size,
         )
-
-        self._state_recovery = StateRecoveryManager()
-
-        self._message_queue = MessageQueue()
-
-        self._reconnection_manager = ReconnectionManager()
 
         self._receive_task = asyncio.create_task(self._receive_loop(), name="websocket_receive")
         await self._heartbeat_manager.start()
