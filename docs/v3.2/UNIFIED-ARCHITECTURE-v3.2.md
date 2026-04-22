@@ -303,7 +303,7 @@ class Relation:
     对应 SurrealDB reference 表
     """
     id: Optional[str] = None  # ULID
-    type: str  # depends_on | blocks | calls | imports | implements | relates_to | wiki_link | part_of
+    type: str  # calls | imports | extends | implements | depends_on | wiki_link | part_of | related | follow_up | elaboration | contradiction | reference | derived_from | similar_to
     tenant_id: str = "default"  # v3.2: 预留字段
 
     from_id: str  # Atom ID 或 Entity ID
@@ -441,7 +441,7 @@ DEFINE TABLE reference TYPE RELATION SCHEMAFULL CHANGEFEED 7d;
 
 DEFINE FIELD tenant_id ON reference TYPE string DEFAULT 'default';
 DEFINE FIELD type ON reference TYPE string
-    ASSERT $value IN ['depends_on', 'blocks', 'calls', 'imports', 'implements', 'relates_to', 'wiki_link', 'part_of'];
+    ASSERT $value IN ['calls', 'imports', 'extends', 'implements', 'depends_on', 'wiki_link', 'part_of', 'related', 'follow_up', 'elaboration', 'contradiction', 'reference', 'derived_from', 'similar_to'];
 
 -- 代码特有
 DEFINE FIELD file_path ON reference TYPE option<string>;
