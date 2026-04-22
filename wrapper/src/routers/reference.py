@@ -6,6 +6,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from surrealdb.data.types.record_id import RecordID
+
 from .. import state
 from ..models import ReferenceType
 from ..utils.db_helpers import extract_record_id
@@ -299,17 +301,23 @@ async def delete_reference(reference_id: str, tenant_id: str = Query(default="de
     try:
         db = state.memory_manager.db
 
-        
+        # 将字符串 ID 转换为 RecordID 对象
+        if ":" in reference_id:
+            parts = reference_id.split(":", 1)
+            record_id = RecordID(parts[0], parts[1])
+        else:
+            record_id = reference_id
+
         check = await db.query(
             "SELECT id FROM reference WHERE id = $reference_id AND tenant_id = $tenant_id",
-            {"reference_id": reference_id, "tenant_id": tenant_id}
+            {"reference_id": record_id, "tenant_id": tenant_id}
         )
         if not check or len(check) == 0:
             raise HTTPException(status_code=404, detail="关系不存在")
 
         # BL-B-100: 使用事务执行删除操作
         async with transaction(db, "Reference"):
-            await db.delete(reference_id)
+            await db.delete(record_id)
             return {"success": True, "message": "关系已删除"}
 
     except HTTPException:
