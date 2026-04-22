@@ -121,29 +121,18 @@ async def websocket_live_memories(
             # 停止 LiveDiffHandler
             await live_diff_handler.stop()
         else:
-            # 使用传统方式处理完整同步
-            query_result = await db_manager.db.query(
-                "LIVE SELECT * FROM memory WHERE tenant_id = $tenant_id",
-                {"tenant_id": tenant_id},
-            )
-            # 处理 SurrealDB 3.0 返回格式（可能是 UUID 对象或列表）
-            if isinstance(query_result, list) and len(query_result) > 0:
-                if isinstance(query_result[0], dict):
-                    query_uuid = query_result[0].get("result") or query_result[0].get("id")
-                else:
-                    query_uuid = str(query_result[0])
-            else:
-                # 直接返回 UUID 对象
-                query_uuid = str(query_result)
+            # 使用 db.live() 确保正确注册到 live_queues
+            query_uuid = await db_manager.db.live("memory")
 
             logger.info(
-                "[WebSocket] 启动 LIVE 查询: %s",
+                "[WebSocket] 启动 LIVE 查询: %s, tenant: %s",
                 query_uuid,
+                tenant_id,
             )
 
             # 创建任务：转发 LIVE 通知到客户端
             forward_task = asyncio.create_task(
-                _forward_notifications(db_manager, query_uuid, reliable_ws),
+                _forward_notifications(db_manager, query_uuid, reliable_ws, tenant_id),
                 name="websocket_forward",
             )
 
@@ -190,35 +179,43 @@ async def websocket_live_memories(
             await reliable_ws.close()
 
 
-async def _forward_notifications(db_manager, query_uuid, reliable_ws):
-    """转发 LIVE SELECT 通知到 WebSocket 客户端"""
+async def _forward_notifications(db_manager, query_uuid, reliable_ws, tenant_id):
+    """转发 LIVE SELECT 通知到 WebSocket 客户端
+
+    SDK 的 subscribe_live() 只返回 record 数据（不含 action），
+    因此 action 统一标记为 "UPDATE"。
+    """
     import time
     from datetime import datetime
+    from surrealdb.data.types.record_id import RecordID
+
     try:
-        # subscribe_live 返回 coroutine，需要 await
         subscription = await db_manager.db.subscribe_live(query_uuid)
-        async for notification in subscription:
+
+        async for record in subscription:
             if not reliable_ws.is_connected:
                 break
-            
-            # 格式化消息为插件端期望的格式
-            action = notification.get("action", "").upper()
-            result = notification.get("result", {})
-            
-            # 处理 datetime 对象
-            for key, value in result.items():
+
+            if not isinstance(record, dict):
+                continue
+
+            if record.get("tenant_id") != tenant_id:
+                continue
+
+            for key, value in list(record.items()):
                 if isinstance(value, datetime):
-                    result[key] = value.isoformat()
-            
-            # 转换消息格式
+                    record[key] = value.isoformat()
+                elif isinstance(value, RecordID):
+                    record[key] = f"{value.table_name}:{value.id}"
+
             change_message = {
                 "type": "memory_change",
-                "action": action,
-                "data": result,
+                "action": "UPDATE",
+                "data": record,
                 "timestamp": time.time()
             }
-            
-            logger.info("[WebSocket] 推送变更: action=%s, id=%s", action, result.get("id"))
+
+            logger.info("[WebSocket] 推送变更: id=%s", record.get("id"))
             await reliable_ws.send_json(change_message)
     except asyncio.CancelledError:
         logger.debug("[WebSocket] 转发任务已取消")
