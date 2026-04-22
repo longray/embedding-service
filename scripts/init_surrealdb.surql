@@ -41,6 +41,9 @@ DEFINE FIELD IF NOT EXISTS project_id  ON memory TYPE option<string>
     -- 项目标识。"global" = 跨项目通用记忆
 
 -- 来源追踪字段（用于去重和审计）
+DEFINE FIELD IF NOT EXISTS local_id    ON memory TYPE option<string>;
+    -- 客户端本地 ID（用于多设备同步和冲突检测）
+
 DEFINE FIELD IF NOT EXISTS source_id   ON memory TYPE option<string>;
     -- 客户端原始 ID（如 "mem_1709123456789_abc12345"），UNIQUE 索引防止重复上传
 
