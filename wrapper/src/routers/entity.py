@@ -648,17 +648,23 @@ async def delete_entity(entity_id: str, tenant_id: str = Query(default="default"
     try:
         db = state.memory_manager.db
 
-        
+        # 将字符串 ID 转换为 RecordID 对象
+        if ":" in entity_id:
+            parts = entity_id.split(":", 1)
+            entity_record_id = RecordID(parts[0], parts[1])
+        else:
+            entity_record_id = entity_id
+
         check = await db.query(
             "SELECT id FROM entity WHERE id = $entity_id AND tenant_id = $tenant_id",
-            {"entity_id": entity_id, "tenant_id": tenant_id}
+            {"entity_id": entity_record_id, "tenant_id": tenant_id}
         )
         if not check or len(check) == 0:
             raise HTTPException(status_code=404, detail="Entity 不存在")
 
         # BL-B-100: 使用事务执行删除操作
         async with transaction(db, "Entity"):
-            await db.delete(entity_id)
+            await db.delete(entity_record_id)
             return {"success": True, "message": "Entity 已删除"}
 
     except HTTPException:

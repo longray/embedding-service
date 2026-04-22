@@ -495,7 +495,7 @@ async def delete_atom(atom_id: str, tenant_id: str = Query(default="default")):
 
         # BL-B-100: 使用事务执行删除操作
         async with transaction(db, "Atom"):
-            await db.delete(atom_id)
+            await db.delete(atom_record_id)
             return {"success": True, "message": "Atom 已删除"}
 
     except HTTPException:
