@@ -28,10 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 添加客户端 `tenant_id` 过滤
 
 - **source_id 去重更新缺失** (TC-LOOKUP-001)
-  - 修复内容去重时 `source_id` 和 `local_id` 未更新的问题
-  - 修改 hash 去重逻辑，调用 `_update_memory` 更新已有记录
-  - 在 `_update_memory` SQL 中添加 `source_id` 和 `local_id` 字段
-  - 确保去重后通过新 `source_id` 可以正确查找到记忆
+  - 去重时不再更新 `source_id` 和 `local_id`，保持引用完整性
+  - 新增 `dedup_info` 返回字段，包含已有记忆的 `memory_id`、`source_id`、`local_id`
+  - 插件端可根据 `dedup_info` 自行决策：直接使用已有记录或删除重建
+  - 旧 `source_id` 保持有效，所有引用不会断裂
 
 ## [2.8.2] - 2026-04-22
 
