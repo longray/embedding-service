@@ -240,15 +240,12 @@ class CrudMixin:
                     existing_records = self._extract_records(existing)
                     if existing_records:
                         existing_id = str(existing_records[0].get("id", ""))
-                        failed_count += 1
-                        skipped.append(
-                            {
-                                "local_id": memory.get("local_id") or memory.get("source_id"),
-                                "existing_id": existing_id,
-                                "reason": "hash",
-                                "similarity": None,
-                            }
-                        )
+
+                        # TC-LOOKUP-001: 更新已有记录的 source_id 和 local_id
+                        await self._update_memory(existing_id, memory_data)
+                        memory_ids.append(existing_id)
+                        updated_count += 1
+                        success_count += 1
                         continue
 
                     # Phase A-B7: 语义相似度检查 + 智能决策
@@ -415,6 +412,8 @@ class CrudMixin:
                 tags = $tags,
                 metadata = $metadata,
                 content_hash = $content_hash,
+                source_id = $source_id,
+                local_id = $local_id,
                 source_timestamp = $source_timestamp,
                 classification_confidence = $classification_confidence,
                 mtime = $mtime
@@ -431,6 +430,8 @@ class CrudMixin:
                 "tags": memory_data.get("tags", []),
                 "metadata": memory_data.get("metadata", {}),
                 "content_hash": memory_data.get("content_hash", ""),
+                "source_id": memory_data.get("source_id"),
+                "local_id": memory_data.get("local_id"),
                 "source_timestamp": memory_data.get("source_timestamp"),
                 "classification_confidence": memory_data.get("classification_confidence"),
                 "mtime": memory_data.get("mtime"),
