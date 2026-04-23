@@ -33,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 插件端可根据 `dedup_info` 自行决策：直接使用已有记录或删除重建
   - 旧 `source_id` 保持有效，所有引用不会断裂
 
+- **图谱关系悬空问题** (TC-GRAPH-001)
+  - 创建关系前验证源节点和目标节点是否存在
+  - 使用 `type::record()` 确保 SurrealDB 3.0 RecordID 正确比较
+  - 返回清晰的 400 错误和同步指引
+  - 防止"悬空关系"导致图谱遍历失败
+
 ## [2.8.2] - 2026-04-22
 
 ### Fixed
