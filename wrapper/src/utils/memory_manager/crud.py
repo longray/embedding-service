@@ -243,6 +243,10 @@ class CrudMixin:
                         existing_record = existing_records[0]
                         existing_id = str(existing_record.get("id", ""))
                         failed_count += 1
+
+                        # 注意：skipped 和 dedup_info 中的 source_id/local_id
+                        # 应该返回前端传入的值（来自 memory 对象），而不是数据库中已有记录的值。
+                        # 这样前端才能将本地条目标记为 synced，关联到已有的后端记忆。
                         skipped.append(
                             {
                                 "local_id": memory.get("local_id") or memory.get("source_id"),
@@ -252,10 +256,14 @@ class CrudMixin:
                             }
                         )
                         # TC-LOOKUP-001: 记录去重信息，让插件端自行决策
+                        # 返回前端传入的 source_id/local_id，便于前端关联
+                        # 同时返回已有记录的 source_id/local_id，便于了解已有记录状态
                         dedup_info.append({
-                            "memory_id": existing_id,
-                            "source_id": existing_record.get("source_id"),
-                            "local_id": existing_record.get("local_id"),
+                            "existing_memory_id": existing_id,
+                            "existing_source_id": existing_record.get("source_id"),
+                            "existing_local_id": existing_record.get("local_id"),
+                            "request_source_id": memory.get("source_id"),
+                            "request_local_id": memory.get("local_id"),
                             "reason": "content_hash",
                         })
                         continue
