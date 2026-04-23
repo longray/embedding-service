@@ -68,6 +68,27 @@ class RelationsMixin:
             span.set_attribute("tenant.id", effective_tenant_id)
 
             try:
+                # TC-GRAPH-001: 验证节点是否存在，防止悬空关系
+                source_check = await self._db_query(
+                    "SELECT id FROM memory WHERE id = type::record($id) LIMIT 1",
+                    {"id": from_ref}
+                )
+                if not self._extract_records(source_check):
+                    raise ValidationError(
+                        f"Source memory {from_id} not found. "
+                        f"Please sync it first using incremental_sync()"
+                    )
+
+                target_check = await self._db_query(
+                    "SELECT id FROM memory WHERE id = type::record($id) LIMIT 1",
+                    {"id": to_ref}
+                )
+                if not self._extract_records(target_check):
+                    raise ValidationError(
+                        f"Target memory {to_id} not found. "
+                        f"Please sync it first using incremental_sync()"
+                    )
+
                 set_clauses = [
                     "relationship_type = $rel_type",
                     "weight = $weight",
@@ -100,6 +121,8 @@ class RelationsMixin:
                         "weight": weight,
                     }
                 return {"error": "No relation created"}
+            except ValidationError:
+                raise
             except Exception as e:
                 span.record_exception(e)
                 raise DatabaseError(f"Failed to create relation: {e!s}") from e
