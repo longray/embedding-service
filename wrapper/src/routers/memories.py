@@ -52,6 +52,39 @@ async def upload_memories(request: MemoryUploadRequest):
         raise HTTPException(status_code=500, detail=f"上传失败: {e!s}") from e
 
 
+@router.get("/memories/stats")
+async def get_memories_stats(tenant_id: str = "default"):
+    memory_count = 0
+    relation_count = 0
+
+    if state.memory_manager and state.memory_manager.db:
+        try:
+            mem_result = await state.memory_manager._db_query(
+                "SELECT count() AS total FROM memory WHERE tenant_id = $tenant_id GROUP ALL",
+                {"tenant_id": tenant_id},
+            )
+            records = state.memory_manager._extract_records(mem_result)
+            if records:
+                memory_count = records[0].get("total", 0)
+
+            rel_result = await state.memory_manager._db_query(
+                "SELECT count() AS total FROM memory_relation WHERE tenant_id = $tenant_id GROUP ALL",
+                {"tenant_id": tenant_id},
+            )
+            rel_records = state.memory_manager._extract_records(rel_result)
+            if rel_records:
+                relation_count = rel_records[0].get("total", 0)
+        except Exception as e:
+            logger.warning("Failed to query memory stats: %s", e)
+
+    return {
+        "status": "success",
+        "tenant_id": tenant_id,
+        "total_memories": memory_count,
+        "total_relations": relation_count,
+    }
+
+
 @router.delete("/memories/clear")
 async def clear_memories(request: Request):
     if not state.memory_manager:
