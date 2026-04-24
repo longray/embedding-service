@@ -240,8 +240,9 @@ async def query_references(
             if type:
                 count_query += " AND type = $type"
                 count_params["type"] = type
-            count_result = await db.query(count_query, count_params)
-            total = count_result[0]["count"] if count_result and len(count_result) > 0 else 0
+            count_result = await db.query(f"{count_query} GROUP ALL", count_params)
+            count_records = extract_records(count_result)
+            total = count_records[0].get("count", 0) if count_records else 0
 
             # 查询数据
             query = "SELECT * FROM reference WHERE tenant_id = $tenant_id"
@@ -254,20 +255,17 @@ async def query_references(
 
         raw_data = result or []
 
-        # 转换数据格式以匹配 Pydantic 模型
         data = []
         for record in raw_data:
-            # 处理 RecordID
             raw_id = record.get("id")
             if raw_id and hasattr(raw_id, "table_name"):
                 record["id"] = f"{raw_id.table_name}:{raw_id.id}"
-            # 处理 in/out RecordID
-            for field in ["in", "out"]:
-                if field in record and record[field] is not None:
-                    field_id = record[field]
-                    if hasattr(field_id, "table_name"):
-                        record[field] = f"{field_id.table_name}:{field_id.id}"
-            # 处理 datetime
+            for edge_field, api_field in [("in", "from_id"), ("out", "to_id")]:
+                field_id = record.get(edge_field)
+                if field_id is not None and hasattr(field_id, "table_name"):
+                    record[api_field] = f"{field_id.table_name}:{field_id.id}"
+                else:
+                    record[api_field] = str(field_id) if field_id is not None else None
             for field in ["created_at"]:
                 if field in record and record[field] is not None:
                     if hasattr(record[field], "isoformat"):
