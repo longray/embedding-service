@@ -233,8 +233,8 @@ async def list_atoms(
         params: dict[str, Any] = {"tenant_id": tenant_id}
 
         if query:
-            conditions.append("$query IN name")
-            params["query"] = query
+            conditions.append("$name_query IN name")
+            params["name_query"] = query
         if type:
             conditions.append("type = $atom_type")
             params["atom_type"] = type
@@ -245,16 +245,19 @@ async def list_atoms(
         where_clause = " AND ".join(conditions)
 
         count_result = await db.query(
-            f"SELECT count() FROM atom WHERE {where_clause}",
+            f"SELECT count() AS total FROM atom WHERE {where_clause} GROUP ALL",
             params,
         )
-        total = count_result[0]["count"] if count_result else 0
+        records = state.memory_manager._extract_records(count_result)
+        total = records[0].get("total", 0) if records else 0
 
         result = await db.query(
             f"SELECT * FROM atom WHERE {where_clause} ORDER BY created_at DESC LIMIT {take} START {skip}",
             params,
         )
         raw_data = result or []
+        if total == 0 and raw_data:
+            total = len(raw_data)
 
         data = []
         for record in raw_data:

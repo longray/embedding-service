@@ -432,7 +432,7 @@ async def list_entities(
             take = page_size
 
         # 查询总数
-        count_query = "SELECT count() FROM entity WHERE tenant_id = $tenant_id"
+        count_query = "SELECT count() AS total FROM entity WHERE tenant_id = $tenant_id"
         count_params = {"tenant_id": tenant_id}
 
         if type:
@@ -445,8 +445,9 @@ async def list_entities(
             count_query += " AND status = $status"
             count_params["status"] = status
 
-        count_result = await db.query(count_query, count_params)
-        total = count_result[0]["count"] if count_result and len(count_result) > 0 else 0
+        count_result = await db.query(f"{count_query} GROUP ALL", count_params)
+        count_records = state.memory_manager._extract_records(count_result)
+        total = count_records[0].get("total", 0) if count_records else 0
 
         query = "SELECT * FROM entity WHERE tenant_id = $tenant_id"
         params = {"tenant_id": tenant_id}
