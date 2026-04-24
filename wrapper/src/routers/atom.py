@@ -205,6 +205,84 @@ async def create_atom(request: AtomCreateRequest):
         raise HTTPException(status_code=500, detail=f"创建失败: {e!s}") from e
 
 
+@router.get("/atoms", response_model=PaginatedAtomResponse)
+async def list_atoms(
+    query: str | None = Query(default=None, description="按名称过滤（子串匹配）"),
+    type: str | None = Query(default=None, description="Atom 类型过滤"),
+    project: str | None = Query(default=None, description="项目过滤"),
+    tenant_id: str = Query(default="default"),
+    page: int = Query(default=1, ge=1, description="页码"),
+    page_size: int = Query(default=50, ge=1, le=100, description="每页大小"),
+    limit: int | None = Query(default=None, ge=1, le=100, description="返回数量限制（向后兼容）"),
+    offset: int | None = Query(default=None, ge=0, description="偏移量（向后兼容）"),
+):
+    if not state.memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        db = state.memory_manager.db
+
+        if limit is not None and offset is not None:
+            skip = offset
+            take = limit
+        else:
+            skip = (page - 1) * page_size
+            take = page_size
+
+        conditions = ["tenant_id = $tenant_id"]
+        params: dict[str, Any] = {"tenant_id": tenant_id}
+
+        if query:
+            conditions.append("$query IN name")
+            params["query"] = query
+        if type:
+            conditions.append("type = $atom_type")
+            params["atom_type"] = type
+        if project:
+            conditions.append("project = $project")
+            params["project"] = project
+
+        where_clause = " AND ".join(conditions)
+
+        count_result = await db.query(
+            f"SELECT count() FROM atom WHERE {where_clause}",
+            params,
+        )
+        total = count_result[0]["count"] if count_result else 0
+
+        result = await db.query(
+            f"SELECT * FROM atom WHERE {where_clause} ORDER BY created_at DESC LIMIT {take} START {skip}",
+            params,
+        )
+        raw_data = result or []
+
+        data = []
+        for record in raw_data:
+            raw_id = record.get("id")
+            if raw_id and hasattr(raw_id, "table_name"):
+                record["id"] = f"{raw_id.table_name}:{raw_id.id}"
+            for field in ["created_at", "updated_at"]:
+                if field in record and record[field] is not None:
+                    if hasattr(record[field], "isoformat"):
+                        record[field] = record[field].isoformat()
+            data.append(record)
+
+        current_page = page if limit is None else (skip // take) + 1
+        has_more = (skip + len(data)) < total
+
+        return PaginatedAtomResponse(
+            data=data,
+            total=total,
+            page=current_page,
+            page_size=take,
+            has_more=has_more,
+        )
+
+    except Exception as e:
+        logger.error("[Atom] 列表查询失败: %s", e)
+        raise HTTPException(status_code=500, detail=f"查询失败: {e!s}") from e
+
+
 @router.get("/atoms/{atom_id}")
 async def get_atom(atom_id: str, tenant_id: str = Query(default="default")):
     """获取 Atom 详情"""

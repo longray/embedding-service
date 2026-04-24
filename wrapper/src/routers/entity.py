@@ -448,8 +448,7 @@ async def list_entities(
         count_result = await db.query(count_query, count_params)
         total = count_result[0]["count"] if count_result and len(count_result) > 0 else 0
 
-        # 查询数据
-        query = "SELECT id, type, tenant_id, abstract, tags, status, project, created_at FROM entity WHERE tenant_id = $tenant_id"
+        query = "SELECT * FROM entity WHERE tenant_id = $tenant_id"
         params = {"tenant_id": tenant_id}
 
         if type:
@@ -467,14 +466,16 @@ async def list_entities(
         result = await db.query(query, params)
         raw_data = result or []
 
-        # 转换数据格式以匹配 Pydantic 模型
         data = []
         for record in raw_data:
-            # 处理 RecordID
             raw_id = record.get("id")
             if raw_id and hasattr(raw_id, "table_name"):
                 record["id"] = f"{raw_id.table_name}:{raw_id.id}"
-            # 处理 datetime
+            if record.get("atoms"):
+                record["atoms"] = [
+                    f"{a.table_name}:{a.id}" if hasattr(a, "table_name") else str(a)
+                    for a in record["atoms"]
+                ]
             for field in ["created_at", "updated_at"]:
                 if field in record and record[field] is not None:
                     if hasattr(record[field], "isoformat"):
