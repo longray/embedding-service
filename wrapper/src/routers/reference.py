@@ -126,37 +126,33 @@ async def create_reference(request: ReferenceCreateRequest):
         if not to_records:
             raise ValidationError(f"to_id 不存在: {request.to_id}")
 
-        content_fields = {
-            "rel_type": request.type,
+        # Build CONTENT object for RELATE
+        # SurrealDB Python SDK works better with CONTENT than SET with variables
+        content_obj = {
+            "type": request.type,
             "tenant_id": request.tenant_id,
             "weight": request.weight,
         }
         if request.file_path is not None:
-            content_fields["file_path"] = request.file_path
+            content_obj["file_path"] = request.file_path
         if request.line is not None:
-            content_fields["line"] = request.line
+            content_obj["line"] = request.line
         if request.column is not None:
-            content_fields["column"] = request.column
+            content_obj["column"] = request.column
         if request.description is not None:
-            content_fields["description"] = request.description
+            content_obj["description"] = request.description
         if request.metadata:
-            content_fields["metadata"] = request.metadata
+            content_obj["metadata"] = request.metadata
 
-        set_parts = []
-        for k in content_fields:
-            # type 是 SurrealDB 保留字，需要转义
-            if k == "rel_type":
-                set_parts.append(f"`type` = ${k}")
-            else:
-                set_parts.append(f"{k} = ${k}")
+        import json
+        content_json = json.dumps(content_obj)
         query = f"""
-        RELATE {request.from_id}->reference->{request.to_id} SET {', '.join(set_parts)}
+        RELATE {request.from_id}->reference->{request.to_id} CONTENT {content_json}
         """
-        params = content_fields
 
         # BL-B-100: 使用事务执行创建操作
         async with transaction(db, "Reference"):
-            result = await db.query(query, params)
+            result = await db.query(query)
 
             if not result:
                 raise HTTPException(status_code=500, detail="创建关系失败")

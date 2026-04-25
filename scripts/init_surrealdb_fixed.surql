@@ -119,40 +119,6 @@ DEFINE INDEX IF NOT EXISTS memory_source_id ON memory FIELDS source_id UNIQUE;
 DEFINE INDEX IF NOT EXISTS memory_tenant_type ON memory FIELDS tenant_id, type;
 DEFINE INDEX IF NOT EXISTS memory_tenant_project ON memory FIELDS tenant_id, project_id;
 
--- ==================== memory_relation 边表 (图关系) ====================
-
--- 记忆间的关联关系表（SurrealDB RELATE 图边表）
--- 使用 TYPE RELATION 定义边，IN/OUT 限制端点为 memory 表
-DEFINE TABLE IF NOT EXISTS memory_relation TYPE RELATION IN memory OUT memory SCHEMAFULL;
-
--- 关系类型: related | follow_up | elaboration | contradiction | reference | derived_from
-DEFINE FIELD IF NOT EXISTS relationship_type ON memory_relation TYPE string
-    DEFAULT 'related';
-
--- 关系权重: 0.0-1.0，表示关联强度
-DEFINE FIELD IF NOT EXISTS weight ON memory_relation TYPE float
-    DEFAULT 0.5;
-
--- 多租户字段（与 memory 表保持一致）
-DEFINE FIELD IF NOT EXISTS tenant_id ON memory_relation TYPE string
-    DEFAULT 'default';
-
--- 关系描述（可选，如 "基于此决策的后续分析"）
-DEFINE FIELD IF NOT EXISTS description ON memory_relation TYPE option<string>;
-
--- 扩展元数据
-DEFINE FIELD IF NOT EXISTS metadata ON memory_relation TYPE object FLEXIBLE
-    DEFAULT {};
-
--- 创建时间
-DEFINE FIELD IF NOT EXISTS created_at ON memory_relation TYPE datetime
-    DEFAULT time::now();
-
--- 边表索引
-DEFINE INDEX IF NOT EXISTS relation_type ON memory_relation FIELDS relationship_type;
-DEFINE INDEX IF NOT EXISTS relation_tenant ON memory_relation FIELDS tenant_id;
-DEFINE INDEX IF NOT EXISTS relation_tenant_type ON memory_relation FIELDS tenant_id, relationship_type;
-
 -- ==================== project 表 ====================
 
 DEFINE TABLE IF NOT EXISTS project TYPE NORMAL SCHEMAFULL;
