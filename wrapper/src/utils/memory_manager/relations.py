@@ -89,26 +89,33 @@ class RelationsMixin:
                         f"Please sync it first using incremental_sync()"
                     )
 
-                # Build CONTENT object for RELATE
-                # SurrealDB Python SDK works better with CONTENT than SET with variables
-                content_obj = {
+                # Use db.insert_relation() for better SDK compatibility
+                # This avoids the RELATE ... SET parameter binding limitation
+                from surrealdb import RecordID as SurrealRecordID
+                
+                relation_data = {
+                    "in": SurrealRecordID.parse(from_ref),
+                    "out": SurrealRecordID.parse(to_ref),
                     "type": type,
                     "weight": float(weight),
                     "tenant_id": effective_tenant_id,
                 }
                 if description:
-                    content_obj["description"] = description
+                    relation_data["description"] = description
                 if metadata:
-                    content_obj["metadata"] = metadata
+                    relation_data["metadata"] = metadata
 
-                content_json = json.dumps(content_obj)
-                q = f"RELATE {from_ref}->reference->{to_ref} CONTENT {content_json};"
-                result = await self._db_query(q)
+                result = await self._db.insert_relation("reference", relation_data)
 
-                records = self._extract_records(result)
-                if records:
+                if result:
+                    # insert_relation returns a list with the created record
+                    # Extract the first record from the list
+                    if isinstance(result, list) and len(result) > 0:
+                        record = result[0]
+                    else:
+                        record = result
                     return {
-                        "id": str(records[0].get("id", "")),
+                        "id": str(record.get("id", "")),
                         "from": from_ref,
                         "to": to_ref,
                         "type": type,
