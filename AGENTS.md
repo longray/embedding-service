@@ -125,7 +125,7 @@ docker-compose up -d
    - ❌ 错误：`**验证方式**` 紧跟 ` ```bash`
    - ✅ 正确：`**验证方式**` 后空一行，再写 ` ```bash`
    - 关闭 ` ``` ` 后也必须空一行再写其他内容
-2. **MD032 (blanks-around-lists)**：列表（`- ` 或 `* ` 开头）的**前后必须各有一个空行**。
+2. **MD032 (blanks-around-lists)**: 列表（`-` 或 `*` 开头）的**前后必须各有一个空行**。
    - ❌ 错误：文本后直接跟列表
    - ✅ 正确：文本后空一行，再开始列表
 3. **MD037 (no-space-in-emphasis)**：强调标记（`**` 或 `_`）内**不能有空格**。
@@ -161,6 +161,25 @@ docker-compose up -d
 
 ## 最近变更
 
+- **v3.2 架构升级**（当前）：
+  - 统一架构v3.2实施完成，服务端口迁移：17999 → 18008
+  - SurrealDB 3.0+ 语法升级（`COMPUTED`, `FULLTEXT`, `type::record()`）
+  - tree-sitter Query性能优化（3.32x提升），纳入代码分析
+  - 预计算服务（PrecomputeService）- AST解析、指纹、符号提取
+  - WebSocket实时同步（LIVE SELECT）- 记忆变更实时推送
+  - 单租户 + `tenant_id`预留字段（多租户物理隔离暂缓至SDK 2.0 stable）
+  - 四层架构（Atom/Entity/Relation/Backlog）保留v2.0设计
+  - 代码分析功能：CallSymbol提取、引用查询、代码地图、代码统计
+  - 文档整理：归档inbox/（49个临时通信）、v2.7同步文档
+- **v2.8.0**（已合入v3.2）：
+  - PrecomputeService完善
+  - Stub端点实现（11个stub端点）
+- **v2.7.1**（已合入v3.2）：
+  - SQL查询优化（RecordID统一、分批处理、embedding字段优化）
+  - 安全性修复
+- **v2.7.0**（已合入v3.2）：
+  - 多设备同步（指纹查询/同步预览/全量同步/冲突解决）
+  - 测试架构优化
 - **v2.6.0 质量治理**：
   - BL-35: `memory_manager.py` 1715行 → Mixin 模式 10 子模块
   - BL-28: 实现 `analyze_memory_code`（CodeAnalyzer 集成）

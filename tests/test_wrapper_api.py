@@ -1004,7 +1004,7 @@ class TestRelationsAPI:
             json={
                 "from_id": self.ids[0],
                 "to_id": self.ids[1],
-                "relationship_type": "follow_up",
+                "type": "follow_up",
                 "weight": 0.8,
                 "tenant_id": self.tenant,
                 "description": "从基础到进阶",
@@ -1013,7 +1013,7 @@ class TestRelationsAPI:
         assert response.status_code == 200
         data = response.json()
         assert "id" in data, f"创建关系应返回 id, got {data}"
-        assert data["relationship_type"] == "follow_up"
+        assert data["type"] == "follow_up"
         assert data["weight"] == 0.8
 
     @pytest.mark.asyncio
@@ -1029,7 +1029,7 @@ class TestRelationsAPI:
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["relationship_type"] == "related"
+        assert data["type"] == "related"
         assert data["weight"] == 0.5
 
     @pytest.mark.asyncio
@@ -1040,7 +1040,7 @@ class TestRelationsAPI:
             json={
                 "from_id": self.ids[0],
                 "to_id": self.ids[1],
-                "relationship_type": "invalid_type",
+                "type": "invalid_type",
                 "tenant_id": self.tenant,
             },
         )
@@ -1069,7 +1069,7 @@ class TestRelationsAPI:
             json={
                 "from_id": self.ids[0],
                 "to_id": self.ids[1],
-                "relationship_type": "follow_up",
+                "type": "follow_up",
                 "tenant_id": self.tenant,
             },
         )
@@ -1095,7 +1095,7 @@ class TestRelationsAPI:
             json={
                 "from_id": self.ids[0],
                 "to_id": self.ids[1],
-                "relationship_type": "elaboration",
+                "type": "elaboration",
                 "tenant_id": self.tenant,
             },
         )
@@ -1120,7 +1120,7 @@ class TestRelationsAPI:
             json={
                 "from_id": self.ids[0],
                 "to_id": self.ids[1],
-                "relationship_type": "related",
+                "type": "related",
                 "tenant_id": self.tenant,
             },
         )
@@ -1129,7 +1129,7 @@ class TestRelationsAPI:
             json={
                 "from_id": self.ids[2],
                 "to_id": self.ids[0],
-                "relationship_type": "reference",
+                "type": "reference",
                 "tenant_id": self.tenant,
             },
         )
@@ -1152,7 +1152,7 @@ class TestRelationsAPI:
             json={
                 "from_id": self.ids[0],
                 "to_id": self.ids[1],
-                "relationship_type": "follow_up",
+                "type": "follow_up",
                 "tenant_id": self.tenant,
             },
         )
@@ -1161,7 +1161,7 @@ class TestRelationsAPI:
             json={
                 "from_id": self.ids[0],
                 "to_id": self.ids[2],
-                "relationship_type": "reference",
+                "type": "reference",
                 "tenant_id": self.tenant,
             },
         )
@@ -1171,14 +1171,14 @@ class TestRelationsAPI:
             f"{WRAPER_MINIMAL_URL}/api/v1/memories/{self.ids[0]}/relations",
             json={
                 "direction": "outgoing",
-                "relationship_type": "follow_up",
+                "type": "follow_up",
                 "tenant_id": self.tenant,
             },
         )
         assert response.status_code == 200
         data = response.json()
         for rel in data["relations"]:
-            assert rel["relationship_type"] == "follow_up"
+            assert rel["type"] == "follow_up"
 
     @pytest.mark.asyncio
     async def test_delete_relation(self, client):
@@ -1189,7 +1189,7 @@ class TestRelationsAPI:
             json={
                 "from_id": self.ids[0],
                 "to_id": self.ids[1],
-                "relationship_type": "related",
+                "type": "related",
                 "tenant_id": self.tenant,
             },
         )
@@ -1207,7 +1207,7 @@ class TestRelationsAPI:
     @pytest.mark.asyncio
     async def test_delete_nonexistent_relation(self, client):
         """测试删除不存在的关系应返回 404"""
-        fake_id = f"memory_relation:nonexist_{self.uid}"
+        fake_id = f"reference:nonexist_{self.uid}"
         response = await client.delete(
             f"{WRAPER_MINIMAL_URL}/api/v1/memories/relations/{fake_id}",
             params={"tenant_id": self.tenant},
@@ -1223,7 +1223,7 @@ class TestRelationsAPI:
             json={
                 "from_id": self.ids[0],
                 "to_id": self.ids[1],
-                "relationship_type": "follow_up",
+                "type": "follow_up",
                 "tenant_id": self.tenant,
             },
         )
@@ -1249,7 +1249,7 @@ class TestRelationsAPI:
             json={
                 "from_id": self.ids[0],
                 "to_id": self.ids[1],
-                "relationship_type": "follow_up",
+                "type": "follow_up",
                 "tenant_id": self.tenant,
             },
         )
@@ -1258,7 +1258,7 @@ class TestRelationsAPI:
             json={
                 "from_id": self.ids[1],
                 "to_id": self.ids[2],
-                "relationship_type": "elaboration",
+                "type": "elaboration",
                 "tenant_id": self.tenant,
             },
         )
@@ -1295,7 +1295,7 @@ class TestRelationsAPI:
                 json={
                     "from_id": self.ids[0],
                     "to_id": self.ids[1],
-                    "relationship_type": rel_type,
+                    "type": rel_type,
                     "tenant_id": self.tenant,
                 },
             )
@@ -1312,7 +1312,7 @@ class TestRelationsAPI:
             json={
                 "from_id": self.ids[0],
                 "to_id": self.ids[1],
-                "relationship_type": "related",
+                "type": "related",
                 "tenant_id": self.tenant,
             },
         )

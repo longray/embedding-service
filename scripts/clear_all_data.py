@@ -58,7 +58,7 @@ async def clear_surrealdb():
             await db.query("DELETE memories;")
             print(f"✅ SurrealDB 已清空 {count} 条记录")
 
-        await db.query("DELETE memory_relation;")
+        await db.query("DELETE reference;")
         print(f"✅ SurrealDB 已清空所有关系")
 
         await db.query("DELETE conflict;")

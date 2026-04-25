@@ -34,6 +34,7 @@ class MeiliSyncMixin:
         # 分层内容字段 (L0/L1/L2)
         doc["abstract"] = memory_data.get("abstract", "")
         doc["overview"] = memory_data.get("overview", "")
+        doc["file_path"] = memory_data.get("file_path")
 
         # 代码分析字段 (BL-CA-01~04, BL-CA-18)
         metadata = memory_data.get("metadata", {})

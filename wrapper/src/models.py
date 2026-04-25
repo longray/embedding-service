@@ -54,6 +54,7 @@ class MemoryItem(BaseModel):
     local_id: str | None = Field(default=None, description="插件端本地ID (ULID)")
     source_timestamp: str | None = Field(default=None, description="来源时间戳")
     classification_confidence: float | None = Field(default=None, description="分类置信度")
+    file_path: str | None = Field(default=None, description="文件路径（代码分析场景）")
 
 
 class MemoryUploadRequest(BaseModel):
@@ -77,7 +78,7 @@ class MemorySearchRequest(BaseModel):
 class RelationCreateRequest(BaseModel):
     from_id: str = Field(..., description="源记忆 ID")
     to_id: str = Field(..., description="目标记忆 ID")
-    relationship_type: str = Field(default="related", description="关系类型")
+    type: str = Field(default="related", description="关系类型")
     weight: float = Field(default=0.5, ge=0.0, le=1.0, description="关系权重")
     tenant_id: str = Field(default="default", description="租户ID")
     description: str | None = Field(default=None, description="关系描述")
@@ -85,14 +86,14 @@ class RelationCreateRequest(BaseModel):
 
 class RelationQueryRequest(BaseModel):
     direction: str = Field(default="both", description="查询方向 (outgoing/incoming/both)")
-    relationship_type: str | None = Field(default=None, description="按关系类型过滤")
+    type: str | None = Field(default=None, description="按关系类型过滤")
     tenant_id: str = Field(default="default", description="租户ID")
     limit: int = Field(default=50, ge=1, le=200)
 
 
 class GraphTraversalRequest(BaseModel):
     depth: int = Field(default=1, ge=1, le=3, description="遍历深度")
-    relationship_type: str | None = Field(default=None, description="按关系类型过滤")
+    type: str | None = Field(default=None, description="按关系类型过滤")
     tenant_id: str = Field(default="default", description="租户ID")
     limit: int = Field(default=20, ge=1, le=100)
 

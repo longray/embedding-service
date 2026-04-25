@@ -44,7 +44,7 @@
 
 ### 2.1 组件关系
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                  PrecomputeService                          │
 ├─────────────────────────────────────────────────────────────┤
@@ -69,11 +69,11 @@
 │  └─────────────────────────────────────────────────────┘  │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
-```
+```text
 
 ### 2.2 数据流
 
-```
+```text
 1. 触发
    File Save ──► PrecomputeService.precompute()
 
@@ -97,7 +97,7 @@
 
 8. 监控
    Record ──► performance_log
-```
+```text
 
 ---
 
@@ -491,7 +491,7 @@ class PrecomputeService:
             "duration": duration_ms,
             "memory": memory_mb
         })
-```
+```text
 
 ### 3.2 PerformanceMonitor
 
@@ -539,7 +539,7 @@ class PerformanceMonitor:
                 "memory": end_memory - start_memory,
                 "cpu": cpu_usage
             })
-```
+```text
 
 ### 3.3 ConcurrencyControl
 
@@ -570,7 +570,7 @@ class ConcurrencyControl:
                 return await func()
         finally:
             self.processing.discard(key)
-```
+```text
 
 ---
 
@@ -589,7 +589,7 @@ async def on_file_save(file_path: str, source_code: str, tenant_id: str = "defau
 
 # 3. 批量触发
 # opencode-memory analyze --all --tenant-id=default
-```
+```text
 
 ### 4.2 配置
 
@@ -622,7 +622,7 @@ class PrecomputeConfig:
     # 性能
     MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
     TIMEOUT = 300  # 5分钟
-```
+```text
 
 **使用示例**
 
@@ -641,7 +641,7 @@ result = builder.batch_relate(relations, batch_size=100)
 # 3. Meilisearch 批处理
 client = MeilisearchSDKClient()
 await client.batch_add_documents(documents, batch_size=100)
-```
+```text
 
 **参数调优建议**
 
@@ -682,7 +682,7 @@ def calculate_optimal_batch_size(
     optimal = max(min(memory_based, count_based, 100), 10)
     
     return optimal
-```
+```text
 
 ---
 
@@ -704,7 +704,7 @@ async def test_precompute_service():
 
     assert result["success"] is True
     assert result["atoms_count"] == 1
-```
+```text
 
 ### 5.2 性能测试
 
@@ -721,7 +721,7 @@ async def test_precompute_performance():
 
     assert result["duration_ms"] < 10000  # < 10s
     assert result["memory_mb"] < 100  # < 100MB
-```
+```text
 
 ### 4.3 关系创建实现
 
@@ -729,7 +729,7 @@ async def test_precompute_performance():
 
 **调用关系提取流程**
 
-```
+```text
 1. AST 解析
    Source Code ──► tree-sitter ──► AST
 
@@ -749,7 +749,7 @@ async def test_precompute_performance():
 
 6. 批量创建
    RELATE caller->reference->callee
-```
+```text
 
 **核心算法代码**
 
@@ -822,13 +822,13 @@ class RelationBuilder:
             "failed": failed,
             "batches": batches,
         }
-```
+```text
 
 #### 4.3.2 循环检测算法
 
 **DFS 三色标记法**
 
-```
+```text
 白色：未访问
 灰色：正在访问（在递归栈中）
 黑色：已访问完成
@@ -836,7 +836,7 @@ class RelationBuilder:
 检测原理：
 - 遇到灰色节点 = 发现循环
 - 时间复杂度: O(V+E)
-```
+```text
 
 **实现代码**
 
@@ -888,7 +888,7 @@ class CycleDetector:
         
         path.pop()
         rec_stack.remove(node)
-```
+```text
 
 #### 4.3.3 权重计算说明
 
@@ -934,7 +934,7 @@ class WeightCalculator:
         total = freq_weight + comp_weight + param_weight + cross_weight
         
         return min(total, 1.0)
-```
+```text
 
 #### 4.3.4 关系创建测试
 
@@ -1059,7 +1059,7 @@ class TestCreateRelations:
         
         # 自调用不应该创建关系
         mock_db.query.assert_not_called()
-```
+```text
 
 ---
 

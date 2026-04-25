@@ -94,6 +94,7 @@ dependencies = [
 ### surrealdb (Python)
 
 **选择 `>=1.0.8,<1.1.0` 的原因**:
+
 - 1.0.8 是当前最新稳定版
 - 1.0.x 系列 API 稳定
 - 避免 1.1.0 可能引入的重大变更
@@ -102,6 +103,7 @@ dependencies = [
 ### websockets (Python)
 
 **选择 `>=12.0,<13.0` 的原因**:
+
 - 12.x 系列支持 Python 3.10+
 - 与 FastAPI WebSocket 兼容
 - 13.0 可能引入 API 变更
@@ -109,17 +111,20 @@ dependencies = [
 ### tree-sitter (Python)
 
 **选择 `>=0.25.0,<0.26.0` 的原因**:
+
 - 0.25.x 是最新稳定版本（2025年发布）
 - 包含性能优化和 bug 修复
 - Python 版本要求 >=3.10（与项目一致）
 
 **语言包版本对齐**:
+
 - tree-sitter 核心: `>=0.25.0,<0.26.0`
 - python/javascript/go: `>=0.25.0,<0.26.0` (同步)
 - typescript/java: `>=0.23.0,<0.24.0` (稍落后但稳定)
 - rust: `>=0.24.0,<0.25.0` (中间版本)
 
 **⚠️ 升级注意事项**:
+
 - 从 0.22.x 升级到 0.25.x 是重大版本变更
 - 需要测试 API 兼容性
 - 查看 [迁移指南](https://github.com/tree-sitter/py-tree-sitter/blob/master/CHANGELOG.md)
@@ -127,6 +132,7 @@ dependencies = [
 ### ws (Node.js)
 
 **保持 `^8.20.0` 的原因**:
+
 - 8.20.0 是 npm 最新稳定版
 - 与文档中的版本一致
 - 无需变更

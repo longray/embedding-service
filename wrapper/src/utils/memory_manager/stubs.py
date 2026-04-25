@@ -712,7 +712,7 @@ class StubsMixin:
         return dependencies[:100]  # 限制数量
 
     async def _extract_call_dependencies(self, files: list[dict], project_id: str, tenant_id: str) -> list[dict]:
-        """从 memory_relation 表提取 calls 关系作为模块依赖"""
+        """从 reference 表提取 calls 关系作为模块依赖"""
         dependencies = []
 
         # 获取所有文件的 memory_id
@@ -742,10 +742,10 @@ class StubsMixin:
             SELECT
                 in AS from_id,
                 out AS to_id,
-                relationship_type,
+                type,
                 metadata
-            FROM memory_relation
-            WHERE relationship_type = 'calls'
+            FROM reference
+            WHERE type = 'calls'
                 AND in IN array::map($file_ids, |$id| type::record($id))
             LIMIT 100
         """

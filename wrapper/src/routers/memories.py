@@ -68,7 +68,7 @@ async def get_memories_stats(tenant_id: str = "default"):
                 memory_count = records[0].get("total", 0)
 
             rel_result = await state.memory_manager._db_query(
-                "SELECT count() AS total FROM memory_relation WHERE tenant_id = $tenant_id GROUP ALL",
+                "SELECT count() AS total FROM reference WHERE tenant_id = $tenant_id GROUP ALL",
                 {"tenant_id": tenant_id},
             )
             rel_records = state.memory_manager._extract_records(rel_result)
@@ -115,7 +115,7 @@ async def clear_memories(request: Request):
 
         logger.warning("[Clear] 清空 SurrealDB...")
         await state.memory_manager._db.query("DELETE memory;")
-        await state.memory_manager._db.query("DELETE memory_relation;")
+        await state.memory_manager._db.query("DELETE reference;")
         await state.memory_manager._db.query("DELETE conflict;")
 
         logger.info("[Clear] SurrealDB 已清空")
@@ -147,7 +147,7 @@ async def get_memory(
         if include_embedding:
             query = "SELECT * FROM type::record($memory_id) WHERE tenant_id = $tenant_id"
         else:
-            query = "SELECT id, content, abstract, overview, type, metadata, project_id, tags, source, content_hash, local_id, created_at, mtime FROM type::record($memory_id) WHERE tenant_id = $tenant_id"
+            query = "SELECT id, content, abstract, overview, type, metadata, project_id, tags, source, content_hash, local_id, created_at, mtime, file_path FROM type::record($memory_id) WHERE tenant_id = $tenant_id"
 
         result = await state.memory_manager._db_query(
             query,

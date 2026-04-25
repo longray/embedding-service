@@ -14,6 +14,8 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from ..utils.db_utils import extract_records
+
 logger = logging.getLogger(__name__)
 
 
@@ -285,8 +287,9 @@ class WeightCalculator:
                 {"caller": caller, "callee": callee, "tenant_id": tenant_id},
             )
 
-            if result and len(result) > 0:
-                weight = result[0].get("weight")
+            records = extract_records(result)
+            if records:
+                weight = records[0].get("weight")
                 self._logger.debug(
                     "[WeightCalculator] 从 DB 获取权重: %s->%s=%.2f",
                     caller,
@@ -378,9 +381,9 @@ class WeightCalculator:
             )
 
             loaded_count = 0
-            for record in result:
-                caller = record.get("in")
-                callee = record.get("out")
+            for record in extract_records(result):
+                caller = str(record.get("in", ""))
+                callee = str(record.get("out", ""))
                 weight = record.get("weight")
 
                 if caller and callee and weight is not None:

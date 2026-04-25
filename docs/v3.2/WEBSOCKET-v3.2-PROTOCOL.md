@@ -50,7 +50,7 @@ ACK（Acknowledgement）消息协议用于确保 WebSocket 消息的可靠投递
   },
   "_ackId": "550e8400-e29b-41d4-a716-446655440000"
 }
-```
+```text
 
 **字段说明**:
 
@@ -67,7 +67,7 @@ ACK（Acknowledgement）消息协议用于确保 WebSocket 消息的可靠投递
   "type": "ack",
   "_ackId": "550e8400-e29b-41d4-a716-446655440000"
 }
-```
+```text
 
 **字段说明**:
 
@@ -82,13 +82,13 @@ ACK（Acknowledgement）消息协议用于确保 WebSocket 消息的可靠投递
 
 ### 3.1 标准流程
 
-```
+```text
 服务端发送消息 ──► 客户端接收处理 ──► 客户端发送 ACK
      │                    │                    │
      │                    │                    │
    启动定时器           业务处理            清除定时器
   (5s 超时)           (建议 <100ms)        (停止重试)
-```
+```text
 
 ### 3.2 发送时机规则
 
@@ -117,7 +117,7 @@ ws.onmessage = (event) => {
     }));
   }
 };
-```
+```text
 
 ---
 
@@ -145,7 +145,7 @@ async def send_message_with_ack(websocket, message):
     else:
         # 3b. 超时，重试
         return await retry_send(websocket, message, ack_id)
-```
+```text
 
 ### 4.2 ACK 接收处理
 
@@ -159,7 +159,7 @@ async def handle_message(websocket, raw_message):
         if ack_id:
             # 标记 ACK 已收到
             ack_manager.handle_ack(ack_id)
-```
+```text
 
 ### 4.3 重试机制
 
@@ -192,7 +192,7 @@ async def handle_message(websocket, raw_message):
 
 ### 5.3 边界情况
 
-```
+```text
 情况 1: ACK 丢失
   服务端 ──► 客户端（消息到达）
   客户端 ──► 服务端（ACK 丢失）
@@ -210,7 +210,7 @@ async def handle_message(websocket, raw_message):
   连接断开（客户端未收到）
   服务端检测到断开
   重连后服务端重新发送
-```
+```text
 
 ---
 
@@ -218,7 +218,7 @@ async def handle_message(websocket, raw_message):
 
 ### 6.1 完整交互示例
 
-```
+```text
 # 1. 连接建立
 Client ──► Server: {"type": "connect", "tenant_id": "default"}
 Server ──► Client: {"type": "connected", "session_id": "sess-xxx"}
@@ -254,7 +254,7 @@ Client ──► Server: {
   "type": "ack",
   "_ackId": "660e8400-e29b-41d4-a716-446655440001"
 }
-```
+```text
 
 ### 6.2 DIFF 模式配置
 
@@ -278,7 +278,7 @@ const ws2 = new WebSocket('ws://localhost:18008/ws/memories/live?mode=diff');
 
 // 断线重连（恢复 Session）
 const ws3 = new WebSocket('ws://localhost:18008/ws/memories/live?mode=diff&session_id=sess-xxx');
-```
+```text
 
 **模式对比**:
 
@@ -316,7 +316,7 @@ else:
 
 # 动态切换模式
 server.set_diff_mode("full")
-```
+```text
 
 **客户端（JavaScript）**:
 
@@ -365,7 +365,7 @@ function applyPatches(patches) {
     }
   });
 }
-```
+```text
 
 ---
 

@@ -118,7 +118,7 @@ DEFINE INDEX idx_atom_name ON atom FIELDS name;
 DEFINE INDEX idx_atom_project ON atom FIELDS project;
 DEFINE INDEX idx_atom_tenant_type ON atom FIELDS tenant_id, type;
 DEFINE INDEX idx_atom_tenant_project ON atom FIELDS tenant_id, project;
-```
+```text
 
 ### 2.2 Entity 表
 
@@ -193,7 +193,7 @@ DEFINE INDEX idx_entity_project ON entity FIELDS project;
 DEFINE INDEX idx_entity_status ON entity FIELDS status;
 DEFINE INDEX idx_entity_tenant_type ON entity FIELDS tenant_id, type;
 DEFINE INDEX idx_entity_tenant_status ON entity FIELDS tenant_id, status;
-```
+```text
 
 ### 2.3 Reference 表（图关系）
 
@@ -243,7 +243,7 @@ DEFINE FIELD created_at ON reference TYPE datetime DEFAULT time::now();
 -- 唯一索引：避免重复关系
 -- ============================================
 DEFINE INDEX idx_unique_ref ON reference FIELDS in, out, type UNIQUE;
-```
+```text
 
 ---
 
@@ -333,7 +333,7 @@ erDiagram
         string entity_type
         datetime created_at
     }
-```
+```text
 
 ### 图关系模型
 
@@ -356,7 +356,7 @@ erDiagram
         string type
         string title
     }
-```
+```text
 
 ### 关系说明
 
@@ -403,7 +403,7 @@ DEFINE FIELD created_at ON timeline TYPE datetime DEFAULT time::now();
 -- 索引
 DEFINE INDEX idx_timeline_date ON timeline FIELDS year, month, day;
 DEFINE INDEX idx_timeline_tenant ON timeline FIELDS tenant_id, year, month;
-```
+```text
 
 ### 3.2 Stats 表
 
@@ -446,7 +446,7 @@ DEFINE FIELD data ON stats TYPE object;
 -- 索引
 DEFINE INDEX idx_stats_type ON stats FIELDS type;
 DEFINE INDEX idx_stats_period ON stats FIELDS period_start, period_end;
-```
+```text
 
 ### 3.3 Project 表
 
@@ -491,7 +491,7 @@ DEFINE FIELD updated_at ON project TYPE datetime DEFAULT time::now();
 -- 索引
 DEFINE INDEX idx_project_name ON project FIELDS name UNIQUE;
 DEFINE INDEX idx_project_status ON project FIELDS status;
-```
+```text
 
 ### 3.4 Config 表
 
@@ -532,7 +532,7 @@ DEFINE INDEX idx_config_scope ON config FIELDS scope;
 --     "reconnect_max_attempts": 5
 --   }
 -- }
-```
+```text
 
 ---
 
@@ -610,7 +610,7 @@ DEFINE EVENT IF NOT EXISTS entity_created_timeline ON entity
             entity_type = $after.type,
             created_at = $after.created_at
     };
-```
+```text
 
 ### 5.2 函数定义
 
@@ -668,7 +668,7 @@ DEFINE FUNCTION IF NOT EXISTS fn::search_atoms($query: string, $type: option<str
         SELECT * FROM $base_query WHERE type = $type
     };
 };
-```
+```text
 
 ---
 
@@ -689,7 +689,7 @@ DEFINE TABLE reference TYPE RELATION SCHEMAFULL CHANGEFEED 7d;
 
 -- 消费 ChangeFeed（Python SDK 示例）
 -- await db.query("LIVE SELECT DIFF FROM atom")
-```
+```text
 
 ### 6.2 ChangeFeed 事件类型
 
@@ -716,7 +716,7 @@ async def consume_changefeed():
             print(f"Change: {notification}")
             # 处理变更事件
             await handle_change(notification)
-```
+```text
 
 ---
 
@@ -729,7 +729,7 @@ async def consume_changefeed():
 DEFINE FIELD tenant_id ON atom TYPE string DEFAULT 'default';
 DEFINE FIELD tenant_id ON entity TYPE string DEFAULT 'default';
 DEFINE FIELD tenant_id ON reference TYPE string DEFAULT 'default';
-```
+```text
 
 ### 7.2 未来迁移（多租户）
 
@@ -742,7 +742,7 @@ DEFINE NAMESPACE tenant_001;
 DEFINE NAMESPACE tenant_002;
 
 -- 应用层根据 tenant_id 路由到对应 Namespace
-```
+```text
 
 ### 7.3 预留字段说明
 
@@ -799,7 +799,7 @@ async def migrate():
 
 if __name__ == "__main__":
     asyncio.run(migrate())
-```
+```text
 
 ### 8.2 迁移检查清单
 
@@ -820,9 +820,9 @@ if __name__ == "__main__":
 
 完整 Schema 定义文件位置：
 
-```
+```text
 embedding_service/wrapper/src/db/migrations/v3.2_schema.sql
-```
+```text
 
 ### B. 版本历史
 

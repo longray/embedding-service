@@ -454,7 +454,7 @@ async def test_graph_apis():
                 json={
                     "from_id": memory_ids[0],
                     "to_id": memory_ids[1],
-                    "relationship_type": "related",
+                    "type": "related",
                     "weight": 0.8,
                     "tenant_id": TENANT_ID,
                 },

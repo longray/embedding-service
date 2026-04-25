@@ -112,9 +112,9 @@ class PrefetchService:
             # 查询与 memory_id 相关的记忆
             query = """
                 SELECT out AS related_id
-                FROM memory_relation
+                FROM reference
                 WHERE in = type::record($memory_id)
-                    AND relationship_type IN ['references', 'depends_on', 'calls', 'similar_to']
+                    AND type IN ['references', 'depends_on', 'calls', 'similar_to']
                 LIMIT 50
             """
             result = await db_query_fn(query, {"memory_id": memory_id})

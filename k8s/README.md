@@ -4,7 +4,7 @@ OpenCode Memory Service v3.2 的 Kubernetes 部署配置。
 
 ## 目录结构
 
-```
+```text
 k8s/
 ├── namespace.yaml              # 命名空间
 ├── surrealdb-deployment.yaml   # SurrealDB 部署
@@ -13,7 +13,7 @@ k8s/
 ├── ingress.yaml                # Ingress 配置
 ├── kustomization.yaml          # Kustomize 配置
 └── README.md                   # 本文档
-```
+```text
 
 ## 快速开始
 
@@ -25,7 +25,7 @@ k8s/
 
 # 安装 kustomize
 # https://kubectl.docs.kubernetes.io/installation/kustomize/
-```
+```text
 
 ### 2. 部署服务
 
@@ -39,7 +39,7 @@ kubectl apply -f k8s/ingress.yaml
 
 # 或使用 kustomize
 kubectl apply -k k8s/
-```
+```text
 
 ### 3. 验证部署
 
@@ -55,7 +55,7 @@ kubectl get svc -n opencode-memory
 
 # 查看 Ingress
 kubectl get ingress -n opencode-memory
-```
+```text
 
 ### 4. 访问服务
 
@@ -65,7 +65,7 @@ kubectl get ingress wrapper-ingress -n opencode-memory
 
 # 测试 API
 curl http://<ingress-ip>/health
-```
+```text
 
 ## 配置说明
 
@@ -98,7 +98,7 @@ curl http://<ingress-ip>/health
 # 编辑 secret
 kubectl edit secret wrapper-secret -n opencode-memory
 kubectl edit secret meilisearch-secret -n opencode-memory
-```
+```text
 
 ### 2. 配置 TLS
 
@@ -108,21 +108,21 @@ kubectl create secret tls wrapper-tls \
   --cert=path/to/cert.pem \
   --key=path/to/key.pem \
   -n opencode-memory
-```
+```text
 
 ### 3. 配置 Ingress
 
 ```bash
 # 更新 Ingress 域名
 kubectl edit ingress wrapper-ingress -n opencode-memory
-```
+```text
 
 ### 4. 水平扩展
 
 ```bash
 # 扩展 Wrapper 副本
 kubectl scale deployment wrapper --replicas=4 -n opencode-memory
-```
+```text
 
 ## 监控
 
@@ -134,7 +134,7 @@ kubectl logs -f deployment/wrapper -n opencode-memory
 
 # 查看 SurrealDB 日志
 kubectl logs -f deployment/surrealdb -n opencode-memory
-```
+```text
 
 ### 查看指标
 
@@ -144,7 +144,7 @@ kubectl top pods -n opencode-memory
 
 # 查看节点资源
 kubectl top nodes
-```
+```text
 
 ## 故障排查
 
@@ -156,7 +156,7 @@ kubectl describe pod <pod-name> -n opencode-memory
 
 # 查看 Pod 日志
 kubectl logs <pod-name> -n opencode-memory
-```
+```text
 
 ### 服务无法访问
 
@@ -169,7 +169,7 @@ kubectl get endpoints -n opencode-memory
 
 # 检查 Ingress
 kubectl get ingress -n opencode-memory
-```
+```text
 
 ### 存储问题
 
@@ -179,7 +179,7 @@ kubectl get pvc -n opencode-memory
 
 # 查看 PV
 kubectl get pv
-```
+```text
 
 ## 清理
 
@@ -193,7 +193,7 @@ kubectl delete -f k8s/wrapper-deployment.yaml
 kubectl delete -f k8s/meilisearch-deployment.yaml
 kubectl delete -f k8s/surrealdb-deployment.yaml
 kubectl delete -f k8s/namespace.yaml
-```
+```text
 
 ## 参考
 

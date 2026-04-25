@@ -23,7 +23,7 @@ class RelationsMixin:
                     "id": str(rec.get("relation_id", "")),
                     "from_id": str(rec.get("from_id", "")),
                     "to_id": str(rec.get("to_id", "")),
-                    "relationship_type": rec.get("relationship_type", "related"),
+                    "type": rec.get("type", "related"),
                     "weight": float(rec.get("weight", 0.5)),
                     "direction": direction,
                     "description": rec.get("description"),
@@ -33,16 +33,16 @@ class RelationsMixin:
         return results
 
     def _normalize_relation_id(self, relation_id: str) -> str:
-        """规范化关系 ID（Stub）"""
+        """规范化关系 ID"""
         if ":" not in relation_id:
-            return f"memory_relation:{relation_id}"
+            return f"reference:{relation_id}"
         return relation_id
 
     async def create_relation(
         self,
         from_id: str,
         to_id: str,
-        relationship_type: str = "related",
+        type: str = "related",
         weight: float = 0.5,
         tenant_id: str | None = None,
         description: str | None = None,
@@ -52,8 +52,8 @@ class RelationsMixin:
         effective_tenant_id = tenant_id or self._default_tenant_id
 
         valid_types = {"related", "follow_up", "elaboration", "contradiction", "reference", "derived_from", "calls"}
-        if relationship_type not in valid_types:
-            raise ValidationError(f"Invalid relationship_type: {relationship_type}. Must be one of {valid_types}")
+        if type not in valid_types:
+            raise ValidationError(f"Invalid type: {type}. Must be one of {valid_types}")
         if not 0.0 <= weight <= 1.0:
             raise ValidationError(f"weight must be between 0.0 and 1.0, got {weight}")
 
@@ -64,7 +64,7 @@ class RelationsMixin:
         with tracer.start_as_current_span("graph.create_relation") as span:
             span.set_attribute("graph.from", from_ref)
             span.set_attribute("graph.to", to_ref)
-            span.set_attribute("graph.type", relationship_type)
+            span.set_attribute("graph.type", type)
             span.set_attribute("tenant.id", effective_tenant_id)
 
             try:
@@ -89,27 +89,21 @@ class RelationsMixin:
                         f"Please sync it first using incremental_sync()"
                     )
 
-                set_clauses = [
-                    "relationship_type = $rel_type",
-                    "weight = $weight",
-                    "tenant_id = $tenant_id",
-                ]
-                params = {
-                    "rel_type": relationship_type,
+                # Build CONTENT object for RELATE
+                # SurrealDB Python SDK works better with CONTENT than SET with variables
+                content_obj = {
+                    "type": type,
                     "weight": float(weight),
                     "tenant_id": effective_tenant_id,
                 }
-
                 if description:
-                    set_clauses.append("description = $description")
-                    params["description"] = description
+                    content_obj["description"] = description
                 if metadata:
-                    set_clauses.append("metadata = $metadata")
-                    params["metadata"] = metadata
+                    content_obj["metadata"] = metadata
 
-                set_str = ", ".join(set_clauses)
-                q = f"RELATE {from_ref}->memory_relation->{to_ref} SET {set_str}"
-                result = await self._db_query(q, params)
+                content_json = json.dumps(content_obj)
+                q = f"RELATE {from_ref}->reference->{to_ref} CONTENT {content_json};"
+                result = await self._db_query(q)
 
                 records = self._extract_records(result)
                 if records:
@@ -117,7 +111,7 @@ class RelationsMixin:
                         "id": str(records[0].get("id", "")),
                         "from": from_ref,
                         "to": to_ref,
-                        "relationship_type": relationship_type,
+                        "type": type,
                         "weight": weight,
                     }
                 return {"error": "No relation created"}
@@ -131,7 +125,7 @@ class RelationsMixin:
         self,
         memory_id: str,
         direction: str = "both",
-        relationship_type: str | None = None,
+        type: str | None = None,
         tenant_id: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
@@ -159,11 +153,11 @@ class RelationsMixin:
                     q = (
                         "SELECT *, meta::id(id) AS relation_id, "
                         "meta::id(in) AS from_id, meta::id(out) AS to_id "
-                        "FROM memory_relation "
+                        "FROM reference "
                         "WHERE in = type::record($mem_table, $mem_id) AND tenant_id = $tenant_id "
                     )
-                    if relationship_type:
-                        q += "AND relationship_type = $relationship_type "
+                    if type:
+                        q += "AND type = $type "
                     q += "LIMIT $limit"
                     r = await self._db_query(
                         q,
@@ -171,7 +165,7 @@ class RelationsMixin:
                             "tenant_id": effective_tenant_id,
                             "mem_table": mem_table,
                             "mem_id": mem_id,
-                            "relationship_type": relationship_type,
+                            "type": type,
                             "limit": limit,
                         },
                     )
@@ -181,11 +175,11 @@ class RelationsMixin:
                     q = (
                         "SELECT *, meta::id(id) AS relation_id, "
                         "meta::id(in) AS from_id, meta::id(out) AS to_id "
-                        "FROM memory_relation "
+                        "FROM reference "
                         "WHERE out = type::record($mem_table, $mem_id) AND tenant_id = $tenant_id "
                     )
-                    if relationship_type:
-                        q += "AND relationship_type = $relationship_type "
+                    if type:
+                        q += "AND type = $type "
                     q += "LIMIT $limit"
                     r = await self._db_query(
                         q,
@@ -193,7 +187,7 @@ class RelationsMixin:
                             "tenant_id": effective_tenant_id,
                             "mem_table": mem_table,
                             "mem_id": mem_id,
-                            "relationship_type": relationship_type,
+                            "type": type,
                             "limit": limit,
                         },
                     )
@@ -213,7 +207,7 @@ class RelationsMixin:
         """删除指定的关系
 
         Args:
-            relation_id: 关系 ID（如 "memory_relation:abc123"）
+            relation_id: 关系 ID（如 "reference:abc123"）
             tenant_id: 租户 ID（安全检查，防止跨租户删除）
         """
         effective_tenant_id = tenant_id or self._default_tenant_id
@@ -245,7 +239,7 @@ class RelationsMixin:
         self,
         memory_id: str,
         depth: int = 1,
-        relationship_type: str | None = None,
+        type: str | None = None,
         tenant_id: str = "default",
         limit: int = 50,
     ) -> list[dict[str, Any]]:
@@ -262,7 +256,7 @@ class RelationsMixin:
                 relations = await self.get_relations(
                     mem_id,
                     direction="both",
-                    relationship_type=relationship_type,
+                    type=type,
                     tenant_id=effective_tenant_id,
                     limit=limit,
                 )
@@ -395,7 +389,7 @@ class RelationsMixin:
                     await self.create_relation(
                         from_id=caller_id,
                         to_id=callee_id,
-                        relationship_type="calls",
+                        type="calls",
                         weight=0.8,  # 调用关系权重较高
                         tenant_id=effective_tenant_id,
                         description=f"Call from {caller_id} to {callee_id}",
@@ -453,7 +447,7 @@ class RelationsMixin:
                 relations = await self.get_relations(
                     memory_id=memory_id,
                     direction="incoming",
-                    relationship_type="calls",
+                    type="calls",
                     tenant_id=tenant_id,
                     limit=limit,
                 )
@@ -537,7 +531,7 @@ class RelationsMixin:
                 relations = await self.get_relations(
                     memory_id=memory_id,
                     direction="outgoing",
-                    relationship_type="calls",
+                    type="calls",
                     tenant_id=tenant_id,
                     limit=limit,
                 )

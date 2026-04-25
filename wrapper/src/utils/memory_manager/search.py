@@ -31,6 +31,7 @@ class SearchMixin:
                 item["tags"] = r.get("tags", [])
                 item["project_id"] = r.get("project_id")
                 item["local_id"] = r.get("local_id")
+                item["file_path"] = r.get("file_path")
                 item["metadata"] = r.get("metadata", {})
 
             filtered.append(item)
@@ -116,7 +117,7 @@ class SearchMixin:
             span.set_attribute("search.vector.cache_hit", False)
 
             q = (
-                "SELECT id, content, abstract, overview, local_id, metadata, type, tags, project_id, "
+                "SELECT id, content, abstract, overview, local_id, file_path, metadata, type, tags, project_id, "
                 "vector::similarity::cosine(embedding, $query_embedding) AS score "
                 "FROM memory "
                 "WHERE tenant_id = $tenant_id "
@@ -185,7 +186,7 @@ class SearchMixin:
             span.set_attribute("search.keyword.engine", "surrealdb")
             span.set_attribute("search.keyword.query", safe_query[:100])
             q = (  # nosec B608
-                "SELECT id, content, abstract, overview, local_id, metadata, type, tags, project_id, "
+                "SELECT id, content, abstract, overview, local_id, file_path, metadata, type, tags, project_id, "
                 "search::score(1) AS score "
                 "FROM memory "
                 "WHERE tenant_id = $tenant_id "
@@ -324,6 +325,7 @@ class SearchMixin:
                     "abstract": hit.get("abstract", ""),
                     "overview": hit.get("overview", ""),
                     "local_id": hit.get("local_id"),
+                    "file_path": hit.get("file_path"),
                     "metadata": hit.get("metadata", {}),
                     "type": hit.get("type", "general"),
                     "tags": hit.get("tags", []),
@@ -341,6 +343,7 @@ class SearchMixin:
             "abstract": item.get("abstract", ""),
             "overview": item.get("overview", ""),
             "local_id": item.get("local_id"),
+            "file_path": item.get("file_path"),
             "metadata": item.get("metadata", {}),
             "type": item.get("type", "general"),
             "tags": item.get("tags", []),

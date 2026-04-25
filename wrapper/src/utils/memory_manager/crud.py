@@ -184,6 +184,9 @@ class CrudMixin:
                     metadata = memory.get("metadata", {})
                     if metadata.get("file_path"):
                         memory_data["file_path"] = metadata["file_path"]
+                    # D2: 也支持 MemoryItem 直接传的 file_path
+                    if memory.get("file_path"):
+                        memory_data["file_path"] = memory["file_path"]
 
                     # v2.4.0 L0/L1/L2 fields
                     memory_data["abstract"] = memory.get("abstract", "")

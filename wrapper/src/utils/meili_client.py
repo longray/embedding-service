@@ -57,6 +57,7 @@ class MeilisearchClient:
             "type",
             "tags",
             "project_id",
+            "file_path",
             "date",
             "ip_address",
             "email",

@@ -24,7 +24,7 @@ async def create_relation(request: RelationCreateRequest):
         result = await state.memory_manager.create_relation(
             from_id=request.from_id,
             to_id=request.to_id,
-            relationship_type=request.relationship_type,
+            type=request.type,
             weight=request.weight,
             tenant_id=request.tenant_id,
             description=request.description,
@@ -46,7 +46,7 @@ async def get_relations(memory_id: str, request: RelationQueryRequest):
         result = await state.memory_manager.get_relations(
             memory_id=memory_id,
             direction=request.direction,
-            relationship_type=request.relationship_type,
+            type=request.type,
             tenant_id=request.tenant_id,
             limit=request.limit,
         )
@@ -87,7 +87,7 @@ async def graph_traversal(memory_id: str, request: GraphTraversalRequest):
         result = await state.memory_manager.get_related_memories(
             memory_id=memory_id,
             depth=request.depth,
-            relationship_type=request.relationship_type,
+            type=request.type,
             tenant_id=request.tenant_id,
             limit=request.limit,
         )

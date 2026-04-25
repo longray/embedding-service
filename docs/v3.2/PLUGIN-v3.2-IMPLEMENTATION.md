@@ -39,13 +39,13 @@
     "pino-pretty": "^13.0.0"
   }
 }
-```
+```text
 
 ### 1.2 安装依赖
 
 ```bash
 npm install
-```
+```text
 
 ---
 
@@ -74,7 +74,7 @@ export const config = {
   // 向后兼容（已废弃，统一使用 18008）
   LEGACY_PORT: 18008,
 };
-```
+```text
 
 ### 2.2 WrapperClient 更新
 
@@ -91,7 +91,7 @@ export class WrapperClient {
 
   // ... 其他方法
 }
-```
+```text
 
 ---
 
@@ -211,7 +211,7 @@ export class ReliableWebSocketClient {
     }
   }
 }
-```
+```text
 
 ---
 
@@ -300,7 +300,7 @@ export class ReliableWebSocketClient {
     process.exit(1);
   }
 }
-```
+```text
 
 ### 4.3 消息超时处理
 
@@ -358,7 +358,7 @@ export class AckManager {
     }
   }
 }
-```
+```text
 
 ### 4.4 重连失败处理
 
@@ -433,97 +433,97 @@ export class ReconnectionManager {
     };
   }
 }
-```
+```text
 
 ### 4.5 故障排查指南
 
 #### 场景 1: 连接被拒绝
 
-```
+```text
 症状: Error: connect ECONNREFUSED 127.0.0.1:18008
 排查:
 1. 检查服务是否启动: docker-compose ps
 2. 检查端口占用: netstat -tlnp | grep 18008
 3. 检查防火墙: firewall-cmd --list-ports
 4. 检查服务日志: docker-compose logs api
-```
+```text
 
 #### 场景 2: 认证��败
 
-```
+```text
 症状: Error: AUTH_001 API 密钥无效
 排查:
 1. 检查环境变量: echo $WRAPPER_MEILI_API_KEY
 2. 检查配置文件: cat ~/.opencode/memory/memory-config.json
 3. 验证密钥格式: 应为 32 位字符串
 4. 检查后端日志: docker-compose logs api | grep auth
-```
+```text
 
 #### 场景 3: 消息超时
 
-```
+```text
 症状: Error: MSG_001 消息超时
 排查:
 1. 检查网络延迟: ping localhost
 2. 检查服务负载: docker stats
 3. 检查消息队列: curl localhost:18008/api/v1/queue/status
 4. 增加超时时间重试
-```
+```text
 
 #### 场景 4: WebSocket 断连
 
-```
+```text
 症状: WebSocket connection closed unexpectedly
 排查:
 1. 检查心跳配置: curl localhost:18008/api/v1/ws/config
 2. 检查连接数上限: ulimit -n
 3. 检查 Nginx 配置: proxy_read_timeout
 4. 查看断开原因: docker-compose logs api | grep "ws close"
-```
+```text
 
 #### 场景 5: 数据库连接失败
 
-```
+```text
 症状: Error: 连接 SurrealDB 失败
 排查:
 1. 检查 SurrealDB: docker-compose ps surrealdb
 2. 测试连接: curl http://localhost:8000/health
 3. 检查认证: SURREALDB_USER/SURREALDB_PASS
 4. 查看日志: docker-compose logs surrealdb
-```
+```text
 
 #### 场景 6: 搜索服务异常
 
-```
+```text
 症状: 搜索返回空结果
 排查:
 1. 检查 Meilisearch: curl http://localhost:7700/health
 2. 检查索引: curl http://localhost:7700/indexes
 3. 重建索引: curl -X POST localhost:18008/api/v1/reindex
 4. 检查权限: MEILISEARCH_API_KEY
-```
+```text
 
 #### 场景 7: 内存溢出
 
-```
+```text
 症状: JavaScript heap out of memory
 排查:
 1. 增加 Node 内存: NODE_OPTIONS="--max-old-space-size=4096"
 2. 检查大文件: ls -lh ~/.opencode/memory/
 3. 清理缓存: rm -rf ~/.opencode/memory/.cache
 4. 分批处理: 使用 limit/offset
-```
+```text
 
 #### 场景 8: 权限错误
 
-```
+```text
 症状: Error: EACCES permission denied
 排查:
 1. 检查文件权限: ls -la ~/.opencode/memory/
 2. 修复权限: chown -R $USER ~/.opencode/
 3. 检查 .npm 目录: ls -la ~/.npm
 4. 清除重新安装: npm cache clean -f
-```
+```text
 
 ---
 
@@ -539,7 +539,7 @@ npm list ws pino dotenv
 # ws@8.20.0
 # pino@9.5.0
 # dotenv@16.4.5
-```
+```text
 
 ### 5.2 连接测试
 
@@ -559,13 +559,13 @@ import { ReliableWebSocketClient } from "./lib/websocket-client.js";
 const ws = new ReliableWebSocketClient(`ws://localhost:18008/ws`);
 await ws.connect();
 console.log("WebSocket connected");
-```
+```text
 
 ### 5.3 运行测试
 
 ```bash
 npm test
-```
+```text
 
 ---
 

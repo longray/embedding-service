@@ -37,8 +37,7 @@ class ReferenceCreateRequest(BaseModel):
     file_path: str | None = Field(default=None, description="文件路径")
     line: int | None = Field(default=None, description="行号")
     column: int | None = Field(default=None, description="列号")
-
-    
+    description: str | None = Field(default=None, description="关系描述")
     metadata: dict[str, Any] = Field(default_factory=dict, description="元数据")
 
 
@@ -54,6 +53,7 @@ class ReferenceResponse(BaseModel):
     file_path: str | None = Field(default=None, description="文件路径")
     line: int | None = Field(default=None, description="行号")
     column: int | None = Field(default=None, description="列号")
+    description: str | None = Field(default=None, description="关系描述")
     metadata: dict[str, Any] = Field(default_factory=dict, description="元数据")
     created_at: str | None = Field(default=None, description="创建时间")
 
@@ -126,27 +126,33 @@ async def create_reference(request: ReferenceCreateRequest):
         if not to_records:
             raise ValidationError(f"to_id 不存在: {request.to_id}")
 
-        # 使用字符串插值构建 RELATE 语句（SurrealDB RELATE 不支持参数化 RecordID）
-        query = f"""
-        RELATE {request.from_id}->reference->{request.to_id} CONTENT {{
-            type: $type,
-            tenant_id: $tenant_id,
-            weight: $weight,
-            file_path: $file_path,
-            line: $line,
-            column: $column,
-            metadata: $metadata
-        }}
-        """
-        params = {
-            "type": request.type,
+        content_fields = {
+            "rel_type": request.type,
             "tenant_id": request.tenant_id,
             "weight": request.weight,
-            "file_path": request.file_path,
-            "line": request.line,
-            "column": request.column,
-            "metadata": request.metadata,
         }
+        if request.file_path is not None:
+            content_fields["file_path"] = request.file_path
+        if request.line is not None:
+            content_fields["line"] = request.line
+        if request.column is not None:
+            content_fields["column"] = request.column
+        if request.description is not None:
+            content_fields["description"] = request.description
+        if request.metadata:
+            content_fields["metadata"] = request.metadata
+
+        set_parts = []
+        for k in content_fields:
+            # type 是 SurrealDB 保留字，需要转义
+            if k == "rel_type":
+                set_parts.append(f"`type` = ${k}")
+            else:
+                set_parts.append(f"{k} = ${k}")
+        query = f"""
+        RELATE {request.from_id}->reference->{request.to_id} SET {', '.join(set_parts)}
+        """
+        params = content_fields
 
         # BL-B-100: 使用事务执行创建操作
         async with transaction(db, "Reference"):
@@ -171,6 +177,7 @@ async def create_reference(request: ReferenceCreateRequest):
                 file_path=request.file_path,
                 line=request.line,
                 column=request.column,
+                description=request.description,
                 metadata=request.metadata,
             )
 
@@ -188,8 +195,8 @@ async def query_references(
     type: str | None = Query(default=None, description="关系类型"),
     tenant_id: str = Query(default="default"),
     page: int = Query(default=1, ge=1, description="页码"),
-    page_size: int = Query(default=50, ge=1, le=200, description="每页大小"),
-    limit: int | None = Query(default=None, ge=1, le=200, description="返回数量限制（向后兼容）"),
+    page_size: int = Query(default=50, ge=1, le=100, description="每页大小"),
+    limit: int | None = Query(default=None, ge=1, le=100, description="返回数量限制（向后兼容）"),
     offset: int | None = Query(default=None, ge=0, description="偏移量（向后兼容）"),
 ):
     """

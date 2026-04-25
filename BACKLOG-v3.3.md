@@ -33,16 +33,19 @@
 实现 PrecomputeService 的初始化资源逻辑，包括 tree-sitter 初始化、配置加载和数据库连接建立。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/services/precompute.py`（修改）
 - 文件: `wrapper/src/services/code_parser.py`（依赖）
 - 新增: `tests/test_precompute_init.py`（测试）
 
 **前置依赖**  
+
 - v3.2 PrecomputeService 基础架构已完成
 - tree-sitter 语言包已安装
 - SurrealDB 连接配置可用
 
 **完成标准**  
+
 - [x] tree-sitter 解析器初始化（支持 Python、JavaScript、TypeScript、Go）
 - [x] 配置加载（从 config.py 读取预计算配置）
 - [x] 数据库连接建立（SurrealDB 和 Meilisearch）
@@ -51,12 +54,14 @@
 - [x] 删除 `start()` 方法中的 TODO 注释
 
 **验证方式**  
+
 ```bash
 # 单元测试
 uv run pytest tests/test_precompute_init.py -v
 ```
 
 **实际完成**  
+
 - ✅ 修改 `wrapper/src/services/precompute.py`:
   - 导入 `CodeParser`
   - 添加 `_code_parser` 属性
@@ -75,13 +80,16 @@ uv run pytest tests/test_precompute_init.py -v
 实现 PrecomputeService 的资源清理逻辑，确保服务停止时正确释放资源。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/services/precompute.py`（修改）
 - 新增: `tests/test_precompute_cleanup.py`（测试）
 
 **前置依赖**  
+
 - BL-C-1 初始化资源实现完成
 
 **完成标准**  
+
 - [x] 关闭 tree-sitter 解析器
 - [x] 关闭数据库连接（由调用方管理）
 - [x] 停止性能监控器
@@ -90,12 +98,14 @@ uv run pytest tests/test_precompute_init.py -v
 - [x] 删除 `stop()` 方法中的 TODO 注释
 
 **验证方式**  
+
 ```bash
 # 单元测试
 uv run pytest tests/test_precompute_cleanup.py -v
 ```
 
 **实际完成**  
+
 - ✅ 修改 `wrapper/src/services/precompute.py`:
   - 实现 `_cleanup_concurrency_resources()` 方法
   - 清理处理中集合和队列
@@ -113,17 +123,20 @@ uv run pytest tests/test_precompute_cleanup.py -v
 实现完整的文件处理逻辑，包括 AST 解析、符号提取和批量创建 atoms。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/services/precompute.py`（修改）
 - 文件: `wrapper/src/services/code_parser.py`（修改）
 - 文件: `wrapper/src/services/fingerprint.py`（依赖）
 - 新增: `tests/test_precompute_file_processing.py`（测试）
 
 **前置依赖**  
+
 - BL-C-1 初始化资源实现完成
 - tree-sitter Query API 可用
 - FingerprintManager 已实现
 
 **完成标准**  
+
 - [x] 文件读取和编码检测
 - [x] AST 解析（使用 tree-sitter）
 - [x] 符号提取（函数、类、接口等）
@@ -134,12 +147,14 @@ uv run pytest tests/test_precompute_cleanup.py -v
 - [x] 删除 `process_file()` 方法中的 TODO 注释
 
 **验证方式**  
+
 ```bash
 # 单元测试
 uv run pytest tests/test_precompute_file_processing.py -v
 ```
 
 **实际完成**  
+
 - ✅ 修改 `wrapper/src/services/precompute.py`:
   - 导入 `FingerprintManager`
   - 添加 `_fingerprint_manager` 属性
@@ -156,6 +171,7 @@ uv run pytest tests/test_precompute_file_processing.py -v
 - ✅ 验证批量处理
 
 **技术债务**  
+
 - 关系提取和创建需要 SurrealDB 集成，将在后续任务中实现
 
 ---
@@ -168,16 +184,19 @@ uv run pytest tests/test_precompute_file_processing.py -v
 实现 HNSW（Hierarchical Navigable Small World）向量索引的管理端点，包括统计、优化和重建功能。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/routers/stubs.py`（修改）
 - 文件: `wrapper/src/routers/hnsw.py`（新建）
 - 文件: `wrapper/src/utils/memory_manager/stubs.py`（修改）
 - 新增: `tests/test_hnsw_manager.py`（测试）
 
 **前置依赖**  
+
 - SurrealDB HNSW 索引已创建
 - 向量搜索功能可用
 
 **完成标准**  
+
 - [x] `GET /api/v1/hnsw/stats` - 返回索引统计信息
 - [x] `POST /api/v1/hnsw/optimize` - 自动优化 HNSW 参数
 - [x] `POST /api/v1/hnsw/rebuild` - 重建 HNSW 索引
@@ -186,12 +205,14 @@ uv run pytest tests/test_precompute_file_processing.py -v
 - [x] 添加单元测试
 
 **验证方式**  
+
 ```bash
 # 单元测试
 uv run pytest tests/test_hnsw_manager.py -v
 ```
 
 **实际完成**  
+
 - ✅ 创建 `wrapper/src/routers/hnsw.py` - HNSW 独立 router
   - `GET /api/v1/hnsw/stats` - 获取索引统计
   - `POST /api/v1/hnsw/optimize` - 优化参数
@@ -211,15 +232,18 @@ uv run pytest tests/test_hnsw_manager.py -v
 实现缓存管理端点，支持统计、清理和预热功能。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/routers/stubs.py`（修改）
 - 文件: `wrapper/src/routers/cache.py`（新建）
 - 文件: `wrapper/src/utils/memory_manager/stubs.py`（修改）
 - 新增: `tests/test_cache_manager.py`（测试）
 
 **前置依赖**  
+
 - 缓存系统已集成（如 Redis 或内存缓存）
 
 **完成标准**  
+
 - [x] `GET /api/v1/cache/stats` - 返回缓存统计
 - [x] `POST /api/v1/cache/clear` - 清理缓存
 - [x] `POST /api/v1/cache/warmup` - 缓存预热
@@ -228,12 +252,14 @@ uv run pytest tests/test_hnsw_manager.py -v
 - [x] 添加单元测试
 
 **验证方式**  
+
 ```bash
 # 单元测试
 uv run pytest tests/test_cache_manager.py -v
 ```
 
 **实际完成**  
+
 - ✅ 创建 `wrapper/src/routers/cache.py` - 缓存管理独立 router
   - `GET /api/v1/cache/stats` - 获取缓存统计
   - `POST /api/v1/cache/clear` - 清除缓存
@@ -253,16 +279,19 @@ uv run pytest tests/test_cache_manager.py -v
 实现代码分析端点，支持对记忆内容进行代码分析。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/routers/stubs.py`（修改）
 - 文件: `wrapper/src/routers/code_analysis.py`（新建）
 - 文件: `wrapper/src/utils/memory_manager/code_analysis.py`（依赖）
 - 新增: `tests/test_code_analysis_endpoint.py`（测试）
 
 **前置依赖**  
+
 - CodeAnalyzer 服务可用
 - tree-sitter 解析器已配置
 
 **完成标准**  
+
 - [x] `POST /api/v1/memories/{id}/analyze/code` - 分析记忆内容中的代码
 - [x] 返回代码复杂度、依赖关系、质量评分
 - [x] 支持多种语言（Python、JavaScript、TypeScript、Go）
@@ -271,12 +300,14 @@ uv run pytest tests/test_cache_manager.py -v
 - [x] 添加单元测试
 
 **验证方式**  
+
 ```bash
 # 单元测试
 uv run pytest tests/test_code_analysis_endpoint.py -v
 ```
 
 **实际完成**  
+
 - ✅ 创建 `wrapper/src/routers/code_analysis.py` - 代码分析独立 router
   - `POST /api/v1/memories/{id}/analyze/code` - 分析记忆代码
 - ✅ 修改 `wrapper/src/routers/stubs.py` - 移除代码分析端点
@@ -295,14 +326,17 @@ uv run pytest tests/test_code_analysis_endpoint.py -v
 实现记忆聚类端点，使用 Leiden 算法对记忆进行聚类分析。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/routers/stubs.py`（修改）
 - 文件: `wrapper/src/services/clustering.py`（新建）
 
 **前置依赖**  
+
 - 向量数据可用
 - Leiden 算法库已安装（如 `leidenalg` 或 `igraph`）
 
 **完成标准**  
+
 - [x] `POST /api/v1/memories/cluster/leiden` - 执行 Leiden 聚类
 - [x] 支持自定义分辨率参数
 - [x] 返回聚类结果（簇 ID、成员、中心点）
@@ -311,6 +345,7 @@ uv run pytest tests/test_code_analysis_endpoint.py -v
 - [x] 添加单元测试
 
 **验证方式**  
+
 ```bash
 # 单元测试
 uv run pytest tests/test_clustering.py -v
@@ -320,6 +355,7 @@ curl -X POST "http://localhost:18008/api/v1/memories/cluster/leiden?resolution=1
 ```
 
 **实际完成**  
+
 - ✅ 创建 `wrapper/src/services/clustering.py` - 聚类服务
   - 使用连通分量算法实现类似 Leiden 的聚类效果
   - 支持余弦相似度计算
@@ -340,14 +376,17 @@ curl -X POST "http://localhost:18008/api/v1/memories/cluster/leiden?resolution=1
 实现预取功能端点，支持预取相关记忆和热门记忆。
 
 **涉及范围**  
+
 - 文件: `wrapper/src/routers/stubs.py`（修改）
 - 文件: `wrapper/src/services/prefetch_service.py`（新建）
 
 **前置依赖**  
+
 - 记忆关系数据可用
 - 访问统计数据可用
 
 **完成标准**  
+
 - [x] `POST /api/v1/prefetch/related` - 预取相关记忆（基于关系图）
 - [x] `POST /api/v1/prefetch/popular` - 预取热门记忆（基于访问统计）
 - [x] 支持限制预取数量
@@ -356,6 +395,7 @@ curl -X POST "http://localhost:18008/api/v1/memories/cluster/leiden?resolution=1
 - [x] 添加单元测试
 
 **验证方式**  
+
 ```bash
 # 单元测试
 uv run pytest tests/test_prefetch.py -v
@@ -367,6 +407,7 @@ curl -X POST "http://localhost:18008/api/v1/prefetch/popular?limit=10"
 ```
 
 **实际完成**  
+
 - ✅ 创建 `wrapper/src/services/prefetch_service.py` - 预取服务
   - 基于关系图遍历实现相关记忆预取
   - 基于最近活跃度实现热门记忆预取
