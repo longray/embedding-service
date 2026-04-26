@@ -443,5 +443,36 @@ curl -X POST "http://localhost:18008/api/v1/prefetch/popular?limit=10"
 
 ---
 
+## 附录
+
+### 技术债务与优化
+
+#### 2026-04-26: SurrealDB RELATE 实现优化
+
+**问题**: SurrealDB Python SDK 的 `RELATE ... SET` 参数绑定存在限制
+
+**解决方案**: 使用 `db.insert_relation()` 替代 `RELATE ... CONTENT`
+
+**实施状态**: ✅ 已完成
+
+**变更文件**:
+
+- `wrapper/src/utils/memory_manager/relations.py`
+
+**优化效果**:
+
+- 代码更简洁（10 行 vs 12 行）
+- 更安全（无字符串插值）
+- 使用 SDK 原生方法
+- 所有 65 个测试通过
+
+**参考文档**:
+
+- `docs/dev/SURREALDB_RELATE_LIMITATION.md`
+- `docs/dev/INSERT_RELATION_EVALUATION.md`
+- `docs/dev/INSERT_RELATION_COMPARISON.md`
+
+---
+
 _文档版本: v3.3.0_  
-_最后更新: 2026-04-15_
+_最后更新: 2026-04-26_

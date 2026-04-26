@@ -193,17 +193,70 @@ result = await db.insert_relation("reference", {
 
 ## 结论
 
-**当前决策**: 暂缓切换到 `db.insert_relation()`，保持 `RELATE + CONTENT` 实现。
+**当前决策**: ✅ **已实施** - 切换到 `db.insert_relation()` 方案。
 
-**理由**:
+**实施日期**: 2026-04-26
 
-1. 当前实现已工作正常
-2. 切换收益不明确
-3. 引入新风险不值得
-4. 可以作为未来技术债务处理
+**实施结果**:
 
-**后续行动**:
+- ✅ 所有 65 个 wrapper API 测试通过
+- ✅ 代码更简洁（10 行 vs 12 行）
+- ✅ 更安全（无字符串插值）
+- ✅ 已合并到 master 分支
 
-- [ ] 创建技术债务任务（低优先级）
-- [ ] 在文档中记录两种方案的对比
-- [ ] 关注 SurrealDB Python SDK 更新
+**最终代码**:
+
+```python
+from surrealdb import RecordID as SurrealRecordID
+
+relation_data = {
+    "in": SurrealRecordID.parse(from_ref),
+    "out": SurrealRecordID.parse(to_ref),
+    "type": type,
+    "weight": float(weight),
+    "tenant_id": effective_tenant_id,
+}
+if description:
+    relation_data["description"] = description
+if metadata:
+    relation_data["metadata"] = metadata
+
+result = await self._db.insert_relation("reference", relation_data)
+
+if result:
+    # insert_relation returns a list with the created record
+    record = result[0] if isinstance(result, list) else result
+    return {
+        "id": str(record.get("id", "")),
+        "from": from_ref,
+        "to": to_ref,
+        "type": type,
+        "weight": weight,
+    }
+```
+
+**关键发现**:
+
+1. `insert_relation` 返回列表格式 `[{record}]`，需要提取第一个元素
+2. 自动处理 RecordID 转换，无需手动构建字符串
+3. 无 SQL 注入风险
+4. 性能与 RELATE+CONTENT 相当
+
+**建议**:
+
+- ✅ 后续新代码优先使用 `db.insert_relation()`
+- ✅ 现有代码逐步迁移（按需）
+- ✅ 团队培训：分享此最佳实践
+
+---
+
+**历史决策** (已废弃):
+
+~~暂缓切换到 `db.insert_relation()`，保持 `RELATE + CONTENT` 实现。~~
+
+~~理由:~~
+
+~~1. 当前实现已工作正常~~
+~~2. 切换收益不明确~~
+~~3. 引入新风险不值得~~
+~~4. 可以作为未来技术债务处理~~

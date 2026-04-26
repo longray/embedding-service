@@ -156,6 +156,56 @@ query = f"RELATE a->b CONTENT {json.dumps(content_obj)}"
 
 **测试结果**: 所有 15 个 TestRelationsAPI 测试通过
 
+### 2026-04-26: 进一步优化为 db.insert_relation()
+
+**变更文件**: wrapper/src/utils/memory_manager/relations.py
+
+**变更内容**:
+
+- 将 RELATE ... CONTENT 改为 db.insert_relation()
+- 使用 RecordID.parse() 自动转换 record ID
+- 处理 insert_relation 返回列表的格式
+
+**测试结果**: 所有 65 个 wrapper API 测试通过
+
+**最终方案**:
+
+```python
+from surrealdb import RecordID as SurrealRecordID
+
+relation_data = {
+    "in": SurrealRecordID.parse(from_ref),
+    "out": SurrealRecordID.parse(to_ref),
+    "type": type,
+    "weight": float(weight),
+    "tenant_id": effective_tenant_id,
+}
+if description:
+    relation_data["description"] = description
+if metadata:
+    relation_data["metadata"] = metadata
+
+result = await self._db.insert_relation("reference", relation_data)
+
+if result:
+    # insert_relation returns a list with the created record
+    record = result[0] if isinstance(result, list) else result
+    return {
+        "id": str(record.get("id", "")),
+        "from": from_ref,
+        "to": to_ref,
+        "type": type,
+        "weight": weight,
+    }
+```
+
+**优势**:
+
+- 更简洁（10 行 vs 12 行）
+- 更安全（无字符串插值）
+- 使用 SDK 原生方法
+- 自动 RecordID 转换
+
 ## 参考链接
 
 - SurrealDB RELATE Statement 文档
