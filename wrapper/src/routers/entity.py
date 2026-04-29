@@ -1,7 +1,8 @@
 """Entity CRUD 端点 - 知识实体管理"""
 
 import logging
-from typing import Any
+from collections.abc import Sequence
+from typing import Any, Union
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -20,6 +21,32 @@ router = APIRouter(prefix="/api/v1", tags=["entities"])
 ENTITY_VALID_TYPES = frozenset(["memory", "backlog", "wiki", "code"])
 
 
+class AtomInlineCreate(BaseModel):
+    """内联创建 Atom 请求 — 可嵌入 EntityCreateRequest / EntityUpdateRequest 的 atoms 列表"""
+
+    type: str = Field(..., description="Atom 类型 (function, class, chapter, section, etc.)")
+    content: str = Field(..., description="Atom 内容")
+    name: str | None = Field(default=None, description="Atom 名称")
+    local_id: str | None = Field(default=None, description="客户端侧 ID (用于树结构)")
+    heading_level: int | None = Field(default=None, ge=1, le=6, description="标题层级 1-6")
+    parent_id: str | None = Field(default=None, description="父 Atom 的 local_id")
+    order: str | None = Field(default=None, description="排序键")
+    aliases: list[str] | None = Field(default=None, description="别名")
+    tags: list[str] | None = Field(default=None, description="标签")
+    signature: str | None = Field(default=None, description="函数签名")
+    params: list[dict[str, Any]] | None = Field(default=None, description="参数列表")
+    return_type: str | None = Field(default=None, description="返回类型")
+    is_exported: bool | None = Field(default=None, description="是否导出")
+    is_async: bool | None = Field(default=None, description="是否异步")
+    complexity: int | None = Field(default=None, description="复杂度")
+    start_line: int | None = Field(default=None, description="起始行号")
+    end_line: int | None = Field(default=None, description="结束行号")
+    docstring: dict[str, Any] | None = Field(default=None, description="文档字符串")
+    metadata: dict[str, Any] | None = Field(default=None, description="元数据")
+    project: str | None = Field(default=None, description="项目 ID")
+    fingerprint: str | None = Field(default=None, description="内容指纹")
+
+
 class EntityCreateRequest(BaseModel):
     """创建 Entity 请求"""
 
@@ -33,7 +60,9 @@ class EntityCreateRequest(BaseModel):
     
     abstract: str = Field(..., description="摘要 (L0, ≤100字符)")
     overview: dict[str, Any] = Field(default_factory=dict, description="概览 (L1)")
-    atoms: list[str] = Field(default_factory=list, description="Atom ID 列表 (L2)")
+    atoms: list[Union[str, AtomInlineCreate]] = Field(
+        default_factory=list, description="Atom ID 或内联创建对象列表 (L2)"
+    )
 
     
     title: str | None = Field(default=None, description="标题")
@@ -63,7 +92,9 @@ class EntityUpdateRequest(BaseModel):
 
     abstract: str | None = Field(default=None, description="摘要")
     overview: dict[str, Any] | None = Field(default=None, description="概览")
-    atoms: list[str] | None = Field(default=None, description="Atom ID 列表")
+    atoms: list[Union[str, AtomInlineCreate]] | None = Field(
+        default=None, description="Atom ID 或内联创建对象列表"
+    )
     tags: list[str] | None = Field(default=None, description="标签")
     status: str | None = Field(default=None, description="状态")
     priority: str | None = Field(default=None, description="优先级")
@@ -133,6 +164,99 @@ class BatchEntityResponse(BaseModel):
     failed_count: int = Field(..., description="失败数")
 
 
+def _parse_record_id(atom_id: str) -> RecordID | str:
+    if ":" in atom_id:
+        table, id_part = atom_id.split(":", 1)
+        return RecordID(table, id_part)
+    return atom_id
+
+
+async def _process_atoms(
+    db: Any,
+    atoms: Sequence[Union[str, AtomInlineCreate, dict[str, Any]]],
+    entity_id: str | None = None,
+    tenant_id: str = "default",
+) -> list[RecordID | str]:
+    """处理 atoms 列表：验证已有 ID 并创建内联 Atom 对象。
+
+    Args:
+        db: SurrealDB 连接
+        atoms: Atom ID (str)、内联创建对象 (AtomInlineCreate) 或 dict (来自 model_dump)
+        entity_id: 关联的 Entity ID，用于反查
+        tenant_id: 租户 ID，注入到内联创建的 Atom 中
+
+    Returns:
+        RecordID / str 列表，可直接存入 SurrealDB 的 atoms 字段。
+    """
+    if not atoms:
+        return []
+
+    str_ids: list[str] = []
+    inline_atoms: list[AtomInlineCreate] = []
+
+    for item in atoms:
+        if isinstance(item, str):
+            str_ids.append(item)
+        elif isinstance(item, AtomInlineCreate):
+            inline_atoms.append(item)
+        elif isinstance(item, dict):
+            inline_atoms.append(AtomInlineCreate(**item))
+        else:
+            raise ValidationError(f"atoms 元素类型无效: {type(item).__name__}")
+
+    result_ids: list[RecordID | str] = []
+
+    # --- 创建内联 Atoms ---
+    created_atom_ids: list[str] = []
+    for atom_req in inline_atoms:
+        atom_data = atom_req.model_dump(exclude_none=True)
+        if entity_id:
+            atom_data["entity_id"] = entity_id
+        atom_data["tenant_id"] = tenant_id
+
+        created = await db.create("atom", atom_data)
+        record = parse_surrealdb_result(created)
+        if not record:
+            raise ValidationError(f"创建内联 Atom 失败: type={atom_req.type}, name={atom_req.name}")
+
+        rid = extract_record_id(record)
+        created_atom_ids.append(rid)
+        result_ids.append(_parse_record_id(rid))
+        logger.info("[Entity] 内联创建 Atom: %s", rid)
+
+    # --- 验证已有 Atom IDs ---
+    if str_ids:
+        record_ids = [_parse_record_id(aid) for aid in str_ids]
+
+        atoms_check = await db.query(
+            "SELECT id FROM atom WHERE id IN $atom_ids",
+            {"atom_ids": record_ids},
+        )
+
+        found_ids: set[str] = set()
+        if atoms_check:
+            for record in atoms_check:
+                record_id = record["id"]
+                if hasattr(record_id, "table_name"):
+                    found_ids.add(f"{record_id.table_name}:{record_id.id}")
+                else:
+                    found_ids.add(str(record_id))
+
+        missing = set(str_ids) - found_ids
+        if missing:
+            raise ValidationError(f"Atoms 不存在: {missing}")
+
+        result_ids.extend(record_ids)
+
+    return result_ids
+
+
+def _record_id_str(rid: RecordID | str) -> str:
+    if isinstance(rid, RecordID):
+        return f"{rid.table_name}:{rid.id}"
+    return str(rid)
+
+
 @router.post("/entities", response_model=EntityResponse)
 async def create_entity(request: EntityCreateRequest):
     """
@@ -153,48 +277,11 @@ async def create_entity(request: EntityCreateRequest):
         if request.type not in ENTITY_VALID_TYPES:
             raise ValidationError(f"无效的 Entity 类型: {request.type}. 必须是 {list(ENTITY_VALID_TYPES)}")
 
-        
-        if request.atoms:
-            from surrealdb.data.types.record_id import RecordID
-            record_ids = []
-            for atom_id in request.atoms:
-                if ":" in atom_id:
-                    parts = atom_id.split(":", 1)
-                    record_ids.append(RecordID(parts[0], parts[1]))
-                else:
-                    record_ids.append(atom_id)
-            
-            logger.info("[Entity] Looking for atoms: %s, record_ids: %s", request.atoms, record_ids)
-            
-            atoms_check = await db.query(
-                "SELECT id FROM atom WHERE id IN $atom_ids",
-                {"atom_ids": record_ids}
-            )
-            
-            logger.info("[Entity] atoms_check result: %s, type: %s", atoms_check, type(atoms_check))
-            
-            found_ids = set()
-            if atoms_check:
-                for record in atoms_check:
-                    record_id = record["id"]
-                    if hasattr(record_id, "table_name"):
-                        found_ids.add(f"{record_id.table_name}:{record_id.id}")
-                    else:
-                        found_ids.add(str(record_id))
-            
-            logger.info("[Entity] found_ids: %s, request.atoms: %s", found_ids, set(request.atoms))
-            
-            missing = set(request.atoms) - found_ids
-            if missing:
-                raise ValidationError(f"Atoms 不存在: {missing}")
-
-        
         entity_data = {
             "type": request.type,
             "tenant_id": request.tenant_id,
             "abstract": request.abstract,
             "overview": request.overview,
-            "atoms": record_ids if request.atoms else [],
             "tags": request.tags,
             "project": request.project,
             "created_by": request.created_by,
@@ -227,6 +314,9 @@ async def create_entity(request: EntityCreateRequest):
 
         # BL-B-100: 使用事务执行创建操作
         async with transaction(db, "Entity"):
+            record_ids = await _process_atoms(db, request.atoms, tenant_id=request.tenant_id)
+            entity_data["atoms"] = record_ids if record_ids else []
+
             result = await db.create("entity", entity_data)
 
             if not result:
@@ -241,7 +331,7 @@ async def create_entity(request: EntityCreateRequest):
             # Convert atoms back to string IDs for response
             response_data = entity_data.copy()
             if response_data.get("atoms"):
-                response_data["atoms"] = request.atoms
+                response_data["atoms"] = [_record_id_str(a) for a in record_ids]
 
             return EntityResponse(id=record_id, **response_data)
 
@@ -279,13 +369,15 @@ async def batch_create_entities(request: BatchEntityRequest):
                     if entity_req.type not in ENTITY_VALID_TYPES:
                         raise ValidationError(f"无效的 Entity 类型: {entity_req.type}")
 
+                    record_ids = await _process_atoms(db, entity_req.atoms, tenant_id=request.tenant_id)
+
                     # 准备数据
                     entity_data = {
                         "type": entity_req.type,
                         "tenant_id": request.tenant_id,
                         "abstract": entity_req.abstract,
                         "overview": entity_req.overview,
-                        "atoms": [],
+                        "atoms": record_ids if record_ids else [],
                         "tags": entity_req.tags,
                         "project": entity_req.project,
                         "created_by": entity_req.created_by,
@@ -331,7 +423,7 @@ async def batch_create_entities(request: BatchEntityRequest):
                     # 转换 atoms 回字符串 IDs
                     response_data = entity_data.copy()
                     if response_data.get("atoms"):
-                        response_data["atoms"] = []
+                        response_data["atoms"] = [_record_id_str(a) for a in record_ids]
 
                     results["success"].append(EntityResponse(id=record_id, **response_data))
 
@@ -525,58 +617,27 @@ async def update_entity(entity_id: str, request: EntityUpdateRequest):
             raise HTTPException(status_code=404, detail="Entity 不存在")
 
         
-        if request.atoms:
-            # BL-B-106: 修复 N+1 查询问题 - 使用批量查询
-            record_ids = []
-            for atom_id in request.atoms:
-                if ":" in atom_id:
-                    parts = atom_id.split(":", 1)
-                    record_ids.append(RecordID(parts[0], parts[1]))
-                else:
-                    record_ids.append(atom_id)
-            
-            atoms_check = await db.query(
-                "SELECT id FROM atom WHERE id IN $atom_ids",
-                {"atom_ids": record_ids}
-            )
-            
-            found_ids = set()
-            if atoms_check:
-                for record in atoms_check:
-                    record_id = record["id"]
-                    if hasattr(record_id, "table_name"):
-                        found_ids.add(f"{record_id.table_name}:{record_id.id}")
-                    else:
-                        found_ids.add(str(record_id))
-            
-            missing = set(request.atoms) - found_ids
-            if missing:
-                raise ValidationError(f"Atoms 不存在: {missing}")
-
-        
-        update_data = {}
-        for field, value in request.model_dump(exclude_unset=True).items():
+        update_data: dict[str, Any] = {}
+        raw_update = request.model_dump(exclude_unset=True)
+        for field, value in raw_update.items():
             if value is not None:
-                # 将 atoms 字符串列表转换为 RecordID 对象列表
-                if field == "atoms" and isinstance(value, list):
-                    record_ids = []
-                    for atom_id in value:
-                        if ":" in atom_id:
-                            parts = atom_id.split(":", 1)
-                            record_ids.append(RecordID(parts[0], parts[1]))
-                        else:
-                            record_ids.append(atom_id)
-                    update_data[field] = record_ids
+                if field == "atoms":
+                    pass
                 else:
                     update_data[field] = value
 
-        if not update_data:
+        if not update_data and "atoms" not in raw_update:
             raise HTTPException(status_code=400, detail="没有要更新的字段")
 
         update_data["updated_at"] = "time::now()"
 
         # BL-B-100: 使用事务执行更新操作
         async with transaction(db, "Entity"):
+            # atoms 在事务内处理，避免孤立 Atom
+            if "atoms" in raw_update and raw_update["atoms"] is not None:
+                record_ids = await _process_atoms(db, raw_update["atoms"], entity_id=entity_id)
+                update_data["atoms"] = record_ids
+
             # 使用 SurrealQL UPDATE 语句来更新字段
             set_clauses = []
             params: dict[str, Any] = {"entity_id": entity_record_id}

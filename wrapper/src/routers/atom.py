@@ -1,6 +1,7 @@
 """Atom CRUD 端点 - 原子级知识单元管理"""
 
 import logging
+import re
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
@@ -160,6 +161,29 @@ class BatchAtomResponse(BaseModel):
     failed_count: int = Field(..., description="失败数")
 
 
+class AtomBudgetRequest(BaseModel):
+    """Atom 上下文预算请求"""
+
+    entity_id: str = Field(..., description="Entity ID")
+    query: str | None = Field(default=None, description="搜索关键词（relevance 策略用）")
+    max_tokens: int = Field(default=4000, ge=100, le=100000, description="Token 预算上限")
+    strategy: str = Field(default="relevance", description="选择策略: relevance | hierarchy")
+    max_level: int | None = Field(default=None, ge=1, le=6, description="最大标题层级过滤")
+    tenant_id: str = Field(default="default", description="租户ID")
+
+
+class AtomBudgetResponse(BaseModel):
+    """Atom 上下文预算响应"""
+
+    atoms: list[dict[str, Any]] = Field(..., description="选中的 Atom 列表（按原始树结构顺序）")
+    total_atoms: int = Field(..., description="Entity 总 Atom 数")
+    selected_count: int = Field(..., description="选中数量")
+    used_tokens: int = Field(..., description="估算使用的 token 数")
+    max_tokens: int = Field(..., description="预算上限")
+    strategy: str = Field(..., description="使用的策略")
+    budget_exhausted: bool = Field(..., description="预算是否耗尽")
+
+
 @router.post("/atoms", response_model=AtomResponse)
 async def create_atom(request: AtomCreateRequest):
     """
@@ -247,6 +271,7 @@ async def list_atoms(
     tenant_id: str = Query(default="default"),
     page: int = Query(default=1, ge=1, description="页码"),
     page_size: int = Query(default=50, ge=1, le=100, description="每页大小"),
+    max_level: int | None = Query(default=None, ge=1, le=6, description="最大标题层级过滤（仅返回 heading_level <= max_level 的 Atom）"),
     limit: int | None = Query(default=None, ge=1, le=100, description="返回数量限制（向后兼容）"),
     offset: int | None = Query(default=None, ge=0, description="偏移量（向后兼容）"),
 ):
@@ -275,18 +300,21 @@ async def list_atoms(
         if project:
             conditions.append("project = $project")
             params["project"] = project
+        if max_level is not None:
+            conditions.append("(heading_level IS NONE OR heading_level <= $max_level)")
+            params["max_level"] = max_level
 
         where_clause = " AND ".join(conditions)
 
         count_result = await db.query(
-            f"SELECT count() AS total FROM atom WHERE {where_clause} GROUP ALL",
+            f"SELECT count() AS total FROM atom WHERE {where_clause} GROUP ALL",  # nosec B608
             params,
         )
         records = state.memory_manager._extract_records(count_result)
         total = records[0].get("total", 0) if records else 0
 
         result = await db.query(
-            f"SELECT * FROM atom WHERE {where_clause} ORDER BY created_at DESC LIMIT {take} START {skip}",
+            f"SELECT * FROM atom WHERE {where_clause} ORDER BY created_at DESC LIMIT {take} START {skip}",  # nosec B608
             params,
         )
         raw_data = result or []
@@ -348,6 +376,265 @@ async def get_atom(atom_id: str, tenant_id: str = Query(default="default")):
     except Exception as e:
         logger.error("[Atom] 查询失败: %s", e)
         raise HTTPException(status_code=500, detail=f"查询失败: {e!s}") from e
+
+
+@router.get("/entities/{entity_id}/atoms/{atom_id}")
+async def get_atom_by_entity(
+    entity_id: str,
+    atom_id: str,
+    tenant_id: str = Query(default="default"),
+):
+    """
+    获取属于指定 Entity 的 Atom 详情
+
+    验证 atom 的 entity_id 字段与路径参数匹配，返回完整 atom 数据。
+    用于跨 Entity 的 Atom 链接解析。
+    """
+    if not state.memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        db = state.memory_manager.db
+
+        # 将字符串 ID 转换为 RecordID
+        atom_parts = atom_id.split(":", 1)
+        atom_record_id = RecordID(atom_parts[0], atom_parts[1])
+
+        result = await db.query(
+            "SELECT * FROM atom WHERE id = $atom_id AND entity_id = $entity_id AND tenant_id = $tenant_id",
+            {"atom_id": atom_record_id, "entity_id": entity_id, "tenant_id": tenant_id},
+        )
+
+        if not result or len(result) == 0:
+            raise HTTPException(status_code=404, detail="Atom 不存在或不属于该 Entity")
+
+        return result[0]
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("[Atom] 按Entity查询失败: entity_id=%s atom_id=%s error=%s", entity_id, atom_id, e)
+        raise HTTPException(status_code=500, detail=f"查询失败: {e!s}") from e
+
+
+@router.post("/atoms/budget", response_model=AtomBudgetResponse)
+async def atoms_budget(request: AtomBudgetRequest):
+    """在 token 预算内选择最相关的 Atoms"""
+    if not state.memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    try:
+        db = state.memory_manager.db
+
+        conditions = ["entity_id = $entity_id", "tenant_id = $tenant_id"]
+        params: dict[str, Any] = {
+            "entity_id": request.entity_id,
+            "tenant_id": request.tenant_id,
+        }
+
+        if request.max_level is not None:
+            conditions.append("(heading_level IS NONE OR heading_level <= $max_level)")
+            params["max_level"] = request.max_level
+
+        where_clause = " AND ".join(conditions)
+        result = await db.query(
+            f"SELECT * FROM atom WHERE {where_clause}",  # nosec B608
+            params,
+        )
+
+        raw_atoms: list[dict[str, Any]] = []
+        if result:
+            for record in result:
+                atom = _normalize_atom(record)
+                if atom:
+                    raw_atoms.append(atom)
+
+        total_atoms = len(raw_atoms)
+
+        if total_atoms == 0:
+            return AtomBudgetResponse(
+                atoms=[],
+                total_atoms=0,
+                selected_count=0,
+                used_tokens=0,
+                max_tokens=request.max_tokens,
+                strategy=request.strategy,
+                budget_exhausted=False,
+            )
+
+        strategy = request.strategy
+        if strategy == "relevance" and not request.query:
+            logger.warning("[Atom Budget] relevance 策略缺少 query，回退到 hierarchy")
+            strategy = "hierarchy"
+
+        if strategy == "relevance":
+            scored = _score_atoms_relevance(raw_atoms, request.query)
+        else:
+            scored = _sort_atoms_hierarchy(raw_atoms)
+
+        selected = _greedy_select(scored, raw_atoms, request.max_tokens)
+
+        # 按树结构重排: order → heading_level → id
+        selected.sort(key=lambda a: (
+            a.get("order") or "",
+            a.get("heading_level") or 999,
+            a.get("id") or "",
+        ))
+
+        used_tokens = sum(_estimate_atom_tokens(a) for a in selected)
+
+        return AtomBudgetResponse(
+            atoms=selected,
+            total_atoms=total_atoms,
+            selected_count=len(selected),
+            used_tokens=used_tokens,
+            max_tokens=request.max_tokens,
+            strategy=strategy,
+            budget_exhausted=len(selected) < total_atoms,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("[Atom Budget] 预算选择失败: %s", e)
+        raise HTTPException(status_code=500, detail=f"预算选择失败: {e!s}") from e
+
+
+def _estimate_tokens(text: str) -> int:
+    if not text:
+        return 0
+    return max(1, len(text) // 2)
+
+
+def _estimate_atom_tokens(atom: dict[str, Any]) -> int:
+    parts = [atom.get("name", "") or "", atom.get("content", "") or ""]
+    sig = atom.get("signature")
+    if sig:
+        parts.append(sig)
+    return _estimate_tokens(" ".join(parts))
+
+
+def _simple_bm25(query: str, text: str, avg_doc_len: float = 100.0) -> float:
+    if not query or not text:
+        return 0.0
+
+    k1, b = 1.5, 0.75
+    query_terms = set(re.findall(r"\w+", query.lower()))
+    doc_terms = re.findall(r"\w+", text.lower())
+    doc_len = len(doc_terms)
+
+    tf: dict[str, int] = {}
+    for term in doc_terms:
+        tf[term] = tf.get(term, 0) + 1
+
+    score = 0.0
+    for term in query_terms:
+        if term in tf:
+            freq = tf[term]
+            numerator = freq * (k1 + 1)
+            denominator = freq + k1 * (1 - b + b * doc_len / avg_doc_len)
+            score += numerator / denominator
+
+    return score
+
+
+def _normalize_atom(record: dict[str, Any]) -> dict[str, Any] | None:
+    raw_id = record.get("id")
+    if raw_id and hasattr(raw_id, "table_name"):
+        record["id"] = f"{raw_id.table_name}:{raw_id.id}"
+    for field in ("created_at", "updated_at"):
+        if field in record and record[field] is not None:
+            if hasattr(record[field], "isoformat"):
+                record[field] = record[field].isoformat()
+    return record
+
+
+def _score_atoms_relevance(
+    atoms: list[dict[str, Any]], query: str | None
+) -> list[dict[str, Any]]:
+    if not query:
+        return atoms
+    for atom in atoms:
+        text = (atom.get("name") or "") + " " + (atom.get("content") or "")
+        atom["_score"] = _simple_bm25(query, text)
+        hl = atom.get("heading_level")
+        if hl is not None:
+            atom["_score"] += (7 - hl) * 0.1
+    return sorted(atoms, key=lambda a: a.get("_score", 0.0), reverse=True)
+
+
+def _sort_atoms_hierarchy(atoms: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(
+        atoms,
+        key=lambda a: (
+            a.get("heading_level") if a.get("heading_level") is not None else 999,
+            a.get("order") or "",
+            a.get("name") or "",
+        ),
+    )
+
+
+def _greedy_select(
+    ranked: list[dict[str, Any]], all_atoms: list[dict[str, Any]], max_tokens: int
+) -> list[dict[str, Any]]:
+    atom_map: dict[str, dict[str, Any]] = {}
+    for a in all_atoms:
+        aid = a.get("id")
+        if aid:
+            atom_map[aid] = a
+
+    selected: list[dict[str, Any]] = []
+    selected_ids: set[str] = set()
+    used_tokens = 0
+
+    for candidate in ranked:
+        cid = candidate.get("id")
+        if cid and cid in selected_ids:
+            continue
+
+        cand_tokens = _estimate_atom_tokens(candidate)
+
+        # Resolve full ancestor chain (parent → grandparent → ...)
+        ancestors: list[dict[str, Any]] = []
+        ancestor_ids: set[str] = set()
+        current_id = candidate.get("parent_id")
+        while current_id and current_id not in selected_ids and current_id not in ancestor_ids and current_id in atom_map:
+            ancestor = atom_map[current_id]
+            ancestors.append(ancestor)
+            ancestor_ids.add(current_id)
+            current_id = ancestor.get("parent_id")
+
+        if ancestors:
+            ancestor_tokens = sum(_estimate_atom_tokens(a) for a in ancestors)
+            if used_tokens + ancestor_tokens + cand_tokens > max_tokens and selected:
+                continue
+            # Add ancestors (deepest first, so parent comes before grandchild)
+            for ancestor in reversed(ancestors):
+                aid = ancestor.get("id")
+                if aid and aid not in selected_ids:
+                    selected.append(ancestor)
+                    selected_ids.add(aid)
+                    used_tokens += _estimate_atom_tokens(ancestor)
+
+        if used_tokens + cand_tokens > max_tokens and selected:
+            continue
+
+        selected.append(candidate)
+        if cid:
+            selected_ids.add(cid)
+        used_tokens += cand_tokens
+
+    # 至少返回 1 个 atom
+    if not selected and ranked:
+        first = ranked[0].copy()
+        first.pop("_score", None)
+        selected.append(first)
+
+    # 移除内部评分字段
+    for a in selected:
+        a.pop("_score", None)
+
+    return selected
 
 
 @router.post("/atoms/batch", response_model=BatchAtomResponse)

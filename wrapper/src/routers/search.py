@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/v1", tags=["search"])
 # ============================================================
 
 VALID_SEARCH_MODES = frozenset(["vector", "keyword", "hybrid"])
-VALID_SEARCH_SCOPES = frozenset(["all", "memory", "code", "backlog"])
+VALID_SEARCH_SCOPES = frozenset(["all", "memory", "code", "backlog", "atom", "entity"])
 
 
 class UnifiedSearchRequest(BaseModel):
@@ -29,6 +29,7 @@ class UnifiedSearchRequest(BaseModel):
     scope: str = Field(default="all", description="搜索范围: all | memory | code | backlog")
     types: list[str] | None = Field(default=None, description="过滤 Entity 类型")
     atom_types: list[str] | None = Field(default=None, description="过滤 Atom 类型")
+    max_level: int | None = Field(default=None, ge=1, le=6, description="最大标题层级过滤（仅返回 heading_level <= max_level 的 Atom）")
     limit: int = Field(default=20, ge=1, le=100, description="返回数量限制")
     level: int = Field(default=1, ge=0, le=2, description="返回层级")
     tenant_id: str = Field(default="default", description="租户ID")
@@ -135,6 +136,10 @@ async def _search_atoms(db: Any, request: UnifiedSearchRequest) -> list[dict[str
             conditions.append("type IN $atom_types")
             params["atom_types"] = request.atom_types
 
+        if request.max_level is not None:
+            conditions.append("(heading_level IS NONE OR heading_level <= $max_level)")
+            params["max_level"] = request.max_level
+
         where_clause = " AND ".join(conditions)
         # nosec B608: where_clause 由参数化条件构建，非用户直接输入
         query = f"SELECT * FROM atom WHERE {where_clause} LIMIT $limit"  # nosec B608
@@ -155,6 +160,11 @@ async def _search_atoms(db: Any, request: UnifiedSearchRequest) -> list[dict[str
                 "atom_id": raw_id,
                 "atom_type": record.get("type", ""),
                 "name": record.get("name", ""),
+                "content": record.get("content", ""),
+                "heading_level": record.get("heading_level"),
+                "parent_id": record.get("parent_id"),
+                "order": record.get("order"),
+                "tags": record.get("tags", []),
                 "entity_id": record.get("entity_id", ""),
                 "score": 0.5,
             })
@@ -168,14 +178,14 @@ def _should_search_entities(scope: str, types: list[str] | None) -> bool:
     """判断是否需要搜索 Entity"""
     if types and "atom" in types and "memory" not in types:
         return False
-    return scope in ("all", "memory", "code", "backlog")
+    return scope in ("all", "memory", "code", "backlog", "entity")
 
 
 def _should_search_atoms(scope: str, types: list[str] | None) -> bool:
     """判断是否需要搜索 Atom"""
     if types and "memory" in types and "atom" not in types:
         return False
-    return scope in ("all", "memory", "code", "backlog")
+    return scope in ("all", "memory", "code", "backlog", "atom")
 
 
 # ============================================================
