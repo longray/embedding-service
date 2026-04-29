@@ -17,9 +17,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["atoms"])
 
 # 模块级常量：Atom 有效类型
+# v3.3: 新增 chapter, section 支持知识文档场景
 ATOM_VALID_TYPES = frozenset([
     "function", "class", "interface", "import",
-    "goal", "scope", "task", "note"
+    "goal", "scope", "task", "note",
+    "chapter", "section",
 ])
 
 
@@ -32,7 +34,7 @@ class AtomCreateRequest(BaseModel):
     type: str = Field(
         ...,
         description="Atom 类型",
-        examples=["function", "class", "interface", "import", "goal", "scope", "task", "note"],
+        examples=["function", "class", "interface", "import", "goal", "scope", "task", "note", "chapter", "section"],
     )
     content: str = Field(..., description="内容（函数源码、任务描述等）")
     tenant_id: str = Field(default="default", description="租户ID")
@@ -59,6 +61,14 @@ class AtomCreateRequest(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict, description="元数据")
     project: str | None = Field(default=None, description="项目ID")
 
+    # v3.3 层级化知识图谱字段
+    tags: list[str] = Field(default_factory=list, description="标签列表")
+    heading_level: int | None = Field(default=None, ge=1, le=6, description="标题层级 1-6")
+    parent_id: str | None = Field(default=None, description="父 Atom ID（树结构）")
+    order: str | None = Field(default=None, description="分数索引（如 a0, aV）")
+    aliases: list[str] = Field(default_factory=list, description="别名列表")
+    entity_id: str | None = Field(default=None, description="所属 Entity ID")
+
 
 class AtomUpdateRequest(BaseModel):
     """更新 Atom 请求"""
@@ -73,6 +83,14 @@ class AtomUpdateRequest(BaseModel):
     complexity: int | None = Field(default=None, description="复杂度")
     status: str | None = Field(default=None, description="状态")
     metadata: dict[str, Any] | None = Field(default=None, description="元数据")
+
+    # v3.3 层级化知识图谱字段
+    tags: list[str] | None = Field(default=None, description="标签列表")
+    heading_level: int | None = Field(default=None, ge=1, le=6, description="标题层级 1-6")
+    parent_id: str | None = Field(default=None, description="父 Atom ID")
+    order: str | None = Field(default=None, description="分数索引")
+    aliases: list[str] | None = Field(default=None, description="别名列表")
+    entity_id: str | None = Field(default=None, description="所属 Entity ID")
 
 
 class AtomResponse(BaseModel):
@@ -105,6 +123,14 @@ class AtomResponse(BaseModel):
     version: int = Field(default=1, description="版本号")
     created_at: str | None = Field(default=None, description="创建时间")
     updated_at: str | None = Field(default=None, description="更新时间")
+
+    # v3.3 层级化知识图谱字段
+    tags: list[str] = Field(default_factory=list, description="标签列表")
+    heading_level: int | None = Field(default=None, description="标题层级 1-6")
+    parent_id: str | None = Field(default=None, description="父 Atom ID")
+    order: str | None = Field(default=None, description="分数索引")
+    aliases: list[str] = Field(default_factory=list, description="别名列表")
+    entity_id: str | None = Field(default=None, description="所属 Entity ID")
 
 
 class PaginatedAtomResponse(BaseModel):
@@ -148,6 +174,8 @@ async def create_atom(request: AtomCreateRequest):
     - scope: 范围
     - task: 任务
     - note: 笔记
+    - chapter: 章节（v3.3）
+    - section: 小节（v3.3）
     """
     if not state.memory_manager:
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
@@ -179,6 +207,12 @@ async def create_atom(request: AtomCreateRequest):
             "metadata": request.metadata,
             "project": request.project,
             "version": 1,
+            "tags": request.tags,
+            "heading_level": request.heading_level,
+            "parent_id": request.parent_id,
+            "order": request.order,
+            "aliases": request.aliases,
+            "entity_id": request.entity_id,
         }
 
         
@@ -363,6 +397,12 @@ async def batch_create_atoms(request: BatchAtomRequest):
                         "metadata": atom_req.metadata,
                         "project": atom_req.project,
                         "version": 1,
+                        "tags": atom_req.tags,
+                        "heading_level": atom_req.heading_level,
+                        "parent_id": atom_req.parent_id,
+                        "order": atom_req.order,
+                        "aliases": atom_req.aliases,
+                        "entity_id": atom_req.entity_id,
                     }
                     atom_data = {k: v for k, v in atom_data.items() if v is not None}
 
@@ -396,93 +436,6 @@ async def batch_create_atoms(request: BatchAtomRequest):
     except Exception as e:
         logger.error("[Atom] 批量创建失败: %s", e)
         raise HTTPException(status_code=500, detail=f"批量创建失败: {e!s}") from e
-
-
-@router.get("/atoms", response_model=PaginatedAtomResponse)
-async def list_atoms(
-    type: str | None = Query(default=None, description="Atom 类型过滤"),
-    project: str | None = Query(default=None, description="项目过滤"),
-    tenant_id: str = Query(default="default", description="租户ID"),
-    page: int = Query(default=1, ge=1, description="页码"),
-    page_size: int = Query(default=50, ge=1, le=100, description="每页大小"),
-    limit: int | None = Query(default=None, ge=1, le=100, description="返回数量限制（向后兼容）"),
-    offset: int | None = Query(default=None, ge=0, description="偏移量（向后兼容）"),
-):
-    """列出 Atoms（支持分页）"""
-    if not state.memory_manager:
-        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
-
-    try:
-        db = state.memory_manager.db
-
-        # 向后兼容：如果提供了 limit/offset，使用它们
-        if limit is not None and offset is not None:
-            skip = offset
-            take = limit
-        else:
-            skip = (page - 1) * page_size
-            take = page_size
-
-        # 查询总数
-        count_query = "SELECT count() FROM atom WHERE tenant_id = $tenant_id"
-        count_params = {"tenant_id": tenant_id}
-
-        if type:
-            count_query += " AND type = $type"
-            count_params["type"] = type
-        if project:
-            count_query += " AND project = $project"
-            count_params["project"] = project
-
-        count_result = await db.query(count_query, count_params)
-        total = count_result[0]["count"] if count_result and len(count_result) > 0 else 0
-
-        # 查询数据
-        query = "SELECT * FROM atom WHERE tenant_id = $tenant_id"
-        params = {"tenant_id": tenant_id}
-
-        if type:
-            query += " AND type = $type"
-            params["type"] = type
-        if project:
-            query += " AND project = $project"
-            params["project"] = project
-
-        query += f" LIMIT {take} START {skip}"
-
-        result = await db.query(query, params)
-        raw_data = result or []
-
-        # 转换数据格式以匹配 Pydantic 模型
-        data = []
-        for record in raw_data:
-            # 处理 RecordID
-            raw_id = record.get("id")
-            if raw_id and hasattr(raw_id, "table_name"):
-                record["id"] = f"{raw_id.table_name}:{raw_id.id}"
-            # 处理 datetime
-            for field in ["created_at", "updated_at"]:
-                if field in record and record[field] is not None:
-                    if hasattr(record[field], "isoformat"):
-                        record[field] = record[field].isoformat()
-            data.append(record)
-
-        # 计算当前页码和 has_more
-        current_page = page if limit is None else (skip // take) + 1
-        current_page_size = take
-        has_more = (skip + len(data)) < total
-
-        return PaginatedAtomResponse(
-            data=data,
-            total=total,
-            page=current_page,
-            page_size=current_page_size,
-            has_more=has_more
-        )
-
-    except Exception as e:
-        logger.error("[Atom] 列表查询失败: %s", e)
-        raise HTTPException(status_code=500, detail=f"查询失败: {e!s}") from e
 
 
 @router.put("/atoms/{atom_id}")

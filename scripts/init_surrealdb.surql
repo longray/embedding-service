@@ -350,7 +350,7 @@ DEFINE FIELD IF NOT EXISTS id ON atom TYPE record<atom>;
 DEFINE FIELD IF NOT EXISTS tenant_id ON atom TYPE string
     ASSERT $value != NONE AND string::len($value) > 0;
 DEFINE FIELD IF NOT EXISTS type ON atom TYPE string
-    ASSERT $value IN ['function', 'class', 'interface', 'import', 'goal', 'scope', 'task', 'note', 'symbol', 'token', 'fragment'];
+    ASSERT $value IN ['function', 'class', 'interface', 'import', 'goal', 'scope', 'task', 'note', 'symbol', 'token', 'fragment', 'chapter', 'section'];
 DEFINE FIELD IF NOT EXISTS content ON atom TYPE string;
 DEFINE FIELD IF NOT EXISTS name ON atom TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS signature ON atom TYPE option<string>;
@@ -370,12 +370,26 @@ DEFINE FIELD IF NOT EXISTS fingerprint ON atom TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS created_at ON atom TYPE datetime DEFAULT time::now();
 DEFINE FIELD IF NOT EXISTS updated_at ON atom TYPE datetime DEFAULT time::now();
 
+-- v3.3 层级化知识图谱字段
+DEFINE FIELD IF NOT EXISTS tags ON atom TYPE option<array<string>>;
+DEFINE FIELD IF NOT EXISTS heading_level ON atom TYPE option<int>
+    ASSERT $value == NONE OR ($value >= 1 AND $value <= 6);
+DEFINE FIELD IF NOT EXISTS parent_id ON atom TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS order ON atom TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS aliases ON atom TYPE option<array<string>>;
+DEFINE FIELD IF NOT EXISTS entity_id ON atom TYPE option<string>;
+
 -- atom 表索引
 DEFINE INDEX IF NOT EXISTS idx_atom_tenant ON atom FIELDS tenant_id;
 DEFINE INDEX IF NOT EXISTS idx_atom_type ON atom FIELDS type;
 DEFINE INDEX IF NOT EXISTS idx_atom_project ON atom FIELDS project;
 DEFINE INDEX IF NOT EXISTS idx_atom_fingerprint ON atom FIELDS fingerprint;
 DEFINE INDEX IF NOT EXISTS idx_atom_created_at ON atom FIELDS created_at;
+
+-- v3.3 层级索引
+DEFINE INDEX IF NOT EXISTS idx_atom_parent ON atom FIELDS parent_id;
+DEFINE INDEX IF NOT EXISTS idx_atom_order ON atom FIELDS order;
+DEFINE INDEX IF NOT EXISTS idx_atom_entity ON atom FIELDS entity_id;
 
 -- 2. entity 表 - 实体（由 atom 组成）
 DEFINE TABLE IF NOT EXISTS entity TYPE NORMAL;
