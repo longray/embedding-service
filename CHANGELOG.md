@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.4] - 2026-04-29
+
+### Added
+
+- **v3.3 Atom Architecture 后端完整实施**
+  - Entity 内联 Atom 创建：`AtomInlineCreate` 模型，`atoms` 字段支持 `str | AtomInlineCreate` 双格式
+  - 统一搜索端点扩展：`POST /api/v1/search` 支持 `scope=atom/entity`，Atom 搜索结果含 `content`、`heading_level`、`parent_id`、`order`、`tags`
+  - 跨 Entity Atom 链接：`GET /api/v1/entities/{entity_id}/atoms/{atom_id}`
+  - 上下文预算管理：`POST /api/v1/atoms/budget`（BM25 relevance + hierarchy 双策略，token 预算控制，祖先链完整性保证）
+  - Atom 层级过滤：`max_level` 参数支持 `GET /api/v1/atoms`、`POST /api/v1/search`、`POST /api/v1/atoms/budget`
+
+### Fixed
+
+- **batch_create_entities atoms 硬编码空数组**：`atoms` 字段从 `[]` 改为正确处理请求中的 atoms
+- **scope 路由缺失**：`_should_search_atoms/entities` 新增 `"atom"` / `"entity"` scope 支持
+- **model_dump 类型兼容**：`_process_atoms` 新增 `dict` 类型处理（`model_dump` 后 `AtomInlineCreate` 变为 dict）
+- **内联 Atom 缺少 tenant_id**：`_process_atoms` 自动注入 `tenant_id` 到内联创建的 Atom
+- **事务安全**：`create_entity` / `update_entity` 的 Atom 创建移入事务块，避免孤儿数据
+- **祖先链完整性**：`_greedy_select` 支持多级 parent 补全（grandparent → parent → child）
+- **循环引用防护**：`_greedy_select` while 循环添加 `ancestor_ids` 检查，防止死循环
+- Bandit B608 标记：`atom.py` 新增 3 处 `# nosec B608` 行内标记
+
+### Changed
+
+- `EntityCreateRequest.atoms`: `list[str]` → `Sequence[Union[str, AtomInlineCreate, dict]]`
+- `EntityUpdateRequest.atoms`: `list[str] | None` → `Sequence[...] | None`
+- `_process_atoms` 新增 `tenant_id` 参数，签名改为异步函数接受 `Sequence` 类型
+- `VALID_SEARCH_SCOPES` 新增 `"atom"` 和 `"entity"`
+
 ## [2.8.3] - 2026-04-22
 
 ### Added

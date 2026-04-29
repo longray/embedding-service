@@ -20,7 +20,24 @@
 
 ## 版本历史
 
-### v2.8.0 (当前) - PrecomputeService + Stub 端点 ✅
+### v2.8.4 (当前) - v3.3 Atom Architecture 后端 ✅
+
+**发布日期**: 2026-04-29
+
+**核心功能**:
+
+- 所有 v2.8.0 功能
+- **Atom Architecture v3.3 后端**：
+  - Entity 内联 Atom 创建（`AtomInlineCreate` 模型）
+  - 统一搜索扩展（Atom 粒度搜索 + content 字段）
+  - 跨 Entity Atom 链接端点
+  - 上下文预算管理（BM25 + hierarchy 双策略）
+  - Atom 层级过滤（max_level）
+- **质量修复**：batch_create bug、事务安全、tenant_id 注入、祖先链完整性、循环引用防护
+
+---
+
+### v2.8.0 - PrecomputeService + Stub 端点 ✅
 
 **发布日期**: 2026-04-15
 

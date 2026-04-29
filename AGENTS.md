@@ -161,7 +161,15 @@ docker-compose up -d
 
 ## 最近变更
 
-- **v3.2 架构升级**（当前）：
+- **v3.3 Atom Architecture**（2026-04-29）：
+  - Entity 内联 Atom 创建（`AtomInlineCreate` 模型，双格式 `atoms` 字段）
+  - 统一搜索扩展（scope=atom/entity，Atom 结果含 content 等 5 字段）
+  - 跨 Entity Atom 链接（`GET /entities/{entity_id}/atoms/{atom_id}`）
+  - 上下文预算管理（`POST /atoms/budget`，BM25 + hierarchy 双策略）
+  - Atom 层级过滤（`max_level` 参数，支持列表/搜索/预算端点）
+  - Review 修复：scope 路由、dict 处理、tenant_id 注入、事务安全、祖先链、循环引用防护
+  - Bug 修复：`batch_create_entities` atoms 硬编码空数组
+- **v3.2 架构升级**（基础架构）：
   - 统一架构v3.2实施完成，服务端口迁移：17999 → 18008
   - SurrealDB 3.0+ 语法升级（`COMPUTED`, `FULLTEXT`, `type::record()`）
   - tree-sitter Query性能优化（3.32x提升），纳入代码分析
