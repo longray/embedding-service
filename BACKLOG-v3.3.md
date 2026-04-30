@@ -22,6 +22,11 @@
 | BL-C-6 | 代码分析端点 | P2 | 1 天 | ✅ | [详情](#bl-c-6-p2-代码分析端点) |
 | BL-C-7 | 记忆聚类端点 | P3 | 0.5 天 | ✅ | [详情](#bl-c-7-p3-记忆聚类端点) |
 | BL-C-8 | 预取功能端点 | P3 | 0.5 天 | ✅ | [详情](#bl-c-8-p3-预取功能端点) |
+| **Atom Architecture 后端实施** |
+| BL-C-9 | Entity 内联 Atom 创建 | P1 | 1 天 | ✅ | [详情](#bl-c-9-p1-entity-内联-atom-创建) |
+| BL-C-10 | 统一搜索 + Atom 层级过滤 | P1 | 1 天 | ✅ | [详情](#bl-c-10-p1-统一搜索--atom-层级过滤) |
+| BL-C-11 | 跨 Entity Atom 链接 | P2 | 0.5 天 | ✅ | [详情](#bl-c-11-p2-跨-entity-atom-链接) |
+| BL-C-12 | 上下文预算管理 | P1 | 1 天 | ✅ | [详情](#bl-c-12-p1-上下文预算管理) |
 
 ---
 
@@ -424,13 +429,127 @@ curl -X POST "http://localhost:18008/api/v1/prefetch/popular?limit=10"
 
 ---
 
+## Atom Architecture 后端实施
+
+### BL-C-9 [P1] Entity 内联 Atom 创建
+
+**目标**
+
+实现 Entity 创建时内联创建 Atom 的能力，支持 `str | AtomInlineCreate` 双格式。
+
+**涉及范围**
+
+- 文件: `wrapper/src/routers/entity.py`（修改）
+- 文件: `wrapper/src/models.py`（修改）
+- 新增: `AtomInlineCreate` 模型
+
+**完成标准**
+
+- [x] `AtomInlineCreate` 模型定义
+- [x] `EntityCreateRequest.atoms` 支持 `Sequence[Union[str, AtomInlineCreate, dict]]`
+- [x] `_process_atoms` 自动注入 `tenant_id`
+- [x] 事务安全：Atom 创建在事务块内
+- [x] `model_dump` dict 类型兼容处理
+- [x] `batch_create_entities` atoms 硬编码空数组修复
+
+**验证方式**
+
+```bash
+uv run pytest tests/ -v -k "atom"
+```
+
+---
+
+### BL-C-10 [P1] 统一搜索 + Atom 层级过滤
+
+**目标**
+
+扩展统一搜索端点，支持 Atom/Entity scope 和层级过滤。
+
+**涉及范围**
+
+- 文件: `wrapper/src/routers/search.py`（修改）
+- 文件: `wrapper/src/routers/atom.py`（修改）
+- 常量: `VALID_SEARCH_SCOPES` 新增 `"atom"` / `"entity"`
+
+**完成标准**
+
+- [x] `POST /api/v1/search` 支持 `scope=atom/entity`
+- [x] Atom 搜索结果含 `content`、`heading_level`、`parent_id`、`order`、`tags`
+- [x] `GET /api/v1/atoms` 支持 `max_level` 过滤
+- [x] `POST /api/v1/search` 支持 `max_level` 过滤
+- [x] `_should_search_atoms/entities` scope 路由修复
+
+**验证方式**
+
+```bash
+uv run pytest tests/ -v -k "search"
+```
+
+---
+
+### BL-C-11 [P2] 跨 Entity Atom 链接
+
+**目标**
+
+实现跨 Entity 的 Atom 引用链接。
+
+**涉及范围**
+
+- 文件: `wrapper/src/routers/entity.py`（修改）
+- 文件: `wrapper/src/routers/atom.py`（修改）
+
+**完成标准**
+
+- [x] `GET /api/v1/entities/{entity_id}/atoms/{atom_id}` 端点
+- [x] 支持跨 Entity 查找 Atom
+- [x] 错误处理（Atom 不存在、Entity 不存在）
+
+**验证方式**
+
+```bash
+uv run pytest tests/ -v -k "entity"
+```
+
+---
+
+### BL-C-12 [P1] 上下文预算管理
+
+**目标**
+
+实现基于 token 预算的 Atom 选择策略，支持 BM25 relevance + hierarchy 双策略。
+
+**涉及范围**
+
+- 文件: `wrapper/src/routers/atom.py`（修改）
+- 新增: `POST /api/v1/atoms/budget` 端点
+
+**完成标准**
+
+- [x] `POST /api/v1/atoms/budget` 端点实现
+- [x] BM25 relevance 策略
+- [x] hierarchy 策略（祖先链完整性）
+- [x] token 预算控制
+- [x] `max_level` 参数支持
+- [x] 循环引用防护（`ancestor_ids` 检查）
+- [x] 多级 parent 补全（grandparent → parent → child）
+
+**验证方式**
+
+```bash
+uv run pytest tests/ -v -k "budget"
+```
+
+---
+
 ## 统计汇总
 
 | 分类 | 总数 | P1 | P2 | P3 | 工时 |
 |------|------|----|----|----|------|
 | PrecomputeService 完善 | 3 | 3 | 0 | 0 | 4 天 |
 | Stub 端点实现 | 5 | 0 | 3 | 2 | 4 天 |
-| **总计** | **8** | **3** | **3** | **2** | **8 天** |
+| Atom Architecture 后端实施 | 4 | 3 | 1 | 0 | 3.5 天 |
+| **总计** | **12** | **6** | **4** | **2** | **11.5 天** |
 
 ---
 
@@ -474,5 +593,5 @@ curl -X POST "http://localhost:18008/api/v1/prefetch/popular?limit=10"
 
 ---
 
-_文档版本: v3.3.0_  
-_最后更新: 2026-04-26_
+_文档版本: v3.3.1_
+_最后更新: 2026-04-30_

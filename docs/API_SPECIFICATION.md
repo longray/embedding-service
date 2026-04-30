@@ -1,7 +1,7 @@
 # Embedding Service API 接口规范
 
-**版本**: 2.3.1
-**生成日期**: 2026-03-23
+**版本**: 3.3.0
+**生成日期**: 2026-04-29
 **适用项目**: D:\embedding_service
 
 ---
@@ -15,11 +15,17 @@
 - [五、核心API端点](#五核心api端点)
   - [5.1 Embedding服务](#51-embedding服务端口-18000)
   - [5.2 LLM服务](#52-llm服务端口-18001)
-  - [5.3 包装层服务](#53-包装层服务端口-3001)
+  - [5.3 包装层服务](#53-包装层服务端口-18008)
 - [六、数据模型定义](#六数据模型定义)
-- [七、插件API规范](#七插件api规范)
-- [八、OpenAPI/Swagger文档](#八openapiswagger文档)
-- [九、最佳实践建议](#九最佳实践建议)
+- [七、v3.3 Atom Architecture 端点](#七v33-atom-architecture-端点)
+  - [7.1 Entity 管理](#71-entity-管理)
+  - [7.2 Atom 管理](#72-atom-管理)
+  - [7.3 统一搜索](#73-统一搜索)
+- [八、v3.3 数据模型](#八v33-数据模型)
+- [九、插件API规范](#九插件api规范)
+- [十、OpenAPI/Swagger文档](#十openapiswagger文档)
+- [十一、最佳实践建议](#十一最佳实践建议)
+- [十二、附录](#十二附录)
 
 ---
 
@@ -134,114 +140,71 @@ Current (当前版本) → Supported (支持版本) → Deprecated (弃用版本
 
 ## 三、认证与授权
 
-### 3.1 当前状态
+### 3.1 当前状态（v3.3）
 
-**⚠️ 注意**：当前项目**未实现**认证授权机制
+**API 认证**已实现，通过环境变量控制开关：
 
-- 所有端点均无API Key验证
-- CORS配置允许所有来源（`allow_origins=["*"]`）
-- 认证机制为P2待实现功能
+| 环境变量 | 默认值 | 说明 |
+|----------|--------|------|
+| `WRAPPER_AUTH_ENABLED` | `false` | 是否启用 API Key 认证 |
+| `WRAPPER_API_KEYS` | - | API Key 配置，格式：`key:read;write` |
 
-### 3.2 推荐的认证方案
+**启用方式**：
 
-#### 方案1: API Key认证（推荐）
+```bash
+export WRAPPER_AUTH_ENABLED=true
+export WRAPPER_API_KEYS="your_key:read;write"
+```
 
-**实现方式**：HTTP Header
+**认证机制**：
+
+- 启用后，受保护的端点需在请求头携带 `Authorization: Bearer <key>`
+- API Key 格式：`key:scope1;scope2`，支持多个权限范围
+- 权限范围：`read`（读取）、`write`（写入）
+- 未启用时（默认），所有端点公开访问（向后兼容）
+
+**特殊认证端点**：
+
+| 端点 | 认证方式 |
+|------|----------|
+| `DELETE /api/v1/memories/clear` | `WRAPPER_MEILI_API_KEY` Header |
+| `/ws/memories/live` | 可选 `WRAPPER_WEBSOCKET_TOKEN` 参数 |
+
+### 3.2 认证方案详解
+
+#### API Key 认证（已实现）
+
+**请求示例**：
 
 ```http
-POST /v1/embeddings HTTP/1.1
-Host: localhost:3001
-Authorization: Bearer sk-xxxxxxxxxxxxxxxxxxxx
+POST /api/v1/memories HTTP/1.1
+Host: localhost:18008
+Authorization: Bearer your_key
 Content-Type: application/json
-
 ```
 
-**FastAPI实现示例**：
+#### WebSocket Token 认证（已实现）
 
-```python
-from fastapi import Security, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
-security = HTTPBearer()
-
-async def verify_api_key(credentials: HTTPAuthorizationCredentials = Security(security)):
-    """验证API Key"""
-    api_key = credentials.credentials
-
-    # 从数据库或配置中验证API Key
-    if not is_valid_api_key(api_key):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired API key",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    return api_key
-
-# 使用认证
-@app.post("/v1/embeddings")
-async def create_embeddings(
-    request: EmbeddingRequest,
-    api_key: str = Depends(verify_api_key)
-):
-    # 处理请求
-    pass
-
-```yaml
-
-#### 方案2: JWT Token认证
-
-**实现方式**：Bearer Token
-
-```http
-POST /v1/embeddings HTTP/1.1
-Host: localhost:3001
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-Content-Type: application/json
-
+```javascript
+const ws = new WebSocket(
+  'ws://localhost:18008/ws/memories/live?tenant_id=default&token=your_secret_token'
+);
 ```
 
-**JWT Payload示例**：
-
-```json
-{
-  "sub": "user123",
-  "iat": 1234567890,
-  "exp": 1234567890 + 3600,
-  "scopes": ["embeddings:read", "chat:write"]
-}
-
-```yaml
-
-#### 方案3: OAuth2.0
-
-**授权码流程**：
-
-```
-
-1. 客户端重定向到授权服务器
-2. 用户授权
-3. 授权服务器返回授权码
-4. 客户端用授权码换取访问令牌
-5. 客户端使用访问令牌访问API
-
-```text
-
-### 3.3 权限模型（推荐）
+### 3.3 权限模型（规划中）
 
 ```yaml
 权限范围 (scopes):
   - embeddings:read    # 读取embedding
   - embeddings:write   # 创建embedding
-  - chat:read         # 读取聊天记录
-  - chat:write        # 发送聊天请求
-  - memories:read     # 读取记忆
-  - memories:write    # 写入记忆
-  - admin:*           # 管理员权限（所有权限）
-
+  - chat:read          # 读取聊天记录
+  - chat:write         # 发送聊天请求
+  - memories:read      # 读取记忆
+  - memories:write     # 写入记忆
+  - admin:*            # 管理员权限（所有权限）
 ```
 
-### 3.4 速率限制
+### 3.4 速率限制（规划中）
 
 **推荐实现**：基于令牌桶算法
 
@@ -256,8 +219,7 @@ limiter = Limiter(key_func=get_remote_address)
 @limiter.limit("100/minute")
 async def create_embeddings(request: Request):
     pass
-
-```text
+```
 
 ---
 
@@ -699,7 +661,7 @@ async def wrapper_error_handler(request: Request, exc: WrapperServiceError):
 
 ---
 
-### 5.3 包装层服务（端口 3001）
+### 5.3 包装层服务（端口 18008）
 
 #### 5.3.1 健康检查（含SurrealDB状态）
 
@@ -1049,9 +1011,505 @@ class MemoryUploadResponse(BaseModel):
 
 ---
 
-## 七、插件API规范
+## 七、v3.3 Atom Architecture 端点
 
-### 7.1 插件通信模式
+> **新增于 v3.3** — Atom Architecture 将知识组织为层级化的原子节点，实现精准引用和高效检索。
+
+### 7.1 Entity 管理
+
+Entity 是知识聚合单元，包含 L0/L1/L2 分层：
+
+- **L0 (abstract)**: ≤100字符，用于列表展示
+- **L1 (overview)**: 结构化数据，用于预览
+- **L2 (atoms)**: Atom ID 列表，完整详情
+
+**Entity 有效类型**: `memory`, `backlog`, `wiki`, `code`
+
+#### 7.1.1 创建 Entity（支持内联 Atom）
+
+**端点**：`POST /api/v1/entities`
+
+**请求示例（带内联 Atom）**：
+
+```json
+{
+  "type": "memory",
+  "abstract": "Vue3 Composition API 指南",
+  "overview": {"description": "涵盖 setup、ref、reactive 等核心概念"},
+  "atoms": [
+    {
+      "type": "chapter",
+      "name": "第1章：setup() 函数",
+      "content": "setup 是 Composition API 的入口...",
+      "heading_level": 1,
+      "order": "a0",
+      "parent_id": null,
+      "tags": ["vue", "composition-api"]
+    },
+    {
+      "type": "section",
+      "name": "1.1 基本用法",
+      "content": "在组件中定义 setup 函数...",
+      "heading_level": 2,
+      "order": "a0",
+      "parent_id": null,
+      "tags": ["vue", "setup"]
+    }
+  ],
+  "tags": ["vue3", "composition-api"],
+  "tenant_id": "default"
+}
+```
+
+**请求参数**：
+
+| 参数 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| type | string | ✅ | Entity 类型：memory / backlog / wiki / code |
+| abstract | string | ✅ | 摘要（L0，≤100字符） |
+| overview | object | ❌ | 概览（L1） |
+| atoms | array | ❌ | Atom ID 或内联创建对象列表（L2） |
+| tags | array | ❌ | 标签列表 |
+| project | string | ❌ | 项目ID |
+| tenant_id | string | ❌ | 租户ID（默认："default"） |
+| title | string | ❌ | 标题（wiki 类型） |
+| aliases | array | ❌ | 别名（wiki 类型） |
+| priority | string | ❌ | 优先级（backlog 类型） |
+| status | string | ❌ | 状态（backlog 类型） |
+| file_path | string | ❌ | 文件路径（code 类型） |
+| language | string | ❌ | 编程语言（code 类型） |
+
+**响应示例**：
+
+```json
+{
+  "id": "entity:abc123",
+  "type": "memory",
+  "tenant_id": "default",
+  "abstract": "Vue3 Composition API 指南",
+  "overview": {"description": "涵盖 setup、ref、reactive 等核心概念"},
+  "atoms": ["atom:def456", "atom:ghi789"],
+  "tags": ["vue3", "composition-api"],
+  "project": null,
+  "created_by": "system",
+  "created_at": "2026-04-29T10:00:00Z",
+  "updated_at": null
+}
+```
+
+#### 7.1.2 列出 Entities
+
+**端点**：`GET /api/v1/entities`
+
+**查询参数**：
+
+| 参数 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| type | string | ❌ | Entity 类型过滤 |
+| project | string | ❌ | 项目过滤 |
+| status | string | ❌ | 状态过滤 |
+| tenant_id | string | ❌ | 租户ID（默认："default"） |
+| page | int | ❌ | 页码（默认：1） |
+| page_size | int | ❌ | 每页大小（默认：50，最大：100） |
+
+#### 7.1.3 获取 Entity
+
+**端点**：`GET /api/v1/entities/{entity_id}`
+
+**查询参数**：
+
+| 参数 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| level | int | ❌ | 返回层级：0=abstract, 1=abstract+overview, 2=full（默认：2） |
+| tenant_id | string | ❌ | 租户ID（默认："default"） |
+
+#### 7.1.4 更新 Entity
+
+**端点**：`PUT /api/v1/entities/{entity_id}`
+
+**请求参数**（所有字段可选）：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| abstract | string | 摘要 |
+| overview | object | 概览 |
+| atoms | array | Atom ID 或内联创建对象列表 |
+| tags | array | 标签列表 |
+| status | string | 状态 |
+| priority | string | 优先级 |
+
+#### 7.1.5 删除 Entity
+
+**端点**：`DELETE /api/v1/entities/{entity_id}`
+
+#### 7.1.6 批量创建 Entities
+
+**端点**：`POST /api/v1/entities/batch`
+
+**请求示例**：
+
+```json
+{
+  "entities": [
+    {
+      "type": "memory",
+      "abstract": "记忆1",
+      "tags": ["test"]
+    },
+    {
+      "type": "memory",
+      "abstract": "记忆2",
+      "tags": ["test"]
+    }
+  ],
+  "tenant_id": "default"
+}
+```
+
+**响应示例**：
+
+```json
+{
+  "success": [
+    {
+      "id": "entity:abc123",
+      "type": "memory",
+      "abstract": "记忆1",
+      "atoms": []
+    }
+  ],
+  "failed": [
+    {"index": 1, "error": "无效的 Entity 类型"}
+  ],
+  "total": 2,
+  "success_count": 1,
+  "failed_count": 1
+}
+```
+
+#### 7.1.7 跨 Entity Atom 链接
+
+**端点**：`GET /api/v1/entities/{entity_id}/atoms/{atom_id}`
+
+**说明**：验证 atom 的 `entity_id` 字段与路径参数匹配，返回完整 atom 数据。用于跨 Entity 的 Atom 链接解析。
+
+---
+
+### 7.2 Atom 管理
+
+Atom 是最小知识单元，支持以下类型：
+
+| 类型 | 说明 | 适用场景 |
+|------|------|----------|
+| function | 函数定义 | 代码分析 |
+| class | 类定义 | 代码分析 |
+| interface | 接口定义 | 代码分析 |
+| import | 导入语句 | 代码分析 |
+| goal | 目标 | 任务管理 |
+| scope | 范围 | 任务管理 |
+| task | 任务 | 任务管理 |
+| note | 笔记 | 通用 |
+| chapter | 章节 | v3.3 知识文档 |
+| section | 小节 | v3.3 知识文档 |
+
+#### 7.2.1 创建 Atom
+
+**端点**：`POST /api/v1/atoms`
+
+**请求示例**：
+
+```json
+{
+  "type": "function",
+  "content": "def analyze_code(content: str) -> dict:\n    pass",
+  "name": "analyze_code",
+  "signature": "analyze_code(content: str) -> dict",
+  "params": [{"name": "content", "type": "str"}],
+  "return_type": "dict",
+  "is_exported": true,
+  "is_async": false,
+  "complexity": 3,
+  "start_line": 1,
+  "end_line": 2,
+  "heading_level": null,
+  "parent_id": null,
+  "order": null,
+  "aliases": [],
+  "entity_id": "entity:abc123",
+  "tags": ["python", "analyzer"],
+  "tenant_id": "default"
+}
+```
+
+#### 7.2.2 列出 Atoms
+
+**端点**：`GET /api/v1/atoms`
+
+**查询参数**：
+
+| 参数 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| query | string | ❌ | 按名称过滤（子串匹配） |
+| type | string | ❌ | Atom 类型过滤 |
+| project | string | ❌ | 项目过滤 |
+| max_level | int | ❌ | 最大标题层级过滤（仅返回 heading_level ≤ max_level） |
+| tenant_id | string | ❌ | 租户ID（默认："default"） |
+| page | int | ❌ | 页码（默认：1） |
+| page_size | int | ❌ | 每页大小（默认：50） |
+
+#### 7.2.3 获取 Atom
+
+**端点**：`GET /api/v1/atoms/{atom_id}`
+
+#### 7.2.4 更新 Atom
+
+**端点**：`PUT /api/v1/atoms/{atom_id}`
+
+**说明**：更新时自动递增版本号。
+
+#### 7.2.5 删除 Atom
+
+**端点**：`DELETE /api/v1/atoms/{atom_id}`
+
+#### 7.2.6 批量创建 Atoms
+
+**端点**：`POST /api/v1/atoms/batch`
+
+**限制**：最大批量 100 条。
+
+#### 7.2.7 上下文预算管理
+
+**端点**：`POST /api/v1/atoms/budget`
+
+**说明**：在 token 预算内选择最相关的 Atoms，支持两种策略：
+
+- **relevance**: 基于 BM25 相关性评分 + heading_level 加权
+- **hierarchy**: 按 heading_level → order → name 排序
+
+**请求示例**：
+
+```json
+{
+  "entity_id": "entity:abc123",
+  "query": "setup function reactive",
+  "max_tokens": 4000,
+  "strategy": "relevance",
+  "max_level": null,
+  "tenant_id": "default"
+}
+```
+
+**响应示例**：
+
+```json
+{
+  "atoms": [
+    {
+      "id": "atom:def456",
+      "type": "section",
+      "name": "1.1 setup() 函数",
+      "content": "setup 是 Composition API 的入口...",
+      "heading_level": 2,
+      "order": "a0"
+    }
+  ],
+  "total_atoms": 15,
+  "selected_count": 8,
+  "used_tokens": 3200,
+  "max_tokens": 4000,
+  "strategy": "relevance",
+  "budget_exhausted": false
+}
+```
+
+**特性**：
+
+- 自动解析祖先链（parent → grandparent → ...）
+- 贪心选择算法确保上下文完整性
+- 至少返回 1 个 atom
+
+---
+
+### 7.3 统一搜索
+
+**端点**：`POST /api/v1/search`
+
+**说明**：跨 Entity（Meilisearch）和 Atom（SurrealDB）的统一搜索端点。
+
+**请求示例**：
+
+```json
+{
+  "query": "setup function",
+  "mode": "hybrid",
+  "scope": "all",
+  "types": null,
+  "atom_types": null,
+  "max_level": null,
+  "limit": 20,
+  "level": 1,
+  "tenant_id": "default"
+}
+```
+
+**请求参数**：
+
+| 参数 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| query | string | ✅ | 搜索查询 |
+| mode | string | ❌ | 搜索模式：vector / keyword / hybrid（默认：hybrid） |
+| scope | string | ❌ | 搜索范围：all / memory / code / backlog / atom / entity（默认：all） |
+| types | array | ❌ | 过滤 Entity 类型 |
+| atom_types | array | ❌ | 过滤 Atom 类型 |
+| max_level | int | ❌ | 最大标题层级过滤 |
+| limit | int | ❌ | 返回数量限制（默认：20，最大：100） |
+| level | int | ❌ | 返回层级：0/1/2（默认：1） |
+| tenant_id | string | ❌ | 租户ID（默认："default"） |
+
+**响应示例**：
+
+```json
+{
+  "results": [
+    {
+      "type": "entity",
+      "id": "entity:abc123",
+      "entity_type": "memory",
+      "abstract": "Vue3 Composition API 指南",
+      "score": 0.85
+    },
+    {
+      "type": "atom",
+      "local_id": "01SEC001",
+      "atom_id": "atom:def456",
+      "atom_type": "section",
+      "name": "1.1 setup() 函数",
+      "content": "在组件中定义 setup 函数...",
+      "heading_level": 2,
+      "parent_id": null,
+      "order": "a0",
+      "tags": ["vue", "setup"],
+      "entity_id": "entity:abc123",
+      "score": 0.5
+    }
+  ],
+  "total": 2,
+  "mode": "hybrid",
+  "query": "setup function"
+}
+```
+
+---
+
+## 八、v3.3 数据模型
+
+### 8.1 AtomInlineCreate
+
+用于在创建/更新 Entity 时内联创建 Atom：
+
+```python
+class AtomInlineCreate(BaseModel):
+    type: str                    # Atom 类型
+    content: str                 # Atom 内容
+    name: str | None             # Atom 名称
+    local_id: str | None         # 客户端侧 ID（用于树结构）
+    heading_level: int | None    # 标题层级 1-6
+    parent_id: str | None        # 父 Atom 的 local_id
+    order: str | None            # 排序键（如 a0, aV）
+    aliases: list[str] | None    # 别名
+    tags: list[str] | None       # 标签
+    signature: str | None        # 函数签名
+    params: list[dict] | None    # 参数列表
+    return_type: str | None      # 返回类型
+    is_exported: bool | None     # 是否导出
+    is_async: bool | None        # 是否异步
+    complexity: int | None       # 复杂度
+    start_line: int | None       # 起始行号
+    end_line: int | None         # 结束行号
+    docstring: dict | None       # 文档字符串
+    metadata: dict | None        # 元数据
+    project: str | None          # 项目 ID
+    fingerprint: str | None      # 内容指纹
+```
+
+### 8.2 AtomBudgetRequest / AtomBudgetResponse
+
+上下文预算管理：
+
+```python
+class AtomBudgetRequest(BaseModel):
+    entity_id: str               # Entity ID（必需）
+    query: str | None            # 搜索关键词（relevance 策略用）
+    max_tokens: int = 4000       # Token 预算上限（100-100000）
+    strategy: str = "relevance"  # 策略：relevance | hierarchy
+    max_level: int | None        # 最大标题层级过滤
+    tenant_id: str = "default"   # 租户ID
+
+class AtomBudgetResponse(BaseModel):
+    atoms: list[dict]            # 选中的 Atom 列表（按树结构排序）
+    total_atoms: int             # Entity 总 Atom 数
+    selected_count: int          # 选中数量
+    used_tokens: int             # 估算使用的 token 数
+    max_tokens: int              # 预算上限
+    strategy: str                # 使用的策略
+    budget_exhausted: bool       # 预算是否耗尽
+```
+
+### 8.3 UnifiedSearchRequest / UnifiedSearchResponse
+
+统一搜索：
+
+```python
+class UnifiedSearchRequest(BaseModel):
+    query: str                   # 搜索查询（必需）
+    mode: str = "hybrid"         # 搜索模式：vector | keyword | hybrid
+    scope: str = "all"           # 搜索范围：all | memory | code | backlog | atom | entity
+    types: list[str] | None      # 过滤 Entity 类型
+    atom_types: list[str] | None # 过滤 Atom 类型
+    max_level: int | None        # 最大标题层级过滤
+    limit: int = 20              # 返回数量限制（1-100）
+    level: int = 1               # 返回层级（0-2）
+    tenant_id: str = "default"   # 租户ID
+
+class UnifiedSearchResponse(BaseModel):
+    results: list[dict]          # 搜索结果
+    total: int                   # 总结果数
+    mode: str                    # 使用的搜索模式
+    query: str                   # 原始查询
+```
+
+### 8.4 EntityCreateRequest
+
+```python
+class EntityCreateRequest(BaseModel):
+    type: str                    # Entity 类型（必需）
+    abstract: str                # 摘要（必需）
+    overview: dict               # 概览（默认：{}）
+    atoms: list[Union[str, AtomInlineCreate]]  # Atom ID 或内联创建
+    tags: list[str]              # 标签
+    project: str | None          # 项目ID
+    tenant_id: str = "default"   # 租户ID
+    # wiki 类型字段
+    title: str | None
+    aliases: list[str]
+    # backlog 类型字段
+    priority: str | None         # P0/P1/P2/P3
+    status: str | None           # backlog/todo/in_progress/done
+    scene: str | None
+    estimated_hours: float | None
+    actual_hours: float | None
+    # code 类型字段
+    file_path: str | None
+    language: str | None
+    quality_score: dict | None
+    complexity_metrics: dict | None
+```
+
+---
+
+## 九、插件API规范
+
+### 9.1 插件通信模式
 
 #### 7.1.1 HTTP API（推荐）
 
@@ -1065,7 +1523,7 @@ class MemoryUploadResponse(BaseModel):
 
 ```http
 POST /api/v1/plugins/{plugin_id}/invoke HTTP/1.1
-Host: localhost:3001
+Host: localhost:18008
 Content-Type: application/json
 
 {
@@ -1089,7 +1547,7 @@ Content-Type: application/json
 **实现方式**：WebSocket + JSON
 
 ```javascript
-const ws = new WebSocket('ws://localhost:3001/ws/plugins');
+const ws = new WebSocket('ws://localhost:18008/ws/plugins');
 
 ws.onopen = () => {
   ws.send(JSON.stringify({
@@ -1107,7 +1565,7 @@ ws.onmessage = (event) => {
 
 ```text
 
-### 7.2 插件注册与生命周期
+### 9.2 插件注册与生命周期
 
 #### 7.2.1 插件清单（plugin.json）
 
@@ -1156,7 +1614,7 @@ ws.onmessage = (event) => {
 
 ```
 
-### 7.3 插件权限模型
+### 9.3 插件权限模型
 
 ```yaml
 权限范围:
@@ -1173,7 +1631,7 @@ ws.onmessage = (event) => {
 
 ```text
 
-### 7.4 插件API设计原则
+### 9.4 插件API设计原则
 
 #### 7.4.1 最小权限原则
 
@@ -1216,7 +1674,7 @@ class PluginAPIv2(PluginAPIv1):
 
 ```
 
-### 7.5 插件间通信
+### 9.5 插件间通信
 
 #### 7.5.1 事件总线（Event Bus）
 
@@ -1255,9 +1713,9 @@ services = service_registry.discover('memory:*')
 
 ---
 
-## 八、OpenAPI/Swagger文档
+## 十、OpenAPI/Swagger文档
 
-### 8.1 OpenAPI规范结构
+### 10.1 OpenAPI规范结构
 
 ```yaml
 openapi: 3.0.3
@@ -1280,7 +1738,7 @@ info:
     name: MIT
 
 servers:
-  - url: http://localhost:3001
+  - url: http://localhost:18008
     description: 本地开发环境
   - url: https://api.example.com
     description: 生产环境
@@ -1297,7 +1755,7 @@ tags:
 
 ```text
 
-### 8.2 端点定义示例
+### 10.2 端点定义示例
 
 ```yaml
 paths:
@@ -1367,7 +1825,7 @@ paths:
 
 ```
 
-### 8.3 组件定义
+### 10.3 组件定义
 
 ```yaml
 components:
@@ -1469,7 +1927,7 @@ components:
 
 ```text
 
-### 8.4 安全方案
+### 10.4 安全方案
 
 ```yaml
 components:
@@ -1503,11 +1961,11 @@ security:
 
 ---
 
-## 九、最佳实践建议
+## 十一、最佳实践建议
 
-### 9.1 API设计原则
+### 11.1 API设计原则
 
-#### 9.1.1 RESTful设计
+#### 11.1.1 RESTful设计
 
 | 约定 | 说明 |
 |------|------|
@@ -1516,7 +1974,7 @@ security:
 | **状态码** | 正确使用HTTP状态码 |
 | **版本控制** | 使用URL路径版本：`/v1/`, `/v2/` |
 
-#### 9.1.2 分页、过滤、排序
+#### 11.1.2 分页、过滤、排序
 
 **分页**：
 
@@ -1549,9 +2007,9 @@ GET /api/v1/memories?sort=created_at&order=desc
 
 ```
 
-### 9.2 性能优化
+### 11.2 性能优化
 
-#### 9.2.1 缓存策略
+#### 11.2.1 缓存策略
 
 ```python
 # LRU缓存 + TTL
@@ -1584,7 +2042,7 @@ def get_embedding(text: str) -> List[float]:
 
 ```text
 
-#### 9.2.2 连接池
+#### 11.2.2 连接池
 
 ```python
 import httpx
@@ -1597,7 +2055,7 @@ http_client = httpx.AsyncClient(
 
 ```
 
-#### 9.2.3 批量处理
+#### 11.2.3 批量处理
 
 ```python
 # 批量上传记忆（推荐）
@@ -1609,9 +2067,9 @@ async def batch_upload_memories(memories: List[Memory], batch_size: int = 10):
 
 ```text
 
-### 9.3 安全建议
+### 11.3 安全建议
 
-#### 9.3.1 输入验证
+#### 11.3.1 输入验证
 
 ```python
 from pydantic import BaseModel, Field, validator
@@ -1628,7 +2086,7 @@ class EmbeddingRequest(BaseModel):
 
 ```
 
-#### 9.3.2 输出编码
+#### 11.3.2 输出编码
 
 ```python
 from fastapi.responses import JSONResponse
@@ -1641,7 +2099,7 @@ class SafeJSONResponse(JSONResponse):
 
 ```text
 
-#### 9.3.3 速率限制
+#### 11.3.3 速率限制
 
 ```python
 from slowapi import Limiter
@@ -1656,9 +2114,9 @@ async def create_embeddings(request: Request):
 
 ```
 
-### 9.4 监控与日志
+### 11.4 监控与日志
 
-#### 9.4.1 结构化日志
+#### 11.4.1 结构化日志
 
 ```python
 import structlog
@@ -1676,7 +2134,7 @@ logger.info(
 
 ```text
 
-#### 9.4.2 Prometheus指标
+#### 11.4.2 Prometheus指标
 
 ```python
 from prometheus_client import Counter, Histogram
@@ -1709,9 +2167,9 @@ async def create_embeddings(request: EmbeddingRequest):
 
 ```
 
-### 9.5 测试建议
+### 11.5 测试建议
 
-#### 9.5.1 单元测试
+#### 11.5.1 单元测试
 
 ```python
 import pytest
@@ -1731,7 +2189,7 @@ def test_create_embeddings():
 
 ```text
 
-#### 9.5.2 集成测试
+#### 11.5.2 集成测试
 
 ```python
 import pytest
@@ -1743,7 +2201,7 @@ async def test_full_workflow():
     async with httpx.AsyncClient() as client:
         # 1. 上传记忆
         upload_response = await client.post(
-            "http://localhost:3001/api/v1/memories",
+            "http://localhost:18008/api/v1/memories",
             json={
                 "memories": [{"content": "Test memory"}]
             }
@@ -1752,7 +2210,7 @@ async def test_full_workflow():
 
         # 2. 搜索记忆
         search_response = await client.post(
-            "http://localhost:3001/api/v1/memories/search",
+            "http://localhost:18008/api/v1/memories/search",
             json={"query": "Test"}
         )
         assert search_response.status_code == 200
@@ -1761,9 +2219,9 @@ async def test_full_workflow():
 
 ---
 
-## 十、附录
+## 十二、附录
 
-### 10.1 环境变量配置
+### 12.1 环境变量配置
 
 | 变量名 | 默认值 | 说明 |
 |--------|--------|------|
@@ -1796,7 +2254,7 @@ async def test_full_workflow():
 | `WRAPPER_MEILI_INDEX_NAME` | memories | 索引名称 |
 | `WRAPPER_MEILI_TIMEOUT` | 30.0 | 请求超时（秒） |
 
-### 10.2 错误码参考
+### 12.2 错误码参考
 
 | 错误码 | 说明 | HTTP状态码 |
 |--------|------|------------|
@@ -1808,7 +2266,7 @@ async def test_full_workflow():
 | `CIRCUIT_BREAKER_OPEN` | 熔断器打开 | 503 |
 | `INTERNAL_ERROR` | 内部服务器错误 | 500 |
 
-### 10.3 性能基准
+### 12.3 性能基准
 
 | 端点 | 预期延迟 | P99延迟 | QPS |
 |------|----------|---------|-----|
@@ -1824,6 +2282,7 @@ async def test_full_workflow():
 
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
+| 3.3.0 | 2026-04-29 | Atom Architecture 端点：Entity/Atom CRUD、统一搜索、上下文预算管理；端口迁移至 18008；认证章节更新 |
 | 2.3.0 | 2026-03-12 | Polyglot 搜索架构：Meilisearch 全文搜索 + SurrealDB 向量/图 |
 | 1.0.0 | 2026-03-04 | 初始版本 |
 

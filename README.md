@@ -84,6 +84,16 @@
 | `/api/v1/sync/full` | POST | 全量同步 | 🌍 公开 |
 | `/api/v1/sync/fingerprints` | GET | 获取服务端指纹 | 🌍 公开 |
 | `/api/v1/sync/conflicts/{id}/resolve` | POST | 解决同步冲突 | 🌍 公开 |
+| `/api/v1/atoms` | POST | 创建 Atom | 🌍 公开 |
+| `/api/v1/atoms` | GET | 列出 Atoms（支持 max_level 过滤） | 🌍 公开 |
+| `/api/v1/atoms/budget` | POST | 上下文预算管理（BM25 + hierarchy） | 🌍 公开 |
+| `/api/v1/entities` | POST | 创建 Entity（支持 atoms 内联创建） | 🌍 公开 |
+| `/api/v1/entities` | GET | 列出 Entities | 🌍 公开 |
+| `/api/v1/entities/{id}` | GET | 获取 Entity | 🌍 公开 |
+| `/api/v1/entities/{id}` | PUT | 更新 Entity | 🌍 公开 |
+| `/api/v1/entities/{id}` | DELETE | 删除 Entity | 🌍 公开 |
+| `/api/v1/entities/{id}/atoms/{atom_id}` | GET | 跨 Entity Atom 链接 | 🌍 公开 |
+| `/api/v1/search` | POST | 统一搜索（scope=atom/entity, max_level） | 🌍 公开 |
 
 ### 完整包装服务（端口 3001）
 

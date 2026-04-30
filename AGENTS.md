@@ -28,21 +28,28 @@ embedding_service/
 │   └── qwen3_embedding_service/
 │       ├── embedding_service.py # Embedding API (端口 18000)
 │       └── llm_service.py       # LLM API (端口 18001)
-├── wrapper/                     # 包装层服务 (端口 17999)
+├── wrapper/                     # 包装层服务 (端口 18008)
 │   └── src/
 │       ├── main.py             # FastAPI app + lifespan (v2.6.0, ~300行)
 │       ├── models.py           # 17 个 Pydantic 模型
 │       ├── state.py            # 共享单例（避免循环导入）
 │       ├── config.py           # 配置管理 (含 MeilisearchConfig)
-│       ├── routers/            # API 路由模块
-│       │   ├── health.py       # /health
-│       │   ├── embeddings.py   # /v1/embeddings
-│       │   ├── memories.py     # /memories CRUD + clear + summary + enrich
-│       │   ├── search.py       # /memories/search
-│       │   ├── relations.py    # 图关系 CRUD + 遍历
-│       │   ├── sync.py         # 同步预览/全量/指纹/冲突
-│       │   ├── websocket.py    # WebSocket 实时推送
-│       │   └── stubs.py        # 11 个 stub 端点
+│       ├── routers/ (22个)      # HTTP路由层
+│       │   ├── atom.py         # Atom CRUD + budget
+│       │   ├── audit.py        # 审计日志
+│       │   ├── embeddings.py   # Embedding API
+│       │   ├── entity.py       # Entity CRUD
+│       │   ├── health.py       # 健康检查
+│       │   ├── lookup.py       # 查询API
+│       │   ├── memories.py     # 记忆CRUD
+│       │   ├── precompute.py   # 预计算服务
+│       │   ├── projects.py     # 项目API
+│       │   ├── reference.py    # 引用关系
+│       │   ├── relations.py    # 图关系
+│       │   ├── search.py       # 统一搜索
+│       │   ├── stubs.py        # Stub 端点
+│       │   ├── symbols.py      # 符号API
+│       │   └── sync.py         # 同步API
 │       └── utils/
 │           ├── memory_manager/ # 记忆管理 Mixin 模式 (10 子模块)
 │           ├── meili_client.py # Meilisearch 异步客户端
