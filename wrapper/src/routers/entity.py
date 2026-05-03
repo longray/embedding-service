@@ -176,14 +176,18 @@ async def _process_atoms(
     atoms: Sequence[Union[str, AtomInlineCreate, dict[str, Any]]],
     entity_id: str | None = None,
     tenant_id: str = "default",
+    entity_abstract: str = "",
 ) -> list[RecordID | str]:
     """处理 atoms 列表：验证已有 ID 并创建内联 Atom 对象。
+
+    v3.3-opt: 为 Atom 生成 embedding，拼接 entity abstract + atom content。
 
     Args:
         db: SurrealDB 连接
         atoms: Atom ID (str)、内联创建对象 (AtomInlineCreate) 或 dict (来自 model_dump)
         entity_id: 关联的 Entity ID，用于反查
         tenant_id: 租户 ID，注入到内联创建的 Atom 中
+        entity_abstract: Entity 摘要，用于 embedding context 拼接
 
     Returns:
         RecordID / str 列表，可直接存入 SurrealDB 的 atoms 字段。
@@ -206,13 +210,42 @@ async def _process_atoms(
 
     result_ids: list[RecordID | str] = []
 
-    # --- 创建内联 Atoms ---
+    # --- 创建内联 Atoms (with embedding) ---
     created_atom_ids: list[str] = []
+    
+    # v3.3-opt: Prepare embedding inputs with context concatenation
+    embedding_inputs: list[str] = []
     for atom_req in inline_atoms:
+        parts = []
+        if entity_abstract:
+            parts.append(entity_abstract)
+        if atom_req.name:
+            parts.append(atom_req.name)
+        if atom_req.content:
+            parts.append(atom_req.content)
+        embedding_input = "\n".join(parts) if parts else atom_req.content
+        embedding_inputs.append(embedding_input)
+    
+    # v3.3-opt: Batch generate embeddings
+    embeddings: list[list[float]] = []
+    if embedding_inputs and state.memory_manager:
+        try:
+            embeddings = await state.memory_manager._get_embeddings(embedding_inputs)
+        except Exception as e:
+            logger.warning("[Entity] Failed to generate embeddings for atoms: %s", e)
+            embeddings = [[] for _ in embedding_inputs]
+    else:
+        embeddings = [[] for _ in embedding_inputs]
+    
+    for atom_req, embedding in zip(inline_atoms, embeddings):
         atom_data = atom_req.model_dump(exclude_none=True)
         if entity_id:
             atom_data["entity_id"] = entity_id
         atom_data["tenant_id"] = tenant_id
+        
+        # v3.3-opt: Add embedding if available
+        if embedding:
+            atom_data["embedding"] = embedding
 
         created = await db.create("atom", atom_data)
         record = parse_surrealdb_result(created)
@@ -314,7 +347,13 @@ async def create_entity(request: EntityCreateRequest):
 
         # BL-B-100: 使用事务执行创建操作
         async with transaction(db, "Entity"):
-            record_ids = await _process_atoms(db, request.atoms, tenant_id=request.tenant_id)
+            # v3.3-opt: Pass entity_abstract for embedding context concatenation
+            record_ids = await _process_atoms(
+                db, 
+                request.atoms, 
+                tenant_id=request.tenant_id,
+                entity_abstract=request.abstract
+            )
             entity_data["atoms"] = record_ids if record_ids else []
 
             result = await db.create("entity", entity_data)
@@ -369,7 +408,12 @@ async def batch_create_entities(request: BatchEntityRequest):
                     if entity_req.type not in ENTITY_VALID_TYPES:
                         raise ValidationError(f"无效的 Entity 类型: {entity_req.type}")
 
-                    record_ids = await _process_atoms(db, entity_req.atoms, tenant_id=request.tenant_id)
+                    record_ids = await _process_atoms(
+                        db, 
+                        entity_req.atoms, 
+                        tenant_id=request.tenant_id,
+                        entity_abstract=entity_req.abstract
+                    )
 
                     # 准备数据
                     entity_data = {
