@@ -379,8 +379,11 @@ DEFINE FIELD IF NOT EXISTS parent_id ON atom TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS order ON atom TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS aliases ON atom TYPE option<array<string>>;
 DEFINE FIELD IF NOT EXISTS entity_id ON atom TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS embedding ON atom TYPE option<array<float>>;
 
 -- atom 表索引
+DEFINE INDEX IF NOT EXISTS idx_atom_embedding_hnsw ON atom
+FIELDS embedding HNSW DIMENSION 1024 DIST COSINE;
 DEFINE INDEX IF NOT EXISTS idx_atom_tenant ON atom FIELDS tenant_id;
 DEFINE INDEX IF NOT EXISTS idx_atom_type ON atom FIELDS type;
 DEFINE INDEX IF NOT EXISTS idx_atom_project ON atom FIELDS project;

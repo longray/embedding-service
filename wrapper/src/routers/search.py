@@ -96,11 +96,14 @@ async def _search_entities(request: UnifiedSearchRequest) -> list[dict[str, Any]
     """通过现有 search_memories 搜索 Entity"""
     assert state.memory_manager is not None
     try:
+        # v3.3-opt: Atom scope uses lower threshold (0.1) because atom content is shorter
+        threshold = 0.1 if request.scope == "atom" else 0.5
+        
         entity_result = await state.memory_manager.search_memories(
             query=request.query,
             mode=request.mode,
             limit=request.limit,
-            threshold=0.5,
+            threshold=threshold,
             level=request.level,
             tenant_id=request.tenant_id,
         )
@@ -124,36 +127,113 @@ async def _search_entities(request: UnifiedSearchRequest) -> list[dict[str, Any]
 
 
 async def _search_atoms(db: Any, request: UnifiedSearchRequest) -> list[dict[str, Any]]:
-    """通过 SurrealDB 搜索 Atom"""
+    """通过 SurrealDB 搜索 Atom - v3.3-opt: 支持向量+关键词混合搜索"""
     try:
-        conditions = ["tenant_id = $tenant_id"]
-        params: dict[str, Any] = {"tenant_id": request.tenant_id}
+        # v3.3-opt: 根据模式选择搜索策略
+        if request.mode == "vector":
+            return await _search_atoms_by_vector(db, request)
+        elif request.mode == "hybrid":
+            return await _search_atoms_hybrid(db, request)
+        else:
+            return await _search_atoms_by_keyword(db, request)
+    except Exception as e:
+        logger.warning("[UnifiedSearch] Atom 搜索失败，跳过: %s", e)
+        return []
 
-        conditions.append("(content CONTAINS $query OR name CONTAINS $query)")
-        params["query"] = request.query
 
-        if request.atom_types:
-            conditions.append("type IN $atom_types")
-            params["atom_types"] = request.atom_types
+async def _search_atoms_by_keyword(db: Any, request: UnifiedSearchRequest) -> list[dict[str, Any]]:
+    """Atom 关键词搜索"""
+    conditions = ["tenant_id = $tenant_id"]
+    params: dict[str, Any] = {"tenant_id": request.tenant_id}
 
-        if request.max_level is not None:
-            conditions.append("(heading_level IS NONE OR heading_level <= $max_level)")
-            params["max_level"] = request.max_level
+    conditions.append("(content CONTAINS $query OR name CONTAINS $query)")
+    params["query"] = request.query
 
-        where_clause = " AND ".join(conditions)
-        # nosec B608: where_clause 由参数化条件构建，非用户直接输入
-        query = f"SELECT * FROM atom WHERE {where_clause} LIMIT $limit"  # nosec B608
-        params["limit"] = request.limit
+    if request.atom_types:
+        conditions.append("type IN $atom_types")
+        params["atom_types"] = request.atom_types
 
-        result = await db.query(query, params)
-        raw_data = result or []
+    if request.max_level is not None:
+        conditions.append("(heading_level IS NONE OR heading_level <= $max_level)")
+        params["max_level"] = request.max_level
 
-        results = []
-        for record in raw_data:
-            raw_id = record.get("id", "")
-            if hasattr(raw_id, "table_name"):
-                raw_id = f"{raw_id.table_name}:{raw_id.id}"
+    where_clause = " AND ".join(conditions)
+    # nosec B608: where_clause 由参数化条件构建，非用户直接输入
+    query = f"SELECT * FROM atom WHERE {where_clause} LIMIT $limit"  # nosec B608
+    params["limit"] = request.limit
 
+    result = await db.query(query, params)
+    raw_data = result or []
+
+    results = []
+    for record in raw_data:
+        raw_id = record.get("id", "")
+        if hasattr(raw_id, "table_name"):
+            raw_id = f"{raw_id.table_name}:{raw_id.id}"
+
+        results.append({
+            "type": "atom",
+            "local_id": record.get("local_id", record.get("source_id", "")),
+            "atom_id": raw_id,
+            "atom_type": record.get("type", ""),
+            "name": record.get("name", ""),
+            "content": record.get("content", ""),
+            "heading_level": record.get("heading_level"),
+            "parent_id": record.get("parent_id"),
+            "order": record.get("order"),
+            "tags": record.get("tags", []),
+            "entity_id": record.get("entity_id", ""),
+            "score": 0.5,
+        })
+    return results
+
+
+async def _search_atoms_by_vector(db: Any, request: UnifiedSearchRequest) -> list[dict[str, Any]]:
+    """Atom 向量搜索 - 使用 SurrealDB HNSW 索引"""
+    assert state.memory_manager is not None
+    
+    # Get query embedding
+    embeddings = await state.memory_manager._get_embeddings([request.query])
+    query_embedding = embeddings[0]
+    
+    # Build filter conditions
+    filters = ["tenant_id = $tenant_id"]
+    params: dict[str, Any] = {"tenant_id": request.tenant_id}
+    
+    if request.atom_types:
+        filters.append("type IN $atom_types")
+        params["atom_types"] = request.atom_types
+    
+    if request.max_level is not None:
+        filters.append("(heading_level IS NONE OR heading_level <= $max_level)")
+        params["max_level"] = request.max_level
+    
+    where_clause = " AND ".join(filters) if filters else "TRUE"
+    
+    # nosec B608: where_clause 由参数化条件构建，非用户直接输入
+    sql = f"""
+        SELECT *, vector::similarity::cosine(embedding, $embedding) AS score
+        FROM atom
+        WHERE {where_clause}
+        AND embedding IS NOT NONE
+        ORDER BY score DESC
+        LIMIT $limit
+    """  # nosec B608
+    params["embedding"] = query_embedding
+    params["limit"] = request.limit
+    
+    result = await db.query(sql, params)
+    raw_data = result or []
+    
+    results = []
+    for record in raw_data:
+        raw_id = record.get("id", "")
+        if hasattr(raw_id, "table_name"):
+            raw_id = f"{raw_id.table_name}:{raw_id.id}"
+        
+        score = record.get("score", 0.0)
+        # v3.3-opt: Lower threshold for atom search (0.1)
+        if score >= 0.1:
             results.append({
                 "type": "atom",
                 "local_id": record.get("local_id", record.get("source_id", "")),
@@ -166,12 +246,49 @@ async def _search_atoms(db: Any, request: UnifiedSearchRequest) -> list[dict[str
                 "order": record.get("order"),
                 "tags": record.get("tags", []),
                 "entity_id": record.get("entity_id", ""),
-                "score": 0.5,
+                "score": score,
             })
-        return results
-    except Exception as e:
-        logger.warning("[UnifiedSearch] Atom 搜索失败，跳过: %s", e)
-        return []
+    return results
+
+
+async def _search_atoms_hybrid(db: Any, request: UnifiedSearchRequest) -> list[dict[str, Any]]:
+    """Atom 混合搜索 - 向量 + 关键词 RRF 融合"""
+    # Get both vector and keyword results
+    vector_results = await _search_atoms_by_vector(db, request)
+    keyword_results = await _search_atoms_by_keyword(db, request)
+    
+    # v3.3-opt: Use 50-50 weights for atom search (more balanced)
+    vector_weight = 0.5
+    keyword_weight = 0.5
+    k = 60  # RRF smoothing constant
+    
+    # Merge using RRF
+    scores: dict[str, float] = {}
+    doc_data: dict[str, dict] = {}
+    
+    # Add vector contributions
+    for rank, item in enumerate(vector_results):
+        doc_id = item["atom_id"]
+        scores[doc_id] = scores.get(doc_id, 0.0) + vector_weight / (k + rank + 1)
+        doc_data[doc_id] = item
+    
+    # Add keyword contributions
+    for rank, item in enumerate(keyword_results):
+        doc_id = item["atom_id"]
+        scores[doc_id] = scores.get(doc_id, 0.0) + keyword_weight / (k + rank + 1)
+        if doc_id not in doc_data:
+            doc_data[doc_id] = item
+    
+    # Sort by RRF score
+    sorted_ids = sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
+    
+    results = []
+    for doc_id in sorted_ids[:request.limit]:
+        item = doc_data[doc_id].copy()
+        item["score"] = scores[doc_id]
+        results.append(item)
+    
+    return results
 
 
 def _should_search_entities(scope: str, types: list[str] | None) -> bool:

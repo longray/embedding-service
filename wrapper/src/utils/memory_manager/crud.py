@@ -507,8 +507,51 @@ class CrudMixin:
 
         v3.3 Atom Architecture: atoms are stored in separate `atom` table
         with `entity_id` referencing the parent memory.
+        
+        v3.3-opt: Atom embedding with parent context concatenation for better search recall.
         """
+        # Fetch entity abstract for context concatenation
+        entity_abstract = ""
+        try:
+            entity_result = await self._db_query(
+                "SELECT abstract FROM memory WHERE id = type::record($id) LIMIT 1",
+                {"id": entity_id}
+            )
+            entity_records = self._extract_records(entity_result)
+            if entity_records:
+                entity_abstract = entity_records[0].get("abstract", "")
+        except Exception as e:
+            logger.warning("[Atom] Failed to fetch entity abstract for %s: %s", entity_id, e)
+
+        # Prepare embedding inputs with context concatenation
+        embedding_inputs: list[str] = []
+        atom_data_list: list[dict[str, Any]] = []
+        
         for atom_data in atoms:
+            # Concatenate: entity abstract + atom name + atom content
+            parts = []
+            if entity_abstract:
+                parts.append(entity_abstract)
+            if atom_data.get("name"):
+                parts.append(atom_data["name"])
+            if atom_data.get("content"):
+                parts.append(atom_data["content"])
+            
+            embedding_input = "\n".join(parts) if parts else atom_data.get("content", "")
+            embedding_inputs.append(embedding_input)
+            atom_data_list.append(atom_data)
+
+        # Batch generate embeddings
+        embeddings: list[list[float]] = []
+        if embedding_inputs:
+            try:
+                embeddings = await self._get_embeddings(embedding_inputs)
+            except Exception as e:
+                logger.warning("[Atom] Failed to generate embeddings for entity %s: %s", entity_id, e)
+                embeddings = [[] for _ in embedding_inputs]  # Empty embeddings as fallback
+
+        # Create atoms with embeddings
+        for atom_data, embedding in zip(atom_data_list, embeddings, strict=False):
             try:
                 atom_record: dict[str, Any] = {
                     "type": atom_data.get("type", "note"),
@@ -516,6 +559,11 @@ class CrudMixin:
                     "tenant_id": tenant_id,
                     "entity_id": entity_id,
                 }
+                
+                # Add embedding if available
+                if embedding:
+                    atom_record["embedding"] = embedding
+                
                 # Copy optional atom fields
                 for field in (
                     "name", "local_id", "signature", "params", "return_type",
