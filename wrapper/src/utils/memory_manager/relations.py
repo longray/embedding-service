@@ -6,6 +6,7 @@ from typing import Any
 
 from ..exceptions import DatabaseError, ValidationError
 from ..tracing import get_tracer
+from ...models import ReferenceType
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,7 @@ class RelationsMixin:
         """创建两条记忆之间的图关系"""
         effective_tenant_id = tenant_id or self._default_tenant_id
 
-        valid_types = {"related", "follow_up", "elaboration", "contradiction", "reference", "derived_from", "calls"}
+        valid_types = set(ReferenceType.all_values())
         if type not in valid_types:
             raise ValidationError(f"Invalid type: {type}. Must be one of {valid_types}")
         if not 0.0 <= weight <= 1.0:

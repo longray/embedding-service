@@ -367,6 +367,7 @@ DEFINE FIELD IF NOT EXISTS status ON atom TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS metadata ON atom TYPE option<object>;
 DEFINE FIELD IF NOT EXISTS project ON atom TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS fingerprint ON atom TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS version ON atom TYPE option<int>;
 DEFINE FIELD IF NOT EXISTS created_at ON atom TYPE datetime DEFAULT time::now();
 DEFINE FIELD IF NOT EXISTS updated_at ON atom TYPE datetime DEFAULT time::now();
 
