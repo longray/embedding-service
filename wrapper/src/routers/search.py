@@ -129,8 +129,8 @@ async def _search_atoms(db: Any, request: UnifiedSearchRequest) -> list[dict[str
         conditions = ["tenant_id = $tenant_id"]
         params: dict[str, Any] = {"tenant_id": request.tenant_id}
 
-        conditions.append("(content LIKE $query OR name LIKE $query)")
-        params["query"] = f"%{request.query}%"
+        conditions.append("(content CONTAINS $query OR name CONTAINS $query)")
+        params["query"] = request.query
 
         if request.atom_types:
             conditions.append("type IN $atom_types")
