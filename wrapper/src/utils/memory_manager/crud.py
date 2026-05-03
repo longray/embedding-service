@@ -225,6 +225,9 @@ class CrudMixin:
                                 memory_ids.append(existing_id)
                                 updated_count += 1
                                 success_count += 1
+                                # v3.3: Create atoms for updated code memory
+                                if memory.get("atoms"):
+                                    await self._create_atoms_for_entity(existing_id, memory["atoms"], effective_tenant_id)
                                 continue
                             # 新文件：继续到批量插入（不 continue）
 
@@ -233,6 +236,8 @@ class CrudMixin:
                     # 同一文件多次分析应保留历史，不同项目相同代码应独立存储
                     if mem_type == "code":
                         # 代码数据直接进入批量插入队列，不检查 hash 去重
+                        if memory.get("atoms"):
+                            memory_data["_atoms"] = memory["atoms"]
                         batch_inserts.append(memory_data)
                         continue
 
@@ -298,6 +303,9 @@ class CrudMixin:
                             memory_ids.append(existing_id)
                             updated_count += 1
                             success_count += 1
+                            # v3.3: Create atoms for semantically-updated memory
+                            if memory.get("atoms"):
+                                await self._create_atoms_for_entity(existing_id, memory["atoms"], effective_tenant_id)
                             continue
                         elif decision == "DISCARD":
                             failed_count += 1
@@ -313,6 +321,8 @@ class CrudMixin:
                         # else: KEEP_BOTH - 继续创建新记录
 
                     # 加入批量插入队列（Phase A-B2）
+                    if memory.get("atoms"):
+                        memory_data["_atoms"] = memory["atoms"]
                     batch_inserts.append(memory_data)
 
                 except Exception as e:
@@ -330,6 +340,9 @@ class CrudMixin:
                     current_batch = batch_inserts[start_idx:end_idx]
 
                     try:
+                        # Save atoms before stripping for DB insert
+                        batch_atoms_save = [m.pop("_atoms", None) or [] for m in current_batch]
+
                         query = "INSERT INTO memory $data"
                         result = await self._db_query(query, {"data": current_batch})
 
@@ -345,6 +358,11 @@ class CrudMixin:
                                         mem = current_batch[i]
                                         meili_doc = self._build_meili_doc(record_id, mem, effective_tenant_id)
                                         meili_docs.append(meili_doc)
+
+                                    # v3.3: Create atoms for this memory
+                                    atoms_list = batch_atoms_save[i]
+                                    if atoms_list:
+                                        await self._create_atoms_for_entity(record_id, atoms_list, effective_tenant_id)
                                 else:
                                     failed_count += 1
                                     errors.append(f"Batch {batch_idx + 1}: No record ID returned")
@@ -352,7 +370,7 @@ class CrudMixin:
                         logger.warning(
                             f"Batch {batch_idx + 1}/{total_batches} insert failed, falling back to single insert: {e}"
                         )
-                        for memory_data in current_batch:
+                        for idx, memory_data in enumerate(current_batch):
                             try:
                                 result = await self._db_create("memory", memory_data)
                                 record_id = self._extract_record_id(result)
@@ -362,6 +380,10 @@ class CrudMixin:
                                     if self._meili:
                                         meili_doc = self._build_meili_doc(record_id, memory_data, effective_tenant_id)
                                         meili_docs.append(meili_doc)
+                                    # v3.3: Create atoms for this memory (fallback path)
+                                    atoms_list = batch_atoms_save[idx]
+                                    if atoms_list:
+                                        await self._create_atoms_for_entity(record_id, atoms_list, effective_tenant_id)
                                 else:
                                     failed_count += 1
                             except Exception as inner_e:
@@ -473,4 +495,49 @@ class CrudMixin:
                     "[_update_memory] Meilisearch sync failed for %s: %s",
                     memory_id,
                     e,
+                )
+
+    async def _create_atoms_for_entity(
+        self,
+        entity_id: str,
+        atoms: list[dict[str, Any]],
+        tenant_id: str,
+    ) -> None:
+        """Create atom records in the atom table for a given entity.
+
+        v3.3 Atom Architecture: atoms are stored in separate `atom` table
+        with `entity_id` referencing the parent memory.
+        """
+        for atom_data in atoms:
+            try:
+                atom_record: dict[str, Any] = {
+                    "type": atom_data.get("type", "note"),
+                    "content": atom_data.get("content", ""),
+                    "tenant_id": tenant_id,
+                    "entity_id": entity_id,
+                }
+                # Copy optional atom fields
+                for field in (
+                    "name", "local_id", "signature", "params", "return_type",
+                    "is_exported", "is_async", "complexity", "max_nesting_depth",
+                    "docstring", "start_line", "end_line", "status", "metadata",
+                    "project", "version", "tags", "heading_level", "parent_id",
+                    "order", "aliases",
+                ):
+                    if atom_data.get(field) is not None:
+                        atom_record[field] = atom_data[field]
+
+                # Ensure defaults for list fields
+                atom_record.setdefault("tags", [])
+                atom_record.setdefault("aliases", [])
+                atom_record.setdefault("params", [])
+                atom_record.setdefault("metadata", {})
+                atom_record.setdefault("version", 1)
+
+                await self._db_create("atom", atom_record)
+            except Exception as atom_error:
+                logger.warning(
+                    "[Upload] Atom creation failed for entity %s: %s",
+                    entity_id,
+                    atom_error,
                 )

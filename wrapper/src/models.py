@@ -30,6 +30,10 @@ class ReferenceType(str, Enum):
     DERIVED_FROM = "derived_from"
     SIMILAR_TO = "similar_to"
 
+    # v3.3 新增
+    CONTAINS = "contains"
+    SUMMARIZES = "summarizes"
+
     @classmethod
     def all_values(cls) -> list[str]:
         """获取所有允许的关系类型值"""
@@ -55,6 +59,7 @@ class MemoryItem(BaseModel):
     source_timestamp: str | None = Field(default=None, description="来源时间戳")
     classification_confidence: float | None = Field(default=None, description="分类置信度")
     file_path: str | None = Field(default=None, description="文件路径（代码分析场景）")
+    atoms: list[dict[str, Any]] | None = Field(default=None, description="Atom树结构（v3.3 Atom Architecture）")
 
 
 class MemoryUploadRequest(BaseModel):
