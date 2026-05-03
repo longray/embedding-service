@@ -349,7 +349,7 @@ DEFINE TABLE IF NOT EXISTS atom TYPE NORMAL;
 DEFINE FIELD IF NOT EXISTS id ON atom TYPE record<atom>;
 DEFINE FIELD IF NOT EXISTS tenant_id ON atom TYPE string
     ASSERT $value != NONE AND string::len($value) > 0;
-DEFINE FIELD IF NOT EXISTS type ON atom TYPE string
+DEFINE FIELD OVERWRITE type ON atom TYPE string
     ASSERT $value IN ['function', 'class', 'interface', 'import', 'goal', 'scope', 'task', 'note', 'symbol', 'token', 'fragment', 'chapter', 'section'];
 DEFINE FIELD IF NOT EXISTS content ON atom TYPE string;
 DEFINE FIELD IF NOT EXISTS name ON atom TYPE option<string>;
