@@ -434,8 +434,8 @@ DEFINE FIELD in ON reference TYPE record<atom|entity|memory>;
 DEFINE FIELD out ON reference TYPE record<atom|entity|memory>;
 DEFINE FIELD IF NOT EXISTS tenant_id ON reference TYPE string
     ASSERT $value != NONE AND string::len($value) > 0;
-DEFINE FIELD IF NOT EXISTS type ON reference TYPE string
-    ASSERT $value IN ['calls', 'imports', 'extends', 'implements', 'depends_on', 'wiki_link', 'part_of', 'related', 'follow_up', 'elaboration', 'contradiction', 'reference', 'derived_from', 'similar_to'];
+DEFINE FIELD OVERWRITE type ON reference TYPE string
+    ASSERT $value IN ['calls', 'imports', 'extends', 'implements', 'depends_on', 'wiki_link', 'part_of', 'related', 'follow_up', 'elaboration', 'contradiction', 'reference', 'derived_from', 'similar_to', 'summarizes', 'contains'];
 DEFINE FIELD IF NOT EXISTS weight ON reference TYPE float DEFAULT 0.5 ASSERT $value >= 0.0 AND $value <= 1.0;
 DEFINE FIELD IF NOT EXISTS file_path ON reference TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS line ON reference TYPE option<int>;
