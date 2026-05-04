@@ -126,6 +126,7 @@ class AtomResponse(BaseModel):
     updated_at: str | None = Field(default=None, description="更新时间")
 
     # v3.3 层级化知识图谱字段
+    local_id: str | None = Field(default=None, description="客户端侧 ID (用于树结构)")
     tags: list[str] = Field(default_factory=list, description="标签列表")
     heading_level: int | None = Field(default=None, description="标题层级 1-6")
     parent_id: str | None = Field(default=None, description="父 Atom ID")
