@@ -165,15 +165,22 @@ async def _search_atoms_by_keyword(db: Any, request: UnifiedSearchRequest) -> li
     result = await db.query(query, params)
     raw_data = result or []
 
+    seen_local_ids = set()
     results = []
     for record in raw_data:
         raw_id = record.get("id", "")
         if hasattr(raw_id, "table_name"):
             raw_id = f"{raw_id.table_name}:{raw_id.id}"
 
+        local_id = record.get("local_id", record.get("source_id", ""))
+        if local_id and local_id in seen_local_ids:
+            continue
+        if local_id:
+            seen_local_ids.add(local_id)
+
         results.append({
             "type": "atom",
-            "local_id": record.get("local_id", record.get("source_id", "")),
+            "local_id": local_id,
             "atom_id": raw_id,
             "atom_type": record.get("type", ""),
             "name": record.get("name", ""),
@@ -225,18 +232,26 @@ async def _search_atoms_by_vector(db: Any, request: UnifiedSearchRequest) -> lis
     result = await db.query(sql, params)
     raw_data = result or []
     
+    raw_data_sorted = sorted(raw_data, key=lambda x: x.get("score", 0), reverse=True)
+    
+    seen_local_ids = set()
     results = []
-    for record in raw_data:
+    for record in raw_data_sorted:
         raw_id = record.get("id", "")
         if hasattr(raw_id, "table_name"):
             raw_id = f"{raw_id.table_name}:{raw_id.id}"
         
         score = record.get("score", 0.0)
-        # v3.3-opt: Lower threshold for atom search (0.1)
         if score >= 0.1:
+            local_id = record.get("local_id", record.get("source_id", ""))
+            if local_id and local_id in seen_local_ids:
+                continue
+            if local_id:
+                seen_local_ids.add(local_id)
+            
             results.append({
                 "type": "atom",
-                "local_id": record.get("local_id", record.get("source_id", "")),
+                "local_id": local_id,
                 "atom_id": raw_id,
                 "atom_type": record.get("type", ""),
                 "name": record.get("name", ""),

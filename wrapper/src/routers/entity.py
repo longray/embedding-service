@@ -45,6 +45,7 @@ class AtomInlineCreate(BaseModel):
     metadata: dict[str, Any] | None = Field(default=None, description="元数据")
     project: str | None = Field(default=None, description="项目 ID")
     fingerprint: str | None = Field(default=None, description="内容指纹")
+    children: list["AtomInlineCreate"] | None = Field(default=None, description="子 Atom 列表")
 
 
 class EntityCreateRequest(BaseModel):
@@ -171,16 +172,18 @@ def _parse_record_id(atom_id: str) -> RecordID | str:
     return atom_id
 
 
-async def _process_atoms(
+async def _process_atoms_recursive(
     db: Any,
     atoms: Sequence[Union[str, AtomInlineCreate, dict[str, Any]]],
     entity_id: str | None = None,
     tenant_id: str = "default",
     entity_abstract: str = "",
+    parent_local_id: str | None = None,
 ) -> list[RecordID | str]:
-    """处理 atoms 列表：验证已有 ID 并创建内联 Atom 对象。
-
+    """递归处理 atoms 列表，包括嵌套的 children。
+    
     v3.3-opt: 为 Atom 生成 embedding，拼接 entity abstract + atom content。
+    递归处理 children，确保所有层级的 atoms 都有 entity_id。
 
     Args:
         db: SurrealDB 连接
@@ -188,9 +191,10 @@ async def _process_atoms(
         entity_id: 关联的 Entity ID，用于反查
         tenant_id: 租户 ID，注入到内联创建的 Atom 中
         entity_abstract: Entity 摘要，用于 embedding context 拼接
+        parent_local_id: 父 Atom 的 local_id，用于设置 parent_id
 
     Returns:
-        RecordID / str 列表，可直接存入 SurrealDB 的 atoms 字段。
+        RecordID / str 列表，包含所有创建的 atoms（包括 children）。
     """
     if not atoms:
         return []
@@ -209,12 +213,12 @@ async def _process_atoms(
             raise ValidationError(f"atoms 元素类型无效: {type(item).__name__}")
 
     result_ids: list[RecordID | str] = []
-
-    # --- 创建内联 Atoms (with embedding) ---
     created_atom_ids: list[str] = []
     
-    # v3.3-opt: Prepare embedding inputs with context concatenation
-    embedding_inputs: list[str] = []
+    # 收集所有需要生成 embedding 的 atoms（包括 children）
+    embedding_inputs: list[tuple[AtomInlineCreate, str]] = []  # (atom, input_text)
+    atom_children_map: list[tuple[AtomInlineCreate, list]] = []  # (atom, children_list)
+    
     for atom_req in inline_atoms:
         parts = []
         if entity_abstract:
@@ -223,27 +227,41 @@ async def _process_atoms(
             parts.append(atom_req.name)
         if atom_req.content:
             parts.append(atom_req.content)
-        embedding_input = "\n".join(parts) if parts else atom_req.content
-        embedding_inputs.append(embedding_input)
+        embedding_input = "\n".join(parts) if parts else (atom_req.content or "")
+        embedding_inputs.append((atom_req, embedding_input))
+        
+        # 收集 children
+        if atom_req.children:
+            atom_children_map.append((atom_req, atom_req.children))
     
-    # v3.3-opt: Batch generate embeddings
+    # 批量生成 embeddings
     embeddings: list[list[float]] = []
-    if embedding_inputs and state.memory_manager:
-        try:
-            embeddings = await state.memory_manager._get_embeddings(embedding_inputs)
-        except Exception as e:
-            logger.warning("[Entity] Failed to generate embeddings for atoms: %s", e)
-            embeddings = [[] for _ in embedding_inputs]
-    else:
-        embeddings = [[] for _ in embedding_inputs]
+    if embedding_inputs:
+        inputs = [inp for _, inp in embedding_inputs]
+        if state.memory_manager and inputs:
+            try:
+                logger.warning("[Entity] Generating embeddings for %d atoms", len(inputs))
+                embeddings = await state.memory_manager._get_embeddings(inputs)
+                logger.warning("[Entity] Generated %d embeddings with dim=%d", len(embeddings), len(embeddings[0]) if embeddings else 0)
+            except Exception as e:
+                logger.error("[Entity] Failed to generate embeddings for atoms: %s", e)
+                embeddings = [[] for _ in inputs]
+        else:
+            embeddings = [[] for _ in inputs]
     
-    for atom_req, embedding in zip(inline_atoms, embeddings):
-        atom_data = atom_req.model_dump(exclude_none=True)
+    # 创建顶层 atoms
+    for (atom_req, _), embedding in zip(embedding_inputs, embeddings):
+        atom_data = atom_req.model_dump(exclude_none=True, exclude={'children'})
+        
+        # 设置 parent_id（如果提供了父 local_id）
+        if parent_local_id:
+            atom_data["parent_id"] = parent_local_id
+            
         if entity_id:
             atom_data["entity_id"] = entity_id
         atom_data["tenant_id"] = tenant_id
         
-        # v3.3-opt: Add embedding if available
+        # 添加 embedding
         if embedding:
             atom_data["embedding"] = embedding
 
@@ -255,7 +273,24 @@ async def _process_atoms(
         rid = extract_record_id(record)
         created_atom_ids.append(rid)
         result_ids.append(_parse_record_id(rid))
-        logger.info("[Entity] 内联创建 Atom: %s", rid)
+        logger.info("[Entity] 内联创建 Atom: %s (local_id=%s)", rid, atom_req.local_id)
+        
+        # 递归处理 children
+        if atom_req.children:
+            try:
+                children_ids = await _process_atoms_recursive(
+                    db,
+                    atom_req.children,
+                    entity_id=entity_id,
+                    tenant_id=tenant_id,
+                    entity_abstract=entity_abstract,
+                    parent_local_id=atom_req.local_id
+                )
+                result_ids.extend(children_ids)
+                created_atom_ids.extend([_record_id_str(rid) for rid in children_ids])
+                logger.info("[Entity] 递归创建 %d 个子 atoms for %s", len(children_ids), atom_req.local_id)
+            except Exception as e:
+                logger.error("[Entity] 递归处理 children 失败 for %s: %s", atom_req.local_id, e)
 
     # --- 验证已有 Atom IDs ---
     if str_ids:
@@ -282,6 +317,20 @@ async def _process_atoms(
         result_ids.extend(record_ids)
 
     return result_ids
+
+
+async def _process_atoms(
+    db: Any,
+    atoms: Sequence[Union[str, AtomInlineCreate, dict[str, Any]]],
+    entity_id: str | None = None,
+    tenant_id: str = "default",
+    entity_abstract: str = "",
+) -> list[RecordID | str]:
+    """处理 atoms 列表（向后兼容的包装函数）。
+    
+    调用递归版本处理嵌套 children。
+    """
+    return await _process_atoms_recursive(db, atoms, entity_id, tenant_id, entity_abstract)
 
 
 def _record_id_str(rid: RecordID | str) -> str:
@@ -347,7 +396,6 @@ async def create_entity(request: EntityCreateRequest):
 
         # BL-B-100: 使用事务执行创建操作
         async with transaction(db, "Entity"):
-            # v3.3-opt: Pass entity_abstract for embedding context concatenation
             record_ids = await _process_atoms(
                 db, 
                 request.atoms, 
@@ -366,8 +414,21 @@ async def create_entity(request: EntityCreateRequest):
                 raise HTTPException(status_code=500, detail=f"创建 Entity 失败: 无效的响应格式 {type(result)}")
 
             record_id = extract_record_id(record)
+            logger.warning("[Entity] Created entity with ID: %s, record_ids count: %d", record_id, len(record_ids))
+            logger.warning("[Entity] record_ids sample: %s", record_ids[:3] if record_ids else "[]")
 
-            # Convert atoms back to string IDs for response
+            if record_ids:
+                try:
+                    logger.warning("[Entity] Executing UPDATE for entity_id=%s, atom_ids=%s", record_id, record_ids)
+                    update_result = await db.query(
+                        "UPDATE atom SET entity_id = $entity_id WHERE id IN $atom_ids",
+                        {"entity_id": record_id, "atom_ids": record_ids}
+                    )
+                    logger.warning("[Entity] UPDATE result: %s", update_result)
+                    logger.info("[Entity] Updated entity_id for %d atoms", len(record_ids))
+                except Exception as e:
+                    logger.warning("[Entity] Failed to update entity_id for atoms: %s", e)
+
             response_data = entity_data.copy()
             if response_data.get("atoms"):
                 response_data["atoms"] = [_record_id_str(a) for a in record_ids]
@@ -464,7 +525,15 @@ async def batch_create_entities(request: BatchEntityRequest):
 
                     record_id = extract_record_id(record)
 
-                    # 转换 atoms 回字符串 IDs
+                    if record_ids:
+                        try:
+                            await db.query(
+                                "UPDATE atom SET entity_id = $entity_id WHERE id IN $atom_ids",
+                                {"entity_id": record_id, "atom_ids": record_ids}
+                            )
+                        except Exception as e:
+                            logger.warning("[Entity] Failed to update entity_id for atoms: %s", e)
+
                     response_data = entity_data.copy()
                     if response_data.get("atoms"):
                         response_data["atoms"] = [_record_id_str(a) for a in record_ids]
