@@ -142,7 +142,18 @@ async def _search_atoms(db: Any, request: UnifiedSearchRequest) -> list[dict[str
 
 
 async def _search_atoms_by_keyword(db: Any, request: UnifiedSearchRequest) -> list[dict[str, Any]]:
-    """Atom 关键词搜索"""
+    """Atom 关键词搜索 - Phase 3: 优先使用 Meilisearch，降级到 SurrealDB"""
+    # Phase 3: 优先使用 Meilisearch
+    if state.memory_manager and state.memory_manager._meili:
+        try:
+            logger.debug("[AtomSearch] 使用 Meilisearch 进行关键词搜索")
+            return await _search_atoms_by_keyword_meili(request)
+        except Exception as e:
+            logger.warning("[AtomSearch] Meilisearch 搜索失败，降级到 SurrealDB: %s", e)
+    else:
+        logger.debug("[AtomSearch] Meilisearch 不可用，使用 SurrealDB")
+    
+    # 降级到 SurrealDB CONTAINS 搜索
     conditions = ["tenant_id = $tenant_id"]
     params: dict[str, Any] = {"tenant_id": request.tenant_id}
 
@@ -158,7 +169,6 @@ async def _search_atoms_by_keyword(db: Any, request: UnifiedSearchRequest) -> li
         params["max_level"] = request.max_level
 
     where_clause = " AND ".join(conditions)
-    # nosec B608: where_clause 由参数化条件构建，非用户直接输入
     query = f"SELECT * FROM atom WHERE {where_clause} LIMIT $limit"  # nosec B608
     params["limit"] = request.limit
 
@@ -191,6 +201,61 @@ async def _search_atoms_by_keyword(db: Any, request: UnifiedSearchRequest) -> li
             "tags": record.get("tags", []),
             "entity_id": record.get("entity_id", ""),
             "score": 0.5,
+        })
+    return results
+
+
+async def _search_atoms_by_keyword_meili(request: UnifiedSearchRequest) -> list[dict[str, Any]]:
+    """Atom 关键词搜索 - 使用 Meilisearch（支持 CJK 分词）"""
+    meili = state.memory_manager._meili
+    
+    # 构建 filter 表达式
+    filter_parts = [f"tenant_id = '{request.tenant_id}'", "doc_type = 'atom'"]
+    
+    if request.atom_types:
+        # Meilisearch IN 语法: atom_type IN ['note', 'section']
+        # 转义单引号防止 filter 表达式被破坏
+        type_list = ", ".join([f"'{t.replace(chr(39), chr(39)+chr(39))}'" for t in request.atom_types])
+        filter_parts.append(f"atom_type IN [{type_list}]")
+    
+    if request.max_level is not None:
+        # 包含 heading_level 为 null 的文档
+        filter_parts.append(f"(heading_level <= {request.max_level} OR heading_level IS NULL)")
+    
+    filter_expr = " AND ".join(filter_parts)
+    
+    # 执行 Meilisearch 搜索
+    result = await meili.search(
+        query=request.query,
+        filter_expr=filter_expr,
+        limit=request.limit,
+        show_ranking_score=True,
+    )
+    
+    # 格式化结果
+    return _format_atom_meili_results(result)
+
+
+def _format_atom_meili_results(meili_result: dict[str, Any]) -> list[dict[str, Any]]:
+    """格式化 Meilisearch Atom 搜索结果"""
+    results = []
+    for hit in meili_result.get("hits", []):
+        # ID 已由 meili_client.search() 转换 (atom_xxx -> atom:xxx)
+        surreal_id = hit.get("id", "")
+        
+        results.append({
+            "type": "atom",
+            "local_id": hit.get("local_id"),
+            "atom_id": surreal_id,
+            "atom_type": hit.get("atom_type", "note"),
+            "name": hit.get("name", ""),
+            "content": hit.get("content", ""),
+            "heading_level": hit.get("heading_level"),
+            "parent_id": hit.get("parent_id"),
+            "order": hit.get("order"),
+            "tags": hit.get("tags", []),
+            "entity_id": hit.get("entity_id", ""),
+            "score": round(float(hit.get("_rankingScore", 0.0)), 6),
         })
     return results
 
@@ -272,9 +337,13 @@ async def _search_atoms_hybrid(db: Any, request: UnifiedSearchRequest) -> list[d
     vector_results = await _search_atoms_by_vector(db, request)
     keyword_results = await _search_atoms_by_keyword(db, request)
     
-    # v3.3-opt: Use 50-50 weights for atom search (more balanced)
-    vector_weight = 0.5
-    keyword_weight = 0.5
+    # v3.3-opt: 使用 MemoryManager 的 RRF 权重配置
+    if state.memory_manager:
+        vector_weight = getattr(state.memory_manager, '_rrf_vector_weight', 0.5)
+        keyword_weight = getattr(state.memory_manager, '_rrf_keyword_weight', 0.5)
+    else:
+        vector_weight = 0.5
+        keyword_weight = 0.5
     k = 60  # RRF smoothing constant
     
     # Merge using RRF

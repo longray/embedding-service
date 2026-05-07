@@ -409,3 +409,106 @@ class TestSetMeiliClient:
         manager.set_meili_client(mock_meili)
         manager.set_meili_client(meili2)
         assert manager._meili is meili2
+
+
+# ==================== Atom 双写同步测试 ====================
+
+
+class TestAtomMeiliSync:
+    """测试 Atom CRUD 双写同步到 Meilisearch"""
+
+    @pytest.mark.asyncio
+    async def test_create_atom_syncs_to_meili(self, manager_with_meili, mock_meili):
+        """Atom 创建后同步到 Meilisearch"""
+        # 模拟 SurrealDB 返回结果
+        mock_record = {"id": "atom:test123", "name": "Test Atom", "content": "Test content"}
+        manager_with_meili._db_create = AsyncMock(return_value=[mock_record])
+        
+        # 调用 _create_atoms_for_entity 方法（这是实际包含 Meilisearch 同步的方法）
+        await manager_with_meili._create_atoms_for_entity(
+            "entity:parent123",
+            [{"name": "Test Atom", "content": "Test content", "type": "section"}],
+            "default"
+        )
+        
+        # 验证 Meilisearch 同步被调用
+        mock_meili.add_documents.assert_called_once()
+        call_args = mock_meili.add_documents.call_args[0][0]
+        assert len(call_args) == 1
+        assert call_args[0]["doc_type"] == "atom"
+        assert call_args[0]["surreal_id"] == "atom:test123"
+
+    @pytest.mark.asyncio
+    async def test_create_atom_without_meili(self, manager, mock_db):
+        """Meilisearch 禁用时 Atom 创建不报错"""
+        manager._db_create = AsyncMock(return_value=[{"id": "atom:test456"}])
+        
+        # 应该正常完成不抛出异常
+        await manager._create_atoms_for_entity(
+            "entity:parent123",
+            [{"name": "Test Atom", "type": "section"}],
+            "default"
+        )
+        
+        # 验证 SurrealDB 创建被调用
+        manager._db_create.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_meili_sync_failure_not_blocking(self, manager_with_meili, mock_meili):
+        """Meilisearch 同步失败不阻塞主流程"""
+        mock_meili.add_documents.side_effect = Exception("Meilisearch error")
+        
+        mock_record = {"id": "atom:test789", "name": "Test Atom"}
+        manager_with_meili._db_create = AsyncMock(return_value=[mock_record])
+        
+        # 应该正常完成不抛出异常
+        await manager_with_meili._create_atoms_for_entity(
+            "entity:parent123",
+            [{"name": "Test Atom", "type": "section"}],
+            "default"
+        )
+        
+        # 验证 Meilisearch 同步被尝试调用
+        mock_meili.add_documents.assert_called_once()
+
+    def test_build_atom_meili_doc(self, manager):
+        """测试 Atom Meilisearch 文档构建"""
+        atom_data = {
+            "name": "Test Atom",
+            "content": "Test content",
+            "type": "section",
+            "tags": ["test"],
+            "entity_id": "entity:parent",
+            "local_id": "01KTEST",
+            "heading_level": 2,
+        }
+        
+        doc = manager._build_meili_doc(
+            "atom:test123", atom_data, "default", doc_type="atom"
+        )
+        
+        assert doc["id"] == "atom_test123"
+        assert doc["surreal_id"] == "atom:test123"
+        assert doc["doc_type"] == "atom"
+        assert doc["name"] == "Test Atom"
+        assert doc["content"] == "Test content"
+        assert doc["atom_type"] == "section"
+        assert doc["entity_id"] == "entity:parent"
+        assert doc["local_id"] == "01KTEST"
+        assert doc["heading_level"] == 2
+
+    def test_build_atom_meili_doc_defaults(self, manager):
+        """测试 Atom Meilisearch 文档默认值"""
+        atom_data = {"name": "Test"}
+        
+        doc = manager._build_meili_doc(
+            "atom:test456", atom_data, "default", doc_type="atom"
+        )
+        
+        assert doc["name"] == "Test"
+        assert doc["content"] == ""
+        assert doc["atom_type"] == "note"  # 默认类型
+        assert doc["tags"] == []
+        assert doc["entity_id"] == ""
+        assert doc["local_id"] == ""
+        assert "created_at" in doc

@@ -582,7 +582,26 @@ class CrudMixin:
                 atom_record.setdefault("metadata", {})
                 atom_record.setdefault("version", 1)
 
-                await self._db_create("atom", atom_record)
+                result = await self._db_create("atom", atom_record)
+                
+                # Phase 2: 同步到 Meilisearch
+                if result and self._meili:
+                    try:
+                        # 使用 _extract_record_id 提取 atom ID
+                        atom_id = self._extract_record_id(result)
+                        
+                        if atom_id:
+                            meili_doc = self._build_meili_doc(
+                                atom_id, atom_record, tenant_id, doc_type="atom"
+                            )
+                            await self._meili.add_documents([meili_doc])
+                            logger.debug("[Atom] 同步到 Meilisearch: %s", atom_id)
+                    except Exception as meili_err:
+                        logger.warning(
+                            "[Atom] Meilisearch 同步失败 %s: %s",
+                            atom_id if 'atom_id' in dir() else entity_id,
+                            meili_err,
+                        )
             except Exception as atom_error:
                 logger.warning(
                     "[Upload] Atom creation failed for entity %s: %s",

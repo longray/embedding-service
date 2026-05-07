@@ -255,6 +255,10 @@ async def create_atom(request: AtomCreateRequest):
                 raise HTTPException(status_code=500, detail="创建 Atom 失败: 无效的响应格式")
 
             record_id = extract_record_id(record)
+            
+            # Phase 2: 同步到 Meilisearch
+            await _sync_atom_to_meili(record_id, atom_data, request.tenant_id)
+            
             return AtomResponse(id=record_id, **atom_data)
 
     except ValidationError as e:
@@ -707,6 +711,9 @@ async def batch_create_atoms(request: BatchAtomRequest):
 
                     record_id = extract_record_id(record)
                     results["success"].append(AtomResponse(id=record_id, **atom_data))
+                    
+                    # Phase 2: 同步到 Meilisearch
+                    await _sync_atom_to_meili(record_id, atom_data, request.tenant_id)
 
                 except Exception as e:
                     results["failed"].append({"index": i, "error": str(e)})
@@ -786,6 +793,16 @@ async def update_atom(atom_id: str, request: AtomUpdateRequest, tenant_id: str =
             if not result or len(result) == 0:
                 raise HTTPException(status_code=500, detail="更新失败")
 
+            # Phase 2: 同步更新到 Meilisearch（查询完整记录）
+            full_result = await db.query(
+                "SELECT * FROM atom WHERE id = $atom_id AND tenant_id = $tenant_id",
+                {"atom_id": atom_record_id, "tenant_id": tenant_id}
+            )
+            if full_result and len(full_result) > 0:
+                full_record = parse_surrealdb_result(full_result)
+                if full_record:
+                    await _sync_atom_to_meili(atom_id, full_record, tenant_id)
+
             return result[0] if isinstance(result, list) else result
 
     except HTTPException:
@@ -818,6 +835,10 @@ async def delete_atom(atom_id: str, tenant_id: str = Query(default="default")):
         # BL-B-100: 使用事务执行删除操作
         async with transaction(db, "Atom"):
             await db.delete(atom_record_id)
+            
+            # Phase 2: 从 Meilisearch 删除
+            await _delete_atom_from_meili(atom_id)
+            
             return {"success": True, "message": "Atom 已删除"}
 
     except HTTPException:
@@ -825,3 +846,53 @@ async def delete_atom(atom_id: str, tenant_id: str = Query(default="default")):
     except Exception as e:
         logger.error("[Atom] 删除失败: %s", e)
         raise HTTPException(status_code=500, detail=f"删除失败: {e!s}") from e
+
+
+async def _sync_atom_to_meili(atom_id: str, atom_data: dict[str, Any], tenant_id: str) -> None:
+    """同步 Atom 到 Meilisearch（Phase 2: 双写同步）
+    
+    Args:
+        atom_id: Atom ID (e.g., "atom:xxx")
+        atom_data: Atom 数据字典
+        tenant_id: 租户 ID
+    """
+    if not state.memory_manager:
+        return
+    
+    meili = state.memory_manager._meili
+    if not meili:
+        return
+    
+    try:
+        # 使用 MeiliSyncMixin._build_meili_doc 构建文档
+        meili_doc = state.memory_manager._build_meili_doc(
+            atom_id, atom_data, tenant_id, doc_type="atom"
+        )
+        await meili.add_documents([meili_doc])
+        logger.debug("[Atom] 同步到 Meilisearch: %s", atom_id)
+    except Exception as e:
+        # 错误处理：记录日志但不阻塞主流程
+        logger.warning("[Atom] Meilisearch 同步失败 %s: %s", atom_id, e)
+
+
+async def _delete_atom_from_meili(atom_id: str) -> None:
+    """从 Meilisearch 删除 Atom（Phase 2: 双写同步）
+    
+    Args:
+        atom_id: Atom ID (e.g., "atom:xxx")
+    """
+    if not state.memory_manager:
+        return
+    
+    meili = state.memory_manager._meili
+    if not meili:
+        return
+    
+    try:
+        # 转换 ID 格式 (atom:xxx -> atom_xxx)
+        meili_id = atom_id.replace(":", "_", 1)
+        await meili.delete_document(meili_id)
+        logger.debug("[Atom] 从 Meilisearch 删除: %s", atom_id)
+    except Exception as e:
+        # 错误处理：记录日志但不阻塞主流程
+        logger.warning("[Atom] Meilisearch 删除失败 %s: %s", atom_id, e)
