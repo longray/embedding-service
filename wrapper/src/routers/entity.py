@@ -101,17 +101,26 @@ class EntityUpdateRequest(BaseModel):
     priority: str | None = Field(default=None, description="优先级")
 
 
+class AtomRef(BaseModel):
+    """Atom 引用 - 包含 record id 和 local_id"""
+
+    id: str = Field(..., description="Atom Record ID (如 atom:xxx)")
+    local_id: str | None = Field(default=None, description="Atom Local ID (插件端生成)")
+
+
 class EntityResponse(BaseModel):
     """Entity 响应"""
+
+    model_config = {"extra": "ignore"}
 
     id: str = Field(..., description="Entity ID")
     type: str = Field(..., description="Entity 类型")
     tenant_id: str = Field(..., description="租户ID")
 
-    
+
     abstract: str = Field(..., description="摘要")
     overview: dict[str, Any] = Field(default_factory=dict, description="概览")
-    atoms: list[str] = Field(default_factory=list, description="Atom ID 列表")
+    atoms: list[AtomRef] = Field(default_factory=list, description="Atom 引用列表（含 id 和 local_id）")
 
     
     title: str | None = Field(default=None, description="标题")
@@ -179,9 +188,9 @@ async def _process_atoms_recursive(
     tenant_id: str = "default",
     entity_abstract: str = "",
     parent_local_id: str | None = None,
-) -> list[RecordID | str]:
+) -> list[AtomRef]:
     """递归处理 atoms 列表，包括嵌套的 children。
-    
+
     v3.3-opt: 为 Atom 生成 embedding，拼接 entity abstract + atom content。
     递归处理 children，确保所有层级的 atoms 都有 entity_id。
 
@@ -194,7 +203,7 @@ async def _process_atoms_recursive(
         parent_local_id: 父 Atom 的 local_id，用于设置 parent_id
 
     Returns:
-        RecordID / str 列表，包含所有创建的 atoms（包括 children）。
+        AtomRef 列表，包含所有创建的 atoms（包括 children）的 record id 和 local_id。
     """
     if not atoms:
         return []
@@ -212,13 +221,13 @@ async def _process_atoms_recursive(
         else:
             raise ValidationError(f"atoms 元素类型无效: {type(item).__name__}")
 
-    result_ids: list[RecordID | str] = []
+    result_refs: list[AtomRef] = []
     created_atom_ids: list[str] = []
-    
+
     # 收集所有需要生成 embedding 的 atoms（包括 children）
     embedding_inputs: list[tuple[AtomInlineCreate, str]] = []  # (atom, input_text)
     atom_children_map: list[tuple[AtomInlineCreate, list]] = []  # (atom, children_list)
-    
+
     for atom_req in inline_atoms:
         parts = []
         if entity_abstract:
@@ -229,11 +238,11 @@ async def _process_atoms_recursive(
             parts.append(atom_req.content)
         embedding_input = "\n".join(parts) if parts else (atom_req.content or "")
         embedding_inputs.append((atom_req, embedding_input))
-        
+
         # 收集 children
         if atom_req.children:
             atom_children_map.append((atom_req, atom_req.children))
-    
+
     # 批量生成 embeddings
     embeddings: list[list[float]] = []
     if embedding_inputs:
@@ -248,19 +257,25 @@ async def _process_atoms_recursive(
                 embeddings = [[] for _ in inputs]
         else:
             embeddings = [[] for _ in inputs]
-    
+
     # 创建顶层 atoms
     for (atom_req, _), embedding in zip(embedding_inputs, embeddings):
+        # BL-FIX-001: 修复 local_id 被 exclude_none=True 排除的问题
+        local_id = atom_req.local_id
         atom_data = atom_req.model_dump(exclude_none=True, exclude={'children'})
-        
+
+        # 显式添加 local_id（如果提供了）
+        if local_id:
+            atom_data["local_id"] = local_id
+
         # 设置 parent_id（如果提供了父 local_id）
         if parent_local_id:
             atom_data["parent_id"] = parent_local_id
-            
+
         if entity_id:
             atom_data["entity_id"] = entity_id
         atom_data["tenant_id"] = tenant_id
-        
+
         # 添加 embedding
         if embedding:
             atom_data["embedding"] = embedding
@@ -272,51 +287,49 @@ async def _process_atoms_recursive(
 
         rid = extract_record_id(record)
         created_atom_ids.append(rid)
-        result_ids.append(_parse_record_id(rid))
+        result_refs.append(AtomRef(id=rid, local_id=local_id))
         logger.info("[Entity] 内联创建 Atom: %s (local_id=%s)", rid, atom_req.local_id)
-        
+
         # 递归处理 children
         if atom_req.children:
-            try:
-                children_ids = await _process_atoms_recursive(
-                    db,
-                    atom_req.children,
-                    entity_id=entity_id,
-                    tenant_id=tenant_id,
-                    entity_abstract=entity_abstract,
-                    parent_local_id=atom_req.local_id
-                )
-                result_ids.extend(children_ids)
-                created_atom_ids.extend([_record_id_str(rid) for rid in children_ids])
-                logger.info("[Entity] 递归创建 %d 个子 atoms for %s", len(children_ids), atom_req.local_id)
-            except Exception as e:
-                logger.error("[Entity] 递归处理 children 失败 for %s: %s", atom_req.local_id, e)
+            children_refs = await _process_atoms_recursive(
+                db,
+                atom_req.children,
+                entity_id=entity_id,
+                tenant_id=tenant_id,
+                entity_abstract=entity_abstract,
+                parent_local_id=atom_req.local_id
+            )
+            result_refs.extend(children_refs)
+            logger.info("[Entity] 递归创建 %d 个子 atoms for %s", len(children_refs), atom_req.local_id)
 
-    # --- 验证已有 Atom IDs ---
+    # --- 验证已有 Atom IDs 并获取 local_id ---
     if str_ids:
         record_ids = [_parse_record_id(aid) for aid in str_ids]
 
-        atoms_check = await db.query(
-            "SELECT id FROM atom WHERE id IN $atom_ids",
+        # 合并查询：验证存在性并获取 local_id
+        atoms_result = await db.query(
+            "SELECT id, local_id FROM atom WHERE id IN $atom_ids",
             {"atom_ids": record_ids},
         )
 
         found_ids: set[str] = set()
-        if atoms_check:
-            for record in atoms_check:
-                record_id = record["id"]
+        if atoms_result:
+            for record in atoms_result:
+                record_id = record.get("id")
+                local_id = record.get("local_id")
                 if hasattr(record_id, "table_name"):
-                    found_ids.add(f"{record_id.table_name}:{record_id.id}")
+                    rid = f"{record_id.table_name}:{record_id.id}"
                 else:
-                    found_ids.add(str(record_id))
+                    rid = str(record_id)
+                found_ids.add(rid)
+                result_refs.append(AtomRef(id=rid, local_id=local_id))
 
         missing = set(str_ids) - found_ids
         if missing:
             raise ValidationError(f"Atoms 不存在: {missing}")
 
-        result_ids.extend(record_ids)
-
-    return result_ids
+    return result_refs
 
 
 async def _process_atoms(
@@ -325,9 +338,9 @@ async def _process_atoms(
     entity_id: str | None = None,
     tenant_id: str = "default",
     entity_abstract: str = "",
-) -> list[RecordID | str]:
+) -> list[AtomRef]:
     """处理 atoms 列表（向后兼容的包装函数）。
-    
+
     调用递归版本处理嵌套 children。
     """
     return await _process_atoms_recursive(db, atoms, entity_id, tenant_id, entity_abstract)
@@ -396,42 +409,60 @@ async def create_entity(request: EntityCreateRequest):
 
         # BL-B-100: 使用事务执行创建操作
         async with transaction(db, "Entity"):
-            record_ids = await _process_atoms(
-                db, 
-                request.atoms, 
+            atom_refs = await _process_atoms(
+                db,
+                request.atoms,
                 tenant_id=request.tenant_id,
                 entity_abstract=request.abstract
             )
-            entity_data["atoms"] = record_ids if record_ids else []
+            # 存储到数据库时转换为 RecordID 对象列表
+            if atom_refs:
+                entity_data["atoms"] = [_parse_record_id(ref.id) for ref in atom_refs]
+            else:
+                entity_data["atoms"] = []
 
             result = await db.create("entity", entity_data)
 
             if not result:
                 raise HTTPException(status_code=500, detail="创建 Entity 失败")
 
-            record = parse_surrealdb_result(result)
-            if not record:
-                raise HTTPException(status_code=500, detail=f"创建 Entity 失败: 无效的响应格式 {type(result)}")
+            # db.create 返回的是 RecordID 对象或字符串，不是字典
+            if hasattr(result, 'table_name'):
+                record_id = f"{result.table_name}:{result.id}"
+            elif isinstance(result, str) and ':' in result:
+                record_id = result
+            elif isinstance(result, (dict, list)):
+                record = parse_surrealdb_result(result)
+                if not record:
+                    raise HTTPException(status_code=500, detail=f"创建 Entity 失败: 无效的响应格式 {type(result)}")
+                record_id = extract_record_id(record)
+            else:
+                raise HTTPException(status_code=500, detail=f"创建 Entity 失败: 未知的响应格式 {type(result)}")
+            logger.warning("[Entity] Created entity with ID: %s, atom_refs count: %d", record_id, len(atom_refs))
+            logger.warning("[Entity] atom_refs sample: %s", atom_refs[:3] if atom_refs else "[]")
 
-            record_id = extract_record_id(record)
-            logger.warning("[Entity] Created entity with ID: %s, record_ids count: %d", record_id, len(record_ids))
-            logger.warning("[Entity] record_ids sample: %s", record_ids[:3] if record_ids else "[]")
-
-            if record_ids:
-                try:
-                    logger.warning("[Entity] Executing UPDATE for entity_id=%s, atom_ids=%s", record_id, record_ids)
-                    update_result = await db.query(
-                        "UPDATE atom SET entity_id = $entity_id WHERE id IN $atom_ids",
-                        {"entity_id": record_id, "atom_ids": record_ids}
-                    )
-                    logger.warning("[Entity] UPDATE result: %s", update_result)
-                    logger.info("[Entity] Updated entity_id for %d atoms", len(record_ids))
-                except Exception as e:
-                    logger.warning("[Entity] Failed to update entity_id for atoms: %s", e)
+            if atom_refs:
+                # 将字符串 ID 转换为 RecordID 对象（用于 WHERE id IN $atom_ids）
+                atom_record_ids = []
+                for ref in atom_refs:
+                    if ":" in ref.id:
+                        table, id_part = ref.id.split(":", 1)
+                        atom_record_ids.append(RecordID(table, id_part))
+                    else:
+                        atom_record_ids.append(ref.id)
+                
+                # BL-FIX-002: entity_id 保持为字符串（SurrealDB schema 定义为 option<string>）
+                logger.warning("[Entity] Executing UPDATE for entity_id=%s, atom_record_ids=%s", record_id, atom_record_ids)
+                update_result = await db.query(
+                    "UPDATE atom SET entity_id = $entity_id WHERE id IN $atom_ids",
+                    {"entity_id": record_id, "atom_ids": atom_record_ids}
+                )
+                logger.warning("[Entity] UPDATE result: %s", update_result)
+                logger.info("[Entity] Updated entity_id for %d atoms", len(atom_refs))
 
             response_data = entity_data.copy()
-            if response_data.get("atoms"):
-                response_data["atoms"] = [_record_id_str(a) for a in record_ids]
+            # 将 atoms 从 record id 列表转换为 AtomRef 列表
+            response_data["atoms"] = atom_refs if atom_refs else []
 
             return EntityResponse(id=record_id, **response_data)
 
@@ -456,106 +487,112 @@ async def batch_create_entities(request: BatchEntityRequest):
             detail=f"批量创建数量超过限制: {len(request.entities)} > {MAX_BATCH_SIZE}"
         )
 
-    try:
-        db = state.memory_manager.db
+    db = state.memory_manager.db
 
-        results = {"success": [], "failed": []}
+    results = {"success": [], "failed": []}
 
-        # 使用事务执行批量创建
-        async with transaction(db, "Entity"):
-            for i, entity_req in enumerate(request.entities):
-                try:
-                    # 验证类型
-                    if entity_req.type not in ENTITY_VALID_TYPES:
-                        raise ValidationError(f"无效的 Entity 类型: {entity_req.type}")
+    # 每个 entity 独立事务，避免一个失败影响其他
+    for i, entity_req in enumerate(request.entities):
+        try:
+            # 验证类型
+            if entity_req.type not in ENTITY_VALID_TYPES:
+                raise ValidationError(f"无效的 Entity 类型: {entity_req.type}")
 
-                    record_ids = await _process_atoms(
-                        db, 
-                        entity_req.atoms, 
-                        tenant_id=request.tenant_id,
-                        entity_abstract=entity_req.abstract
-                    )
+            async with transaction(db, "Entity"):
+                atom_refs = await _process_atoms(
+                    db,
+                    entity_req.atoms,
+                    tenant_id=request.tenant_id,
+                    entity_abstract=entity_req.abstract
+                )
 
-                    # 准备数据
-                    entity_data = {
-                        "type": entity_req.type,
-                        "tenant_id": request.tenant_id,
-                        "abstract": entity_req.abstract,
-                        "overview": entity_req.overview,
-                        "atoms": record_ids if record_ids else [],
-                        "tags": entity_req.tags,
-                        "project": entity_req.project,
-                        "created_by": entity_req.created_by,
-                    }
+                # 准备数据 - 存储时转换为 RecordID 对象列表
+                entity_data = {
+                    "type": entity_req.type,
+                    "tenant_id": request.tenant_id,
+                    "abstract": entity_req.abstract,
+                    "overview": entity_req.overview,
+                    "atoms": [_parse_record_id(ref.id) for ref in atom_refs] if atom_refs else [],
+                    "tags": entity_req.tags,
+                    "project": entity_req.project,
+                    "created_by": entity_req.created_by,
+                }
 
-                    # 根据类型添加特定字段
-                    if entity_req.type == "wiki":
-                        entity_data.update({
-                            "title": entity_req.title,
-                            "aliases": entity_req.aliases,
-                        })
-                    elif entity_req.type == "backlog":
-                        entity_data.update({
-                            "priority": entity_req.priority,
-                            "status": entity_req.status,
-                            "scene": entity_req.scene,
-                            "estimated_hours": entity_req.estimated_hours,
-                            "actual_hours": entity_req.actual_hours,
-                        })
-                    elif entity_req.type == "code":
-                        entity_data.update({
-                            "file_path": entity_req.file_path,
-                            "language": entity_req.language,
-                            "quality_score": entity_req.quality_score,
-                            "complexity_metrics": entity_req.complexity_metrics,
-                        })
+                # 根据类型添加特定字段
+                if entity_req.type == "wiki":
+                    entity_data.update({
+                        "title": entity_req.title,
+                        "aliases": entity_req.aliases,
+                    })
+                elif entity_req.type == "backlog":
+                    entity_data.update({
+                        "priority": entity_req.priority,
+                        "status": entity_req.status,
+                        "scene": entity_req.scene,
+                        "estimated_hours": entity_req.estimated_hours,
+                        "actual_hours": entity_req.actual_hours,
+                    })
+                elif entity_req.type == "code":
+                    entity_data.update({
+                        "file_path": entity_req.file_path,
+                        "language": entity_req.language,
+                        "quality_score": entity_req.quality_score,
+                        "complexity_metrics": entity_req.complexity_metrics,
+                    })
 
-                    entity_data = {k: v for k, v in entity_data.items() if v is not None}
+                entity_data = {k: v for k, v in entity_data.items() if v is not None}
 
-                    # 创建 entity
-                    result = await db.create("entity", entity_data)
+                # 创建 entity
+                result = await db.create("entity", entity_data)
 
-                    if not result:
-                        raise HTTPException(status_code=500, detail="创建 Entity 失败")
+                if not result:
+                    raise HTTPException(status_code=500, detail="创建 Entity 失败")
 
-                    # 处理返回结果
+                # db.create 返回的是 RecordID 对象或字符串，不是字典
+                if hasattr(result, 'table_name'):
+                    record_id = f"{result.table_name}:{result.id}"
+                elif isinstance(result, str) and ':' in result:
+                    record_id = result
+                elif isinstance(result, (dict, list)):
                     record = parse_surrealdb_result(result)
                     if not record:
-                        raise HTTPException(status_code=500, detail="创建 Entity 失败: 无效的响应格式")
-
+                        raise HTTPException(status_code=500, detail=f"创建 Entity 失败: 无效的响应格式 {type(result)}")
                     record_id = extract_record_id(record)
+                else:
+                    raise HTTPException(status_code=500, detail=f"创建 Entity 失败: 未知的响应格式 {type(result)}")
 
-                    if record_ids:
-                        try:
-                            await db.query(
-                                "UPDATE atom SET entity_id = $entity_id WHERE id IN $atom_ids",
-                                {"entity_id": record_id, "atom_ids": record_ids}
-                            )
-                        except Exception as e:
-                            logger.warning("[Entity] Failed to update entity_id for atoms: %s", e)
+                if atom_refs:
+                    # 将字符串 ID 转换为 RecordID 对象（用于 WHERE id IN $atom_ids）
+                    atom_record_ids = []
+                    for ref in atom_refs:
+                        if ":" in ref.id:
+                            table, id_part = ref.id.split(":", 1)
+                            atom_record_ids.append(RecordID(table, id_part))
+                        else:
+                            atom_record_ids.append(ref.id)
+                    
+                    # BL-FIX-002: entity_id 保持为字符串（SurrealDB schema 定义为 option<string>）
+                    await db.query(
+                        "UPDATE atom SET entity_id = $entity_id WHERE id IN $atom_ids",
+                        {"entity_id": record_id, "atom_ids": atom_record_ids}
+                    )
 
-                    response_data = entity_data.copy()
-                    if response_data.get("atoms"):
-                        response_data["atoms"] = [_record_id_str(a) for a in record_ids]
+                response_data = entity_data.copy()
+                # 将 atoms 从 record id 列表转换为 AtomRef 列表
+                response_data["atoms"] = atom_refs if atom_refs else []
 
-                    results["success"].append(EntityResponse(id=record_id, **response_data))
+                results["success"].append(EntityResponse(id=record_id, **response_data))
 
-                except Exception as e:
-                    results["failed"].append({"index": i, "error": str(e)})
+        except Exception as e:
+            results["failed"].append({"index": i, "error": str(e)})
 
-        return BatchEntityResponse(
-            success=results["success"],
-            failed=results["failed"],
-            total=len(request.entities),
-            success_count=len(results["success"]),
-            failed_count=len(results["failed"])
-        )
-
-    except ValidationError as e:
-        raise HTTPException(status_code=400, detail=e.message) from e
-    except Exception as e:
-        logger.error("[Entity] 批量创建失败: %s", e)
-        raise HTTPException(status_code=500, detail=f"批量创建失败: {e!s}") from e
+    return BatchEntityResponse(
+        success=results["success"],
+        failed=results["failed"],
+        total=len(request.entities),
+        success_count=len(results["success"]),
+        failed_count=len(results["failed"])
+    )
 
 
 @router.get("/entities/{entity_id}")
@@ -601,7 +638,49 @@ async def get_entity(
         if not result or len(result) == 0:
             raise HTTPException(status_code=404, detail="Entity 不存在")
 
-        return result[0]
+        record = result[0]
+
+        # 处理 RecordID
+        raw_id = record.get("id")
+        if raw_id and hasattr(raw_id, "table_name"):
+            record["id"] = f"{raw_id.table_name}:{raw_id.id}"
+
+        # 处理 atoms 的 local_id
+        if record.get("atoms"):
+            # BL-FIX-003: 将字符串 ID 转换为 RecordID 对象用于查询
+            atom_record_ids = []
+            for a in record["atoms"]:
+                if hasattr(a, "table_name"):
+                    atom_record_ids.append(a)
+                elif ":" in str(a):
+                    table, id_part = str(a).split(":", 1)
+                    atom_record_ids.append(RecordID(table, id_part))
+                else:
+                    atom_record_ids.append(a)
+            
+            # 查询这些 atoms 的 local_id
+            atoms_result = await db.query(
+                "SELECT id, local_id FROM atom WHERE id IN $atom_ids",
+                {"atom_ids": atom_record_ids}
+            )
+            atom_refs = []
+            if atoms_result:
+                for atom_record in atoms_result:
+                    atom_raw_id = atom_record.get("id")
+                    if atom_raw_id and hasattr(atom_raw_id, "table_name"):
+                        atom_id = f"{atom_raw_id.table_name}:{atom_raw_id.id}"
+                    else:
+                        atom_id = str(atom_raw_id)
+                    atom_refs.append(AtomRef(id=atom_id, local_id=atom_record.get("local_id")))
+            record["atoms"] = atom_refs
+
+        # 处理 datetime
+        for field in ["created_at", "updated_at"]:
+            if field in record and record[field] is not None:
+                if hasattr(record[field], "isoformat"):
+                    record[field] = record[field].isoformat()
+
+        return record
 
     except HTTPException:
         raise
@@ -672,16 +751,47 @@ async def list_entities(
         result = await db.query(query, params)
         raw_data = result or []
 
-        data = []
-        for record in raw_data:
+        # 批量收集所有 atom_ids，避免 N+1 查询
+        all_atom_ids = []
+        entity_atom_map = {}  # 记录每个 entity 的 atom 索引
+
+        for idx, record in enumerate(raw_data):
             raw_id = record.get("id")
             if raw_id and hasattr(raw_id, "table_name"):
                 record["id"] = f"{raw_id.table_name}:{raw_id.id}"
             if record.get("atoms"):
-                record["atoms"] = [
+                atom_ids = [
                     f"{a.table_name}:{a.id}" if hasattr(a, "table_name") else str(a)
                     for a in record["atoms"]
                 ]
+                all_atom_ids.extend(atom_ids)
+                entity_atom_map[idx] = atom_ids
+
+        # 一次性查询所有 atoms 的 local_id
+        atom_local_id_map = {}
+        if all_atom_ids:
+            atoms_result = await db.query(
+                "SELECT id, local_id FROM atom WHERE id IN $atom_ids",
+                {"atom_ids": all_atom_ids}
+            )
+            if atoms_result:
+                for atom_record in atoms_result:
+                    atom_raw_id = atom_record.get("id")
+                    if atom_raw_id and hasattr(atom_raw_id, "table_name"):
+                        atom_id = f"{atom_raw_id.table_name}:{atom_raw_id.id}"
+                    else:
+                        atom_id = str(atom_raw_id)
+                    atom_local_id_map[atom_id] = atom_record.get("local_id")
+
+        # 为每个 entity 设置 atoms
+        data = []
+        for idx, record in enumerate(raw_data):
+            if idx in entity_atom_map:
+                atom_refs = []
+                for atom_id in entity_atom_map[idx]:
+                    local_id = atom_local_id_map.get(atom_id)
+                    atom_refs.append(AtomRef(id=atom_id, local_id=local_id))
+                record["atoms"] = atom_refs
             for field in ["created_at", "updated_at"]:
                 if field in record and record[field] is not None:
                     if hasattr(record[field], "isoformat"):
@@ -748,15 +858,16 @@ async def update_entity(entity_id: str, request: EntityUpdateRequest):
         async with transaction(db, "Entity"):
             # atoms 在事务内处理，避免孤立 Atom
             if "atoms" in raw_update and raw_update["atoms"] is not None:
-                record_ids = await _process_atoms(db, raw_update["atoms"], entity_id=entity_id)
-                update_data["atoms"] = record_ids
+                atom_refs = await _process_atoms(db, raw_update["atoms"], entity_id=entity_id)
+                # 存储时转换为 RecordID 对象列表
+                update_data["atoms"] = [_parse_record_id(ref.id) for ref in atom_refs]
 
             # 使用 SurrealQL UPDATE 语句来更新字段
             set_clauses = []
             params: dict[str, Any] = {"entity_id": entity_record_id}
             for field, value in update_data.items():
                 if field == "atoms":
-                    # atoms 是 RecordID 列表
+                    # atoms 是 RecordID 对象列表
                     set_clauses.append("atoms = $atoms")
                     params["atoms"] = value
                 elif field == "updated_at":
@@ -791,12 +902,27 @@ async def update_entity(entity_id: str, request: EntityUpdateRequest):
                 raw_id = record.get("id")
                 if raw_id and hasattr(raw_id, "table_name"):
                     record["id"] = f"{raw_id.table_name}:{raw_id.id}"
-                # 处理 atoms 中的 RecordID
+                # 处理 atoms 中的 RecordID - 需要查询 local_id
                 if record.get("atoms"):
-                    record["atoms"] = [
+                    atom_ids = [
                         f"{a.table_name}:{a.id}" if hasattr(a, "table_name") else str(a)
                         for a in record["atoms"]
                     ]
+                    # 查询这些 atoms 的 local_id
+                    atoms_result = await db.query(
+                        "SELECT id, local_id FROM atom WHERE id IN $atom_ids",
+                        {"atom_ids": atom_ids}
+                    )
+                    atom_refs = []
+                    if atoms_result:
+                        for atom_record in atoms_result:
+                            atom_raw_id = atom_record.get("id")
+                            if atom_raw_id and hasattr(atom_raw_id, "table_name"):
+                                atom_id = f"{atom_raw_id.table_name}:{atom_raw_id.id}"
+                            else:
+                                atom_id = str(atom_raw_id)
+                            atom_refs.append(AtomRef(id=atom_id, local_id=atom_record.get("local_id")))
+                    record["atoms"] = atom_refs
                 # 处理 datetime
                 for field in ["created_at", "updated_at"]:
                     if field in record and record[field] is not None:
