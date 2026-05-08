@@ -321,29 +321,6 @@ class MeilisearchClient:
 
         return {"taskUid": task.task_uid, "status": "succeeded" if wait else "enqueued"}
 
-    async def delete_all_documents(self) -> None:
-        """删除所有文档"""
-        index = self.client.index(self._index_name)
-        task = await asyncio.to_thread(index.delete_all_documents)
-        await asyncio.to_thread(self.client.wait_for_task, task.task_uid)
-
-    async def delete_document(self, document_id: str) -> None:
-        """删除单个文档"""
-        meili_id = self._to_meili_id(document_id)
-        index = self.client.index(self._index_name)
-        task = await asyncio.to_thread(index.delete_document, meili_id)
-        await asyncio.to_thread(self.client.wait_for_task, task.task_uid)
-
-    async def delete_documents_by_filter(self, filter_expr: str) -> None:
-        """通过过滤条件批量删除文档
-
-        Args:
-            filter_expr: Meilisearch 过滤表达式，如 "tenant_id = 'default'"
-        """
-        index = self.client.index(self._index_name)
-        task = await asyncio.to_thread(index.delete_documents, filter_expr)
-        await asyncio.to_thread(self.client.wait_for_task, task.task_uid)
-
     # ==================== 搜索 ====================
 
     async def search(

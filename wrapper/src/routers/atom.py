@@ -889,9 +889,8 @@ async def _delete_atom_from_meili(atom_id: str) -> None:
         return
     
     try:
-        # 转换 ID 格式 (atom:xxx -> atom_xxx)
-        meili_id = atom_id.replace(":", "_", 1)
-        await meili.delete_document(meili_id)
+        # meili_client.delete_document 内部会自动转换 ID 格式
+        await meili.delete_document(atom_id)
         logger.debug("[Atom] 从 Meilisearch 删除: %s", atom_id)
     except Exception as e:
         # 错误处理：记录日志但不阻塞主流程
