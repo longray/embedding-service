@@ -78,7 +78,8 @@ class MeiliConfig:
             "=>",
         ],
         # ========== ⭐ 核心：中文分词配置 ==========
-        "localizedAttributes": [{"locales": ["zho"], "attributePatterns": ["*_zh"]}],
+        "separatorTokens": ["、", "；", "："],
+        "localizedAttributes": [{"locales": ["cmn"], "attributePatterns": ["*_zh"]}],
         # ========== ⭐ 核心：代码词典（提升匹配率）==========
         "dictionary": [
             # 版本前缀

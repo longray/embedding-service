@@ -73,7 +73,8 @@ class MeilisearchClient:
         ],
         "sortableAttributes": ["date", "created_at", "code_complexity", "code_function_count"],
         "nonSeparatorTokens": [".", "-", "@", ":", "/", "_"],
-        "localizedAttributes": [{"locales": ["zho"], "attributePatterns": ["*_zh"]}],
+        "separatorTokens": ["、", "；", "："],
+        "localizedAttributes": [{"locales": ["cmn"], "attributePatterns": ["*_zh"]}],
         "typoTolerance": {"enabled": True, "disableOnAttributes": ["file_path", "version", "email", "ip_address"]},
         "dictionary": [
             "v1",

@@ -80,8 +80,10 @@ class MeilisearchInitializer:
         "sortableAttributes": ["date", "created_at"],
         # 不作为分隔符的字符（保持代码标识符完整性）
         "nonSeparatorTokens": [".", "-", "@", ":", "/", "_"],
-        # 中文本地化配置
-        "localizedAttributes": [{"locales": ["zho"], "attributePatterns": ["*_zh"]}],
+        # 中文标点作为分隔符
+        "separatorTokens": ["、", "；", "："],
+        # 中文本地化配置（使用 cmn 触发 jieba 分词）
+        "localizedAttributes": [{"locales": ["cmn"], "attributePatterns": ["*_zh"]}],
         # 拼写容错（禁用文件路径、版本号等精确字段）
         "typoTolerance": {"enabled": True, "disableOnAttributes": ["file_path", "version", "email", "ip_address"]},
         # 代码术语字典（104词）

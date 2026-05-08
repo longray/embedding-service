@@ -23,6 +23,20 @@ def _sanitize_query_for_bm25(query: str) -> str:
     ).strip()
     return cleaned[:500]
 
+
+def _get_hybrid_weights(query: str) -> tuple[float, float]:
+    """根据查询语言动态调整 hybrid 权重
+    
+    中文: 向量 50%，关键词 50%（语义鸿沟大，关键词更重要）
+    英文: 向量 60%，关键词 40%（向量语义匹配效果好）
+    """
+    # Extended CJK: Basic + Extension A + Compatibility
+    has_chinese = bool(re.search(r"[\u4e00-\u9fff\u3400-\u4dbf\uff00-\uffef]", query))
+    if has_chinese:
+        return 0.5, 0.5
+    return 0.6, 0.4
+
+
 router = APIRouter(prefix="/api/v1", tags=["search"])
 
 
@@ -361,13 +375,7 @@ async def _search_atoms_hybrid(db: Any, request: UnifiedSearchRequest) -> list[d
     vector_results = await _search_atoms_by_vector(db, request)
     keyword_results = await _search_atoms_by_keyword(db, request)
     
-    # v3.3-opt: 使用 MemoryManager 的 RRF 权重配置
-    if state.memory_manager:
-        vector_weight = getattr(state.memory_manager, '_rrf_vector_weight', 0.5)
-        keyword_weight = getattr(state.memory_manager, '_rrf_keyword_weight', 0.5)
-    else:
-        vector_weight = 0.5
-        keyword_weight = 0.5
+    vector_weight, keyword_weight = _get_hybrid_weights(request.query)
     k = 60  # RRF smoothing constant
     
     # Merge using RRF
