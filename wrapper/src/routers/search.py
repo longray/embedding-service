@@ -243,6 +243,32 @@ async def _search_atoms_by_keyword(db: Any, request: UnifiedSearchRequest) -> li
     return results
 
 
+def _preprocess_chinese_query(query: str) -> str:
+    """预处理中文查询，将中文字符用空格连接便于 ngram 匹配
+    
+    示例:
+    - "Promise 错误处理" → "Promise 错 误 处 理"
+    - "异步 并发 控制" → "异 步 并 发 控 制"
+    """
+    # 提取中文字符（CJK Unified Ideographs + Extension A）
+    chinese_chars = re.findall(r'[\u4e00-\u9fff\u3400-\u4dbf]', query)
+    
+    if not chinese_chars:
+        # 没有中文，返回原查询
+        return query
+    
+    # 提取英文/数字部分
+    english_parts = re.findall(r'[a-zA-Z0-9._]+', query)
+    
+    # 将中文字符用空格连接
+    segmented_chinese = ' '.join(chinese_chars)
+    
+    # 合并英文和中文
+    if english_parts:
+        return ' '.join(english_parts) + ' ' + segmented_chinese
+    return segmented_chinese
+
+
 async def _search_atoms_by_keyword_meili(request: UnifiedSearchRequest) -> list[dict[str, Any]]:
     """Atom 关键词搜索 - 使用 Meilisearch（支持 CJK 分词）"""
     meili = state.memory_manager._meili
@@ -262,9 +288,13 @@ async def _search_atoms_by_keyword_meili(request: UnifiedSearchRequest) -> list[
     
     filter_expr = " AND ".join(filter_parts)
     
+    # 预处理中文查询（将中文字符用空格连接，便于 ngram 匹配）
+    processed_query = _preprocess_chinese_query(request.query)
+    logger.debug("[AtomSearch] 原始查询: %r, 预处理后: %r", request.query, processed_query)
+    
     # 执行 Meilisearch 搜索
     result = await meili.search(
-        query=request.query,
+        query=processed_query,
         filter_expr=filter_expr,
         limit=request.limit,
         show_ranking_score=True,
