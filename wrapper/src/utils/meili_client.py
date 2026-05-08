@@ -441,3 +441,76 @@ class MeilisearchClient:
             }
         except Exception as e:
             return {"error": str(e)}
+
+    # ==================== 文档删除 ====================
+
+    async def delete_all_documents(self) -> None:
+        """删除索引中的所有文档
+        
+        注意: Meilisearch 1.13.3 中 delete_all_documents 可能不工作，
+        使用删除并重建索引的方式确保数据被清空。
+        """
+        try:
+            # 方法1: 尝试使用 delete_all_documents
+            index = self.client.index(self._index_name)
+            task = await asyncio.to_thread(index.delete_all_documents)
+            await asyncio.to_thread(self.client.wait_for_task, task.task_uid)
+            
+            # 验证是否删除成功
+            stats = await asyncio.to_thread(index.get_stats)
+            if stats.number_of_documents == 0:
+                logger.info(f"[Meilisearch] 已删除索引 {self._index_name} 中的所有文档")
+                return
+            
+            # 方法2: 如果还有文档，删除并重建索引
+            logger.warning(f"[Meilisearch] delete_all_documents 未完全清空，使用重建索引方式")
+            await asyncio.to_thread(self.client.delete_index, self._index_name)
+            await asyncio.to_thread(
+                self.client.create_index, 
+                self._index_name, 
+                {"primaryKey": "id"}
+            )
+            # 重新配置索引
+            await self.configure_index()
+            logger.info(f"[Meilisearch] 已重建索引 {self._index_name}")
+            
+        except Exception as e:
+            logger.error(f"[Meilisearch] 删除所有文档失败: {e}")
+            raise
+
+    async def delete_document(self, document_id: str) -> None:
+        """删除单个文档
+
+        Args:
+            document_id: 文档 ID (SurrealDB 格式，如 "memory:xxx")
+        """
+        try:
+            index = self.client.index(self._index_name)
+            meili_id = self._to_meili_id(document_id)
+            task = await asyncio.to_thread(index.delete_document, meili_id)
+            await asyncio.to_thread(self.client.wait_for_task, task.task_uid)
+            logger.debug(f"[Meilisearch] 已删除文档: {document_id}")
+        except Exception as e:
+            logger.error(f"[Meilisearch] 删除文档 {document_id} 失败: {e}")
+            raise
+
+    async def delete_documents_by_filter(self, filter_expr: str) -> None:
+        """通过过滤条件批量删除文档
+
+        Args:
+            filter_expr: 过滤表达式，如 "tenant_id = 'default'"
+                        空字符串 "" 表示删除所有文档
+        """
+        try:
+            index = self.client.index(self._index_name)
+            if filter_expr:
+                # 使用 filter 删除匹配的文档
+                task = await asyncio.to_thread(index.delete_documents, {"filter": filter_expr})
+            else:
+                # 空 filter 删除所有文档
+                task = await asyncio.to_thread(index.delete_all_documents)
+            await asyncio.to_thread(self.client.wait_for_task, task.task_uid)
+            logger.info(f"[Meilisearch] 已通过 filter 删除文档: {filter_expr or 'all'}")
+        except Exception as e:
+            logger.error(f"[Meilisearch] 通过 filter 删除文档失败: {e}")
+            raise
