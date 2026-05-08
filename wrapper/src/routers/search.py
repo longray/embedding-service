@@ -244,29 +244,34 @@ async def _search_atoms_by_keyword(db: Any, request: UnifiedSearchRequest) -> li
 
 
 def _preprocess_chinese_query(query: str) -> str:
-    """预处理中文查询，将中文字符用空格连接便于 ngram 匹配
+    """预处理中文查询，保留词组完整性并添加单字备选
     
     示例:
-    - "Promise 错误处理" → "Promise 错 误 处 理"
-    - "异步 并发 控制" → "异 步 并 发 控 制"
+    - "Promise 错误" → "Promise 错误 错 误"
+    - "错误处理" → "错误处理 错 误 处 理"
+    - "异步 并发 控制" → "异步 异 步 并发 并 发 控制 控 制"
     """
-    # 提取中文字符（CJK Unified Ideographs + Extension A）
-    chinese_chars = re.findall(r'[\u4e00-\u9fff\u3400-\u4dbf]', query)
+    # 按空格分割（保留用户意图的词边界）
+    parts = query.split()
+    processed_parts = []
     
-    if not chinese_chars:
-        # 没有中文，返回原查询
-        return query
+    for part in parts:
+        # 检查是否包含中文
+        if re.search(r'[\u4e00-\u9fff]', part):
+            # 中文部分：保留原词，同时添加单字作为备选
+            chinese_chars = re.findall(r'[\u4e00-\u9fff]', part)
+            if len(chinese_chars) > 1:
+                # 多字词：保留原词 + 单字
+                processed_parts.append(part)
+                processed_parts.append(' '.join(chinese_chars))
+            else:
+                # 单字：直接保留
+                processed_parts.append(part)
+        else:
+            # 英文/数字部分，原样保留
+            processed_parts.append(part)
     
-    # 提取英文/数字部分
-    english_parts = re.findall(r'[a-zA-Z0-9._]+', query)
-    
-    # 将中文字符用空格连接
-    segmented_chinese = ' '.join(chinese_chars)
-    
-    # 合并英文和中文
-    if english_parts:
-        return ' '.join(english_parts) + ' ' + segmented_chinese
-    return segmented_chinese
+    return ' '.join(processed_parts)
 
 
 async def _search_atoms_by_keyword_meili(request: UnifiedSearchRequest) -> list[dict[str, Any]]:

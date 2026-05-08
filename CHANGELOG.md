@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SurrealDB Atom BM25 搜索**：降级路径从 `CONTAINS` 改为 `@@` 操作符，添加 `idx_atom_content_ft` 和 `idx_atom_name_ft` BM25 索引
 - **Hybrid 动态权重**：根据查询语言自动调整 RRF 权重（中文 50/50，英文 60/40）
 - **Meilisearch CJK 配置**：语言代码 `zho` → `cmn`，添加中文标点分隔符
-- **Keyword 中文搜索**：添加 `_preprocess_chinese_query()` 函数，将中文字符用空格连接便于 ngram 匹配（示例："Promise 错误处理" → "Promise 错 误 处 理"）
+- **Keyword 中文搜索**：添加 `_preprocess_chinese_query()` 函数，保留词组完整性并添加单字备选（示例："Promise 错误" → "Promise 错误 错 误"，"错误处理" → "错误处理 错 误 处 理"）
 
 ## [2.8.4] - 2026-04-29
 
