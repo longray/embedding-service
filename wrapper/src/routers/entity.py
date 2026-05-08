@@ -290,6 +290,17 @@ async def _process_atoms_recursive(
         result_refs.append(AtomRef(id=rid, local_id=local_id))
         logger.info("[Entity] 内联创建 Atom: %s (local_id=%s)", rid, atom_req.local_id)
 
+        # BL-FIX-004: 同步 Atom 到 Meilisearch
+        if state.memory_manager and state.memory_manager._meili:
+            try:
+                meili_doc = state.memory_manager._build_meili_doc(
+                    rid, atom_data, tenant_id, doc_type="atom"
+                )
+                await state.memory_manager._meili.add_documents([meili_doc])
+                logger.info("[Entity] Atom 同步到 Meilisearch: %s", rid)
+            except Exception as meili_err:
+                logger.warning("[Entity] Atom Meilisearch 同步失败 %s: %s", rid, meili_err)
+
         # 递归处理 children
         if atom_req.children:
             children_refs = await _process_atoms_recursive(
@@ -459,6 +470,17 @@ async def create_entity(request: EntityCreateRequest):
                 )
                 logger.warning("[Entity] UPDATE result: %s", update_result)
                 logger.info("[Entity] Updated entity_id for %d atoms", len(atom_refs))
+
+            # BL-FIX-003: 同步 Entity 到 Meilisearch
+            if state.memory_manager and state.memory_manager._meili:
+                try:
+                    meili_doc = state.memory_manager._build_meili_doc(
+                        record_id, entity_data, request.tenant_id, doc_type="entity"
+                    )
+                    await state.memory_manager._meili.add_documents([meili_doc])
+                    logger.info("[Entity] 同步到 Meilisearch: %s", record_id)
+                except Exception as meili_err:
+                    logger.warning("[Entity] Meilisearch 同步失败 %s: %s", record_id, meili_err)
 
             response_data = entity_data.copy()
             # 将 atoms 从 record id 列表转换为 AtomRef 列表
