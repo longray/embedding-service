@@ -1,6 +1,7 @@
 """搜索端点 - 记忆搜索 + v3.3 统一搜索"""
 
 import logging
+import re
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -11,6 +12,16 @@ from ..models import MemorySearchRequest
 from ..utils.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_query_for_bm25(query: str) -> str:
+    """清洗查询字符串用于 BM25 搜索，移除 SQL 特殊字符"""
+    cleaned = re.sub(
+        r"[^\w\s\u4e00-\u9fff\u3400-\u4dbf\uff00-\uffef-]",
+        "",
+        query
+    ).strip()
+    return cleaned[:500]
 
 router = APIRouter(prefix="/api/v1", tags=["search"])
 
@@ -153,11 +164,18 @@ async def _search_atoms_by_keyword(db: Any, request: UnifiedSearchRequest) -> li
     else:
         logger.debug("[AtomSearch] Meilisearch 不可用，使用 SurrealDB")
     
-    # 降级到 SurrealDB CONTAINS 搜索
+    # 降级到 SurrealDB BM25 搜索
     conditions = ["tenant_id = $tenant_id"]
     params: dict[str, Any] = {"tenant_id": request.tenant_id}
 
-    conditions.append("(content CONTAINS $query OR name CONTAINS $query)")
+    # 使用 BM25 @@ 操作符（索引序号 1=content, 2=name）
+    # NOTE: @1@ = idx_atom_content_ft, @2@ = idx_atom_name_ft
+    # 这些引用基于 FULLTEXT 索引定义顺序，见 init_surrealdb.surql
+    safe_query = _sanitize_query_for_bm25(request.query)
+    if not safe_query:
+        logger.warning("[AtomSearch] Query sanitized to empty, returning empty results")
+        return []
+    conditions.append(f"(content @1@ '{safe_query}' OR name @2@ '{safe_query}')")
     params["query"] = request.query
 
     if request.atom_types:
@@ -169,7 +187,13 @@ async def _search_atoms_by_keyword(db: Any, request: UnifiedSearchRequest) -> li
         params["max_level"] = request.max_level
 
     where_clause = " AND ".join(conditions)
-    query = f"SELECT * FROM atom WHERE {where_clause} LIMIT $limit"  # nosec B608
+    # 使用 search::score 获取 BM25 相关性评分
+    # 使用 math::sum 处理 NONE 值（当记录只匹配一个字段时）
+    query = (  # nosec B608 - where_clause built from parameterized conditions
+        f"SELECT *, math::sum(search::score(1), search::score(2)) AS score "
+        f"FROM atom WHERE {where_clause} "
+        f"ORDER BY score DESC LIMIT $limit"
+    )
     params["limit"] = request.limit
 
     result = await db.query(query, params)
@@ -200,7 +224,7 @@ async def _search_atoms_by_keyword(db: Any, request: UnifiedSearchRequest) -> li
             "order": record.get("order"),
             "tags": record.get("tags", []),
             "entity_id": record.get("entity_id", ""),
-            "score": 0.5,
+            "score": record.get("score") or 0.0,
         })
     return results
 

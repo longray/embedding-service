@@ -236,9 +236,9 @@ DEFINE INDEX IF NOT EXISTS conflict_status_tenant ON conflict FIELDS status, ten
 
 -- 更新版本号
 UPSERT schema_version:current CONTENT {
-    version: '2.4.1',
+    version: '3.3.1',
     applied_at: time::now(),
-    description: 'Phase 8: 代码指纹同步 API + PrecomputeService 代码分析 API - file_fingerprint 表'
+    description: 'v3.3.1: Atom BM25 full-text search indexes (content + name)'
 };
 
 -- ==================== audit_log 表 (P3-5) ====================
@@ -394,6 +394,24 @@ DEFINE INDEX IF NOT EXISTS idx_atom_created_at ON atom FIELDS created_at;
 DEFINE INDEX IF NOT EXISTS idx_atom_parent ON atom FIELDS parent_id;
 DEFINE INDEX IF NOT EXISTS idx_atom_order ON atom FIELDS order;
 DEFINE INDEX IF NOT EXISTS idx_atom_entity ON atom FIELDS entity_id;
+
+-- v3.3 BM25 全文搜索索引（降级路径）
+-- 注意：主搜索引擎是 Meilisearch，此索引仅在 Meilisearch 不可用时使用
+-- 使用 class tokenizer + ngram(2,8) 支持中英文混合分词
+-- ⚠️ 使用 REMOVE + DEFINE（非 IF NOT EXISTS）确保 analyzer 变更生效
+REMOVE ANALYZER IF EXISTS atom_analyzer;
+DEFINE ANALYZER atom_analyzer
+    TOKENIZERS class
+    FILTERS lowercase, ngram(2,8);
+
+-- 重建全文索引以使用更新后的 analyzer
+REMOVE INDEX IF EXISTS idx_atom_content_ft ON atom;
+DEFINE INDEX idx_atom_content_ft ON atom
+    FIELDS content FULLTEXT ANALYZER atom_analyzer BM25;
+
+REMOVE INDEX IF EXISTS idx_atom_name_ft ON atom;
+DEFINE INDEX idx_atom_name_ft ON atom
+    FIELDS name FULLTEXT ANALYZER atom_analyzer BM25;
 
 -- 2. entity 表 - 实体（由 atom 组成）
 DEFINE TABLE IF NOT EXISTS entity TYPE NORMAL;

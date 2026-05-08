@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `heading_level` 过滤添加 `IS NULL` 处理
 - `atom_types` 单引号转义防止 filter 表达式注入
 - ID 转换冗余问题（依赖 meili_client 自动转换）
+- **SurrealDB Atom BM25 搜索**：降级路径从 `CONTAINS` 改为 `@@` 操作符，添加 `idx_atom_content_ft` 和 `idx_atom_name_ft` BM25 索引
 
 ## [2.8.4] - 2026-04-29
 
