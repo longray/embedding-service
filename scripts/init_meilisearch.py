@@ -66,6 +66,8 @@ class MeilisearchInitializer:
         "filterableAttributes": [
             "tenant_id",
             "type",
+            "doc_type",
+            "atom_type",
             "tags",
             "project_id",
             "file_path",
@@ -75,6 +77,12 @@ class MeilisearchInitializer:
             "version",
             "created_at",
             "source_id",
+            "code_language",
+            "code_complexity",
+            "code_function_count",
+            "code_class_count",
+            "code_analyzer",
+            "code_has_exports",
         ],
         # 可排序字段
         "sortableAttributes": ["date", "created_at"],

@@ -55,6 +55,8 @@ class MeilisearchClient:
         "filterableAttributes": [
             "tenant_id",
             "type",
+            "doc_type",
+            "atom_type",
             "tags",
             "project_id",
             "file_path",

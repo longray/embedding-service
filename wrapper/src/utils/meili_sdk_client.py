@@ -48,6 +48,8 @@ class MeilisearchSDKClient:
         "filterableAttributes": [
             "tenant_id",
             "type",
+            "doc_type",
+            "atom_type",
             "tags",
             "project_id",
             "date",
