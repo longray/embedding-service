@@ -115,12 +115,14 @@ async def clear_memories(request: Request):
 
         logger.warning("[Clear] 清空 SurrealDB...")
         await state.memory_manager._db.query("DELETE memory;")
+        await state.memory_manager._db.query("DELETE atom;")
+        await state.memory_manager._db.query("DELETE entity;")
         await state.memory_manager._db.query("DELETE reference;")
         await state.memory_manager._db.query("DELETE conflict;")
 
         logger.info("[Clear] SurrealDB 已清空")
 
-        return {"success": True, "message": "所有记忆数据已清空"}
+        return {"success": True, "message": "所有记忆数据已清空（包括 memory, atom, entity, reference, conflict）"}
     except Exception as e:
         logger.error(f"[Clear] 清空失败: {e}")
         raise HTTPException(status_code=500, detail=f"清空失败: {e!s}") from e

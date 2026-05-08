@@ -62,7 +62,8 @@ embedding_service/
 ├── scripts/                     # 运维脚本
 │   ├── migrate_to_meilisearch.py # SurrealDB → Meilisearch 迁移
 │   ├── init_surrealdb.surql     # SurrealDB Schema 初始化
-│   └── init_surrealdb_fixed.surql
+│   ├── init_surrealdb_fixed.surql
+│   └── reset_all.py             # 一键重置所有数据（开发/测试环境）
 ├── tests/                       # 测试套件
 │   ├── test_wrapper_api.py      # 核心 API 测试 (56 个)
 │   ├── test_meili_integration.py # Meilisearch 集成测试 (23 个)
@@ -86,6 +87,33 @@ uv run pytest tests/ -v
 uv run ruff check .
 uv run pyright
 ```
+
+### 数据重置（开发/测试环境）
+
+**一键重置所有数据**（清空并重新初始化）：
+
+```bash
+# 重置所有数据（需要确认）
+uv run python scripts/reset_all.py
+
+# 预览将要执行的操作（不实际执行）
+uv run python scripts/reset_all.py --dry-run
+
+# 跳过确认提示
+uv run python scripts/reset_all.py --force
+
+# 仅重置 SurrealDB
+uv run python scripts/reset_all.py --skip-meili
+
+# 仅重置 Meilisearch
+uv run python scripts/reset_all.py --skip-db
+```
+
+**功能说明**：
+- 清空 SurrealDB: memory, atom, entity, reference, conflict 表
+- 清空 Meilisearch: 所有文档
+- 重新初始化: SurrealDB schema + Meilisearch 索引
+- 安全机制: 需要输入 "yes" 确认，生产环境建议先备份
 
 ### Docker 开发环境（推荐）
 
