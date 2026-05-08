@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] - 2026-05-08
+
+### Added
+
+- **Atom Meilisearch 统一搜索**
+  - Phase 1: Meilisearch 索引配置扩展，支持 Atom 字段（`atom_type`, `entity_id`, `heading_level`, `local_id`）
+  - Phase 2: Atom CRUD 双写同步，创建/更新/删除时自动同步到 Meilisearch
+  - Phase 3: Atom 搜索路由重构，关键词搜索优先使用 Meilisearch（支持 CJK 分词），降级到 SurrealDB
+  - 新增 `_search_atoms_by_keyword_meili()` 和 `_format_atom_meili_results()` 方法
+  - 新增 `delete_all_documents()` 备选方案（删除并重建索引）解决 Meilisearch 1.13.3 清空问题
+  - 新增 `reset_all.py` 脚本，一键清空并重新初始化所有数据
+
+### Changed
+
+- `clear_memories` API 现在同时清空 `atom` 和 `entity` 表
+- `_search_atoms_by_keyword()` 优先使用 Meilisearch，失败后降级到 SurrealDB
+- RRF 权重从硬编码改为从 MemoryManager 配置读取
+
+### Fixed
+
+- Meilisearch `delete_all_documents` 不工作问题，添加删除并重建索引的备选方案
+- `heading_level` 过滤添加 `IS NULL` 处理
+- `atom_types` 单引号转义防止 filter 表达式注入
+- ID 转换冗余问题（依赖 meili_client 自动转换）
+
 ## [2.8.4] - 2026-04-29
 
 ### Added
