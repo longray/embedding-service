@@ -118,8 +118,8 @@ class EntityResponse(BaseModel):
     tenant_id: str = Field(..., description="租户ID")
 
 
-    abstract: str = Field(..., description="摘要")
-    overview: dict[str, Any] = Field(default_factory=dict, description="概览")
+    abstract: str | None = Field(default=None, description="摘要")
+    overview: dict[str, Any] | str | None = Field(default=None, description="概览")
     atoms: list[AtomRef] = Field(default_factory=list, description="Atom 引用列表（含 id 和 local_id）")
 
     
@@ -821,6 +821,21 @@ async def list_entities(
                     local_id = atom_local_id_map.get(atom_id)
                     atom_refs.append(AtomRef(id=atom_id, local_id=local_id))
                 record["atoms"] = atom_refs
+            
+            # BL-FIX-007: 数据清理，确保符合 Pydantic 模型
+            # 处理缺失的 abstract
+            if not record.get("abstract"):
+                # 从 content 提取前100字符作为 abstract
+                content = record.get("content", "")
+                record["abstract"] = content[:100] if content else ""
+            
+            # 处理 overview 类型（string -> dict）
+            overview = record.get("overview")
+            if isinstance(overview, str):
+                record["overview"] = {"description": overview}
+            elif overview is None:
+                record["overview"] = {}
+            
             for field in ["created_at", "updated_at"]:
                 if field in record and record[field] is not None:
                     if hasattr(record[field], "isoformat"):
