@@ -134,7 +134,12 @@ async def _search_entities(request: UnifiedSearchRequest) -> list[dict[str, Any]
         )
 
         results = []
-        items = entity_result if isinstance(entity_result, list) else entity_result.get("results", [])
+        if isinstance(entity_result, list):
+            items = entity_result
+        elif isinstance(entity_result, dict):
+            items = entity_result.get("results", [])
+        else:
+            items = []
 
         for item in items:
             if isinstance(item, dict):

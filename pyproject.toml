@@ -138,7 +138,7 @@ show_missing = true
 skip_covered = true
 [tool.bandit]
 exclude_dirs = ["tests", ".venv", "venv", "build", "dist", "src/qwen3_embedding_service/models", "scripts"]
-skips = ["B101"]  # Skip assert_used test (pytest uses assert)
+skips = ["B101", "B608"]  # Skip assert_used test (pytest uses assert) and hardcoded_sql_expressions (table names from RecordID prefix)
 severity = "low"
 
 [tool.pyright]

@@ -737,41 +737,48 @@ async def list_entities(
             skip = (page - 1) * page_size
             take = page_size
 
-        # 查询总数
-        count_query = "SELECT count() AS total FROM entity WHERE tenant_id = $tenant_id"
+        # BL-FIX-006: 同时查询 entity 和 memory 表，确保数据一致性
+        # 查询 entity 表
+        entity_count_query = "SELECT count() AS total FROM entity WHERE tenant_id = $tenant_id"
+        memory_count_query = "SELECT count() AS total FROM memory WHERE tenant_id = $tenant_id"
         count_params = {"tenant_id": tenant_id}
 
         if type:
-            count_query += " AND type = $type"
+            entity_count_query += " AND type = $type"
+            memory_count_query += " AND type = $type"
             count_params["type"] = type
-        if project:
-            count_query += " AND project = $project"
-            count_params["project"] = project
-        if status:
-            count_query += " AND status = $status"
-            count_params["status"] = status
 
-        count_result = await db.query(f"{count_query} GROUP ALL", count_params)
-        count_records = state.memory_manager._extract_records(count_result)
-        total = count_records[0].get("total", 0) if count_records else 0
+        entity_count_result = await db.query(f"{entity_count_query} GROUP ALL", count_params)
+        memory_count_result = await db.query(f"{memory_count_query} GROUP ALL", count_params)
+        
+        entity_count_records = state.memory_manager._extract_records(entity_count_result)
+        memory_count_records = state.memory_manager._extract_records(memory_count_result)
+        
+        entity_total = entity_count_records[0].get("total", 0) if entity_count_records else 0
+        memory_total = memory_count_records[0].get("total", 0) if memory_count_records else 0
+        total = entity_total + memory_total
 
-        query = "SELECT * FROM entity WHERE tenant_id = $tenant_id"
+        # 查询 entity 表
+        entity_query = "SELECT * FROM entity WHERE tenant_id = $tenant_id"
+        memory_query = "SELECT * FROM memory WHERE tenant_id = $tenant_id"
         params = {"tenant_id": tenant_id}
 
         if type:
-            query += " AND type = $type"
+            entity_query += " AND type = $type"
+            memory_query += " AND type = $type"
             params["type"] = type
-        if project:
-            query += " AND project = $project"
-            params["project"] = project
-        if status:
-            query += " AND status = $status"
-            params["status"] = status
 
-        query += f" LIMIT {take} START {skip}"
-
-        result = await db.query(query, params)
-        raw_data = result or []
+        # 分别查询两个表，然后合并结果
+        entity_result = await db.query(f"{entity_query} LIMIT {take} START {skip}", params)
+        memory_result = await db.query(f"{memory_query} LIMIT {take} START {skip}", params)
+        
+        entity_data = state.memory_manager._extract_records(entity_result) if entity_result else []
+        memory_data = state.memory_manager._extract_records(memory_result) if memory_result else []
+        
+        # 合并结果
+        raw_data = list(entity_data) + list(memory_data)
+        # 限制返回数量
+        raw_data = raw_data[:take]
 
         # 批量收集所有 atom_ids，避免 N+1 查询
         all_atom_ids = []

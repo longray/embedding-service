@@ -70,23 +70,28 @@ class RelationsMixin:
 
             try:
                 # TC-GRAPH-001: 验证节点是否存在，防止悬空关系
+                # BL-FIX-005: 同时支持 memory 和 entity 表
+                source_table = from_ref.split(":")[0] if ":" in from_ref else "memory"
+                # nosec B608
                 source_check = await self._db_query(
-                    "SELECT id FROM memory WHERE id = type::record($id) LIMIT 1",
+                    f"SELECT id FROM {source_table} WHERE id = type::record($id) LIMIT 1",
                     {"id": from_ref}
                 )
                 if not self._extract_records(source_check):
                     raise ValidationError(
-                        f"Source memory {from_id} not found. "
+                        f"Source {source_table} {from_ref} not found. "
                         f"Please sync it first using incremental_sync()"
                     )
 
+                target_table = to_ref.split(":")[0] if ":" in to_ref else "memory"
+                # nosec B608
                 target_check = await self._db_query(
-                    "SELECT id FROM memory WHERE id = type::record($id) LIMIT 1",
+                    f"SELECT id FROM {target_table} WHERE id = type::record($id) LIMIT 1",
                     {"id": to_ref}
                 )
                 if not self._extract_records(target_check):
                     raise ValidationError(
-                        f"Target memory {to_id} not found. "
+                        f"Target {target_table} {to_ref} not found. "
                         f"Please sync it first using incremental_sync()"
                     )
 
