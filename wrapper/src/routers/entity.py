@@ -2,7 +2,7 @@
 
 import logging
 from collections.abc import Sequence
-from typing import Any, Union
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -61,7 +61,7 @@ class EntityCreateRequest(BaseModel):
     
     abstract: str = Field(..., description="摘要 (L0, ≤100字符)")
     overview: dict[str, Any] = Field(default_factory=dict, description="概览 (L1)")
-    atoms: list[Union[str, AtomInlineCreate]] = Field(
+    atoms: list[str | AtomInlineCreate] = Field(
         default_factory=list, description="Atom ID 或内联创建对象列表 (L2)"
     )
 
@@ -93,7 +93,7 @@ class EntityUpdateRequest(BaseModel):
 
     abstract: str | None = Field(default=None, description="摘要")
     overview: dict[str, Any] | None = Field(default=None, description="概览")
-    atoms: list[Union[str, AtomInlineCreate]] | None = Field(
+    atoms: list[str | AtomInlineCreate] | None = Field(
         default=None, description="Atom ID 或内联创建对象列表"
     )
     tags: list[str] | None = Field(default=None, description="标签")
@@ -164,14 +164,24 @@ class BatchEntityRequest(BaseModel):
     tenant_id: str = Field(default="default", description="租户ID")
 
 
+class BatchEntityItemResponse(BaseModel):
+    """批量创建 Entity 单项响应"""
+
+    id: str | None = Field(default=None, description="Entity ID")
+    type: str | None = Field(default=None, description="Entity 类型")
+    abstract: str | None = Field(default=None, description="摘要")
+    status: str = Field(..., description="状态: created/skipped/error")
+    error: str | None = Field(default=None, description="错误信息")
+
+
 class BatchEntityResponse(BaseModel):
     """批量创建 Entity 响应"""
 
-    success: list[EntityResponse] = Field(default_factory=list, description="成功创建的 Entities")
-    failed: list[dict] = Field(default_factory=list, description="失败的条目 {index: int, error: str}")
+    entities: list[BatchEntityItemResponse] = Field(default_factory=list, description="Entity 结果列表")
     total: int = Field(..., description="总请求数")
-    success_count: int = Field(..., description="成功数")
-    failed_count: int = Field(..., description="失败数")
+    created: int = Field(..., description="成功创建数")
+    skipped: int = Field(..., description="跳过数（重复）")
+    errors: int = Field(..., description="失败数")
 
 
 def _parse_record_id(atom_id: str) -> RecordID | str:
@@ -183,7 +193,7 @@ def _parse_record_id(atom_id: str) -> RecordID | str:
 
 async def _process_atoms_recursive(
     db: Any,
-    atoms: Sequence[Union[str, AtomInlineCreate, dict[str, Any]]],
+    atoms: Sequence[str | AtomInlineCreate | dict[str, Any]],
     entity_id: str | None = None,
     tenant_id: str = "default",
     entity_abstract: str = "",
@@ -345,7 +355,7 @@ async def _process_atoms_recursive(
 
 async def _process_atoms(
     db: Any,
-    atoms: Sequence[Union[str, AtomInlineCreate, dict[str, Any]]],
+    atoms: Sequence[str | AtomInlineCreate | dict[str, Any]],
     entity_id: str | None = None,
     tenant_id: str = "default",
     entity_abstract: str = "",
@@ -501,20 +511,36 @@ async def batch_create_entities(request: BatchEntityRequest):
     if not state.memory_manager:
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
 
-    # 限制批量大小
-    MAX_BATCH_SIZE = 100
-    if len(request.entities) > MAX_BATCH_SIZE:
-        raise HTTPException(
-            status_code=400,
-            detail=f"批量创建数量超过限制: {len(request.entities)} > {MAX_BATCH_SIZE}"
-        )
+    if len(request.entities) > 100:
+        raise HTTPException(status_code=400, detail="单次请求最多 100 条")
 
     db = state.memory_manager.db
 
-    results = {"success": [], "failed": []}
+    entities_result: list[BatchEntityItemResponse] = []
+    created_count = 0
+    skipped_count = 0
+    errors_count = 0
 
-    # 每个 entity 独立事务，避免一个失败影响其他
+    # 检查重复（abstract + type + tenant_id）
+    seen: set[tuple[str, str, str]] = set()
+
     for i, entity_req in enumerate(request.entities):
+        # 检查请求内重复
+        key = (entity_req.abstract, entity_req.type, request.tenant_id)
+        if key in seen:
+            entities_result.append(
+                BatchEntityItemResponse(
+                    type=entity_req.type,
+                    abstract=entity_req.abstract,
+                    status="skipped",
+                    error="请求内重复",
+                )
+            )
+            skipped_count += 1
+            continue
+
+        seen.add(key)
+
         try:
             # 验证类型
             if entity_req.type not in ENTITY_VALID_TYPES:
@@ -528,7 +554,7 @@ async def batch_create_entities(request: BatchEntityRequest):
                     entity_abstract=entity_req.abstract
                 )
 
-                # 准备数据 - 存储时转换为 RecordID 对象列表
+                # 准备数据
                 entity_data = {
                     "type": entity_req.type,
                     "tenant_id": request.tenant_id,
@@ -599,21 +625,44 @@ async def batch_create_entities(request: BatchEntityRequest):
                         {"entity_id": record_id, "atom_ids": atom_record_ids}
                     )
 
-                response_data = entity_data.copy()
-                # 将 atoms 从 record id 列表转换为 AtomRef 列表
-                response_data["atoms"] = atom_refs if atom_refs else []
+                entities_result.append(
+                    BatchEntityItemResponse(
+                        id=record_id,
+                        type=entity_req.type,
+                        abstract=entity_req.abstract,
+                        status="created",
+                    )
+                )
+                created_count += 1
 
-                results["success"].append(EntityResponse(id=record_id, **response_data))
-
+        except ValidationError as e:
+            entities_result.append(
+                BatchEntityItemResponse(
+                    type=entity_req.type,
+                    abstract=entity_req.abstract,
+                    status="error",
+                    error=e.message,
+                )
+            )
+            errors_count += 1
         except Exception as e:
-            results["failed"].append({"index": i, "error": str(e)})
+            logger.error("[Entity] 批量创建单项失败: %s", e)
+            entities_result.append(
+                BatchEntityItemResponse(
+                    type=entity_req.type,
+                    abstract=entity_req.abstract,
+                    status="error",
+                    error=str(e),
+                )
+            )
+            errors_count += 1
 
     return BatchEntityResponse(
-        success=results["success"],
-        failed=results["failed"],
+        entities=entities_result,
         total=len(request.entities),
-        success_count=len(results["success"]),
-        failed_count=len(results["failed"])
+        created=created_count,
+        skipped=skipped_count,
+        errors=errors_count,
     )
 
 

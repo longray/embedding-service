@@ -69,6 +69,7 @@ class AtomCreateRequest(BaseModel):
     order: str | None = Field(default=None, description="分数索引（如 a0, aV）")
     aliases: list[str] = Field(default_factory=list, description="别名列表")
     entity_id: str | None = Field(default=None, description="所属 Entity ID")
+    local_id: str | None = Field(default=None, description="客户端侧 ID (用于树结构)")
 
 
 class AtomUpdateRequest(BaseModel):
@@ -152,14 +153,26 @@ class BatchAtomRequest(BaseModel):
     tenant_id: str = Field(default="default", description="租户ID")
 
 
+class BatchAtomItemResponse(BaseModel):
+    """批量创建 Atom 单项响应"""
+
+    id: str | None = Field(default=None, description="Atom ID")
+    entity_id: str | None = Field(default=None, description="Entity ID")
+    local_id: str | None = Field(default=None, description="Local ID")
+    type: str | None = Field(default=None, description="Atom 类型")
+    name: str | None = Field(default=None, description="名称")
+    status: str = Field(..., description="状态: created/skipped/error")
+    error: str | None = Field(default=None, description="错误信息")
+
+
 class BatchAtomResponse(BaseModel):
     """批量创建 Atom 响应"""
 
-    success: list[AtomResponse] = Field(default_factory=list, description="成功创建的 Atoms")
-    failed: list[dict] = Field(default_factory=list, description="失败的条目 {index: int, error: str}")
+    atoms: list[BatchAtomItemResponse] = Field(default_factory=list, description="Atom 结果列表")
     total: int = Field(..., description="总请求数")
-    success_count: int = Field(..., description="成功数")
-    failed_count: int = Field(..., description="失败数")
+    created: int = Field(..., description="成功创建数")
+    skipped: int = Field(..., description="跳过数（重复）")
+    errors: int = Field(..., description="失败数")
 
 
 class AtomBudgetRequest(BaseModel):
@@ -648,89 +661,166 @@ async def batch_create_atoms(request: BatchAtomRequest):
     if not state.memory_manager:
         raise HTTPException(status_code=503, detail="MemoryManager未初始化")
 
-    # 限制批量大小
-    MAX_BATCH_SIZE = 100
-    if len(request.atoms) > MAX_BATCH_SIZE:
-        raise HTTPException(
-            status_code=400,
-            detail=f"批量创建数量超过限制: {len(request.atoms)} > {MAX_BATCH_SIZE}"
-        )
+    if len(request.atoms) > 100:
+        raise HTTPException(status_code=400, detail="单次请求最多 100 条")
 
-    try:
-        db = state.memory_manager.db
+    db = state.memory_manager.db
 
-        results = {"success": [], "failed": []}
+    atoms_result: list[BatchAtomItemResponse] = []
+    created_count = 0
+    skipped_count = 0
+    errors_count = 0
 
-        # 使用事务执行批量创建
-        async with transaction(db, "Atom"):
-            for i, atom_req in enumerate(request.atoms):
-                try:
-                    # 验证类型
-                    if atom_req.type not in ATOM_VALID_TYPES:
-                        raise ValidationError(f"无效的 Atom 类型: {atom_req.type}")
+    # 检查重复（entity_id + local_id）
+    seen: set[tuple[str, str]] = set()
 
-                    # 准备数据
-                    atom_data = {
-                        "type": atom_req.type,
-                        "content": atom_req.content,
-                        "tenant_id": request.tenant_id,
-                        "name": atom_req.name,
-                        "signature": atom_req.signature,
-                        "params": atom_req.params,
-                        "return_type": atom_req.return_type,
-                        "is_exported": atom_req.is_exported,
-                        "is_async": atom_req.is_async,
-                        "complexity": atom_req.complexity,
-                        "max_nesting_depth": atom_req.max_nesting_depth,
-                        "docstring": atom_req.docstring,
-                        "start_line": atom_req.start_line,
-                        "end_line": atom_req.end_line,
-                        "status": atom_req.status,
-                        "metadata": atom_req.metadata,
-                        "project": atom_req.project,
-                        "version": 1,
-                        "tags": atom_req.tags,
-                        "heading_level": atom_req.heading_level,
-                        "parent_id": atom_req.parent_id,
-                        "order": atom_req.order,
-                        "aliases": atom_req.aliases,
-                        "entity_id": atom_req.entity_id,
-                    }
-                    atom_data = {k: v for k, v in atom_data.items() if v is not None}
+    for i, atom_req in enumerate(request.atoms):
+        # 检查请求内重复
+        key = (atom_req.entity_id or "", atom_req.local_id or "")
+        if key[1] and key in seen:  # 只有有 local_id 才检查重复
+            atoms_result.append(
+                BatchAtomItemResponse(
+                    entity_id=atom_req.entity_id,
+                    local_id=atom_req.local_id,
+                    type=atom_req.type,
+                    name=atom_req.name,
+                    status="skipped",
+                    error="请求内重复",
+                )
+            )
+            skipped_count += 1
+            continue
 
-                    # 创建 atom
-                    result = await db.create("atom", atom_data)
+        if key[1]:
+            seen.add(key)
 
-                    if not result:
-                        raise HTTPException(status_code=500, detail="创建 Atom 失败")
+        try:
+            # 验证类型
+            if atom_req.type not in ATOM_VALID_TYPES:
+                raise ValidationError(
+                    f"无效的 Atom 类型: {atom_req.type}. 必须是 {list(ATOM_VALID_TYPES)}"
+                )
 
-                    # 处理返回结果
-                    record = parse_surrealdb_result(result)
-                    if not record:
-                        raise HTTPException(status_code=500, detail="创建 Atom 失败: 无效的响应格式")
+            # 检查 entity_id 存在性（如果提供了）
+            if atom_req.entity_id:
+                entity_check = await db.query(
+                    "SELECT id FROM entity WHERE id = type::record($entity_id)",
+                    {"entity_id": atom_req.entity_id}
+                )
+                if not parse_surrealdb_result(entity_check):
+                    raise ValidationError(f"entity_id 不存在: {atom_req.entity_id}")
 
-                    record_id = extract_record_id(record)
-                    results["success"].append(AtomResponse(id=record_id, **atom_data))
-                    
-                    # Phase 2: 同步到 Meilisearch
-                    await _sync_atom_to_meili(record_id, atom_data, request.tenant_id)
+            # 检查是否已存在（entity_id + local_id）
+            if atom_req.entity_id and atom_req.local_id:
+                existing = await db.query(
+                    "SELECT id FROM atom WHERE entity_id = $entity_id AND local_id = $local_id",
+                    {"entity_id": atom_req.entity_id, "local_id": atom_req.local_id}
+                )
+                if parse_surrealdb_result(existing):
+                    atoms_result.append(
+                        BatchAtomItemResponse(
+                            entity_id=atom_req.entity_id,
+                            local_id=atom_req.local_id,
+                            type=atom_req.type,
+                            name=atom_req.name,
+                            status="skipped",
+                            error="duplicate local_id",
+                        )
+                    )
+                    skipped_count += 1
+                    continue
 
-                except Exception as e:
-                    results["failed"].append({"index": i, "error": str(e)})
+            # 准备数据
+            atom_data = {
+                "type": atom_req.type,
+                "content": atom_req.content,
+                "tenant_id": request.tenant_id,
+                "name": atom_req.name,
+                "signature": atom_req.signature,
+                "params": atom_req.params,
+                "return_type": atom_req.return_type,
+                "is_exported": atom_req.is_exported,
+                "is_async": atom_req.is_async,
+                "complexity": atom_req.complexity,
+                "max_nesting_depth": atom_req.max_nesting_depth,
+                "docstring": atom_req.docstring,
+                "start_line": atom_req.start_line,
+                "end_line": atom_req.end_line,
+                "status": atom_req.status,
+                "metadata": atom_req.metadata,
+                "project": atom_req.project,
+                "version": 1,
+                "tags": atom_req.tags,
+                "heading_level": atom_req.heading_level,
+                "parent_id": atom_req.parent_id,
+                "order": atom_req.order,
+                "aliases": atom_req.aliases,
+                "entity_id": atom_req.entity_id,
+                "local_id": atom_req.local_id,
+            }
 
-        return BatchAtomResponse(
-            success=results["success"],
-            failed=results["failed"],
-            total=len(request.atoms),
-            success_count=len(results["success"]),
-            failed_count=len(results["failed"])
-        )
+            atom_data = {k: v for k, v in atom_data.items() if v is not None}
 
-    except ValidationError as e:
-        raise HTTPException(status_code=400, detail=e.message) from e
-    except Exception as e:
-        logger.error("[Atom] 批量创建失败: %s", e)
-        raise HTTPException(status_code=500, detail=f"批量创建失败: {e!s}") from e
+            # 创建 atom
+            result = await db.create("atom", atom_data)
+
+            if not result:
+                raise HTTPException(status_code=500, detail="创建 Atom 失败")
+
+            record = parse_surrealdb_result(result)
+            if not record:
+                raise HTTPException(status_code=500, detail="创建 Atom 失败: 无效的响应格式")
+
+            record_id = extract_record_id(record)
+
+            # 同步到 Meilisearch
+            await _sync_atom_to_meili(record_id, atom_data, request.tenant_id)
+
+            atoms_result.append(
+                BatchAtomItemResponse(
+                    id=record_id,
+                    entity_id=atom_req.entity_id,
+                    local_id=atom_req.local_id,
+                    type=atom_req.type,
+                    name=atom_req.name,
+                    status="created",
+                )
+            )
+            created_count += 1
+
+        except ValidationError as e:
+            atoms_result.append(
+                BatchAtomItemResponse(
+                    entity_id=atom_req.entity_id,
+                    local_id=atom_req.local_id,
+                    type=atom_req.type,
+                    name=atom_req.name,
+                    status="error",
+                    error=e.message,
+                )
+            )
+            errors_count += 1
+        except Exception as e:
+            logger.error("[Atom] 批量创建单项失败: %s", e)
+            atoms_result.append(
+                BatchAtomItemResponse(
+                    entity_id=atom_req.entity_id,
+                    local_id=atom_req.local_id,
+                    type=atom_req.type,
+                    name=atom_req.name,
+                    status="error",
+                    error=str(e),
+                )
+            )
+            errors_count += 1
+
+    return BatchAtomResponse(
+        atoms=atoms_result,
+        total=len(request.atoms),
+        created=created_count,
+        skipped=skipped_count,
+        errors=errors_count,
+    )
 
 
 @router.put("/atoms/{atom_id}")
