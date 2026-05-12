@@ -118,6 +118,10 @@ AND in IN array::map($file_ids, |$id| type::record($id))
 f"RELATE {from_ref}->memory_relation->{to_ref}"
 ```
 
+**v2.9.1 更新**: 支持 `entity:xxx` 和 `memory:xxx` 双格式
+- `entity` 表使用 `entity:xxx` 格式
+- `memory` 表使用 `memory:xxx` 格式（旧版兼容）
+
 **风险**: 格式不一致导致查询失败或性能问题。
 
 **修复建议**: 统一使用 `type::record()` 函数：
@@ -275,11 +279,13 @@ WHERE in IN $file_ids
 #### 3. `ONLY` 关键字
 ```sql
 -- 推荐（返回单个对象而非数组）
-SELECT * FROM ONLY memory:xxx
+SELECT * FROM ONLY entity:xxx
 
 -- 不推荐
-SELECT * FROM memory:xxx
+SELECT * FROM entity:xxx
 ```
+
+**v2.9.1 更新**: 支持 `entity:xxx` 和 `memory:xxx` 双格式
 
 #### 4. `FETCH` 关联记录
 ```sql

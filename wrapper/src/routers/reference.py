@@ -5,7 +5,6 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
-
 from surrealdb.data.types.record_id import RecordID
 
 from .. import state
@@ -182,6 +181,204 @@ async def create_reference(request: ReferenceCreateRequest):
     except Exception as e:
         logger.error("[Reference] 创建失败: %s", e)
         raise HTTPException(status_code=500, detail=f"创建关系失败: {e!s}") from e
+
+
+class BatchReferenceCreateRequest(BaseModel):
+    """批量创建 Reference 请求"""
+
+    references: list[ReferenceCreateRequest] = Field(
+        ..., description="Reference 列表", max_length=100
+    )
+
+
+class BatchReferenceItemResponse(BaseModel):
+    """批量创建 Reference 单项响应"""
+
+    id: str | None = Field(default=None, description="Reference ID")
+    from_id: str = Field(..., description="源 ID")
+    to_id: str = Field(..., description="目标 ID")
+    type: str = Field(..., description="关系类型")
+    status: str = Field(..., description="状态: created/skipped/error")
+    error: str | None = Field(default=None, description="错误信息")
+
+
+class BatchReferenceResponse(BaseModel):
+    """批量创建 Reference 响应"""
+
+    references: list[BatchReferenceItemResponse] = Field(..., description="Reference 结果列表")
+    total: int = Field(..., description="总请求数")
+    created: int = Field(..., description="成功创建数")
+    skipped: int = Field(..., description="跳过数（已存在）")
+    errors: int = Field(..., description="失败数")
+
+
+@router.post("/references/batch", response_model=BatchReferenceResponse)
+async def create_references_batch(request: BatchReferenceCreateRequest):
+    """
+    批量创建关系
+
+    一次请求创建多条 reference，支持部分成功：
+    - 某条失败不影响其他条目
+    - from_id + to_id + type 组合已存在则跳过
+    - 单次请求上限 100 条
+    """
+    if not state.memory_manager:
+        raise HTTPException(status_code=503, detail="MemoryManager未初始化")
+
+    if len(request.references) > 100:
+        raise HTTPException(status_code=400, detail="单次请求最多 100 条")
+
+    db = state.memory_manager.db
+    valid_types = ReferenceType.all_values()
+
+    results: list[BatchReferenceItemResponse] = []
+    created_count = 0
+    skipped_count = 0
+    error_count = 0
+
+    # 检查重复（from_id + to_id + type）
+    seen: set[tuple[str, str, str]] = set()
+
+    for ref in request.references:
+        key = (ref.from_id, ref.to_id, ref.type)
+
+        # 检查请求内重复
+        if key in seen:
+            results.append(
+                BatchReferenceItemResponse(
+                    from_id=ref.from_id,
+                    to_id=ref.to_id,
+                    type=ref.type,
+                    status="skipped",
+                    error="请求内重复",
+                )
+            )
+            skipped_count += 1
+            continue
+
+        seen.add(key)
+
+        try:
+            # 验证 type
+            if ref.type not in valid_types:
+                raise ValidationError(
+                    f"无效的关系类型: {ref.type}，必须是 {', '.join(valid_types)} 之一"
+                )
+
+            # 验证 from_id 和 to_id 格式
+            if ":" not in ref.from_id:
+                raise ValidationError(f"from_id 格式无效: {ref.from_id}")
+            if ":" not in ref.to_id:
+                raise ValidationError(f"to_id 格式无效: {ref.to_id}")
+
+            from_table, _ = ref.from_id.split(":", 1)
+            to_table, _ = ref.to_id.split(":", 1)
+
+            # 检查 from_id 存在性
+            from_check = await db.query(
+                f"SELECT id FROM {from_table} WHERE id = type::record($from_id)",  # nosec B608
+                {"from_id": ref.from_id}
+            )
+            if not extract_records(from_check):
+                raise ValidationError(f"from_id 不存在: {ref.from_id}")
+
+            # 检查 to_id 存在性
+            to_check = await db.query(
+                f"SELECT id FROM {to_table} WHERE id = type::record($to_id)",  # nosec B608
+                {"to_id": ref.to_id}
+            )
+            if not extract_records(to_check):
+                raise ValidationError(f"to_id 不存在: {ref.to_id}")
+
+            # 检查是否已存在
+            existing = await db.query(
+                "SELECT id FROM reference WHERE in = type::record($from_id) AND out = type::record($to_id) AND type = $type",
+                {"from_id": ref.from_id, "to_id": ref.to_id, "type": ref.type}
+            )
+            if extract_records(existing):
+                results.append(
+                    BatchReferenceItemResponse(
+                        from_id=ref.from_id,
+                        to_id=ref.to_id,
+                        type=ref.type,
+                        status="skipped",
+                        error="关系已存在",
+                    )
+                )
+                skipped_count += 1
+                continue
+
+            # 构建 CONTENT
+            content_obj = {
+                "type": ref.type,
+                "tenant_id": ref.tenant_id,
+                "weight": ref.weight,
+            }
+            if ref.file_path is not None:
+                content_obj["file_path"] = ref.file_path
+            if ref.line is not None:
+                content_obj["line"] = ref.line
+            if ref.column is not None:
+                content_obj["column"] = ref.column
+            if ref.description is not None:
+                content_obj["description"] = ref.description
+            if ref.metadata:
+                content_obj["metadata"] = ref.metadata
+
+            import json
+
+            content_json = json.dumps(content_obj)
+            query = f"RELATE {ref.from_id}->reference->{ref.to_id} CONTENT {content_json}"
+
+            result = await db.query(query)
+            records = extract_records(result)
+
+            if records:
+                record_id = extract_record_id(records[0])
+                results.append(
+                    BatchReferenceItemResponse(
+                        id=record_id,
+                        from_id=ref.from_id,
+                        to_id=ref.to_id,
+                        type=ref.type,
+                        status="created",
+                    )
+                )
+                created_count += 1
+            else:
+                raise ValidationError("创建失败: 无效的响应格式")
+
+        except ValidationError as e:
+            results.append(
+                BatchReferenceItemResponse(
+                    from_id=ref.from_id,
+                    to_id=ref.to_id,
+                    type=ref.type,
+                    status="error",
+                    error=e.message,
+                )
+            )
+            error_count += 1
+        except Exception as e:
+            logger.error("[Reference] 批量创建单项失败: %s", e)
+            results.append(
+                BatchReferenceItemResponse(
+                    from_id=ref.from_id,
+                    to_id=ref.to_id,
+                    type=ref.type,
+                    status="error",
+                    error=str(e),
+                )
+            )
+            error_count += 1
+
+    return BatchReferenceResponse(
+        references=results,
+        total=len(request.references),
+        created=created_count,
+        skipped=skipped_count,
+        errors=error_count,
+    )
 
 
 @router.get("/references", response_model=PaginatedReferenceResponse)
