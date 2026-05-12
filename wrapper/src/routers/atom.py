@@ -761,19 +761,20 @@ async def batch_create_atoms(request: BatchAtomRequest):
 
             atom_data = {k: v for k, v in atom_data.items() if v is not None}
 
-            # 创建 atom
-            result = await db.create("atom", atom_data)
+            # BL-B-100: 使用事务执行创建操作（与 entity.py batch_create_entities 一致）
+            async with transaction(db, "Atom"):
+                result = await db.create("atom", atom_data)
 
-            if not result:
-                raise HTTPException(status_code=500, detail="创建 Atom 失败")
+                if not result:
+                    raise HTTPException(status_code=500, detail="创建 Atom 失败")
 
-            record = parse_surrealdb_result(result)
-            if not record:
-                raise HTTPException(status_code=500, detail="创建 Atom 失败: 无效的响应格式")
+                record = parse_surrealdb_result(result)
+                if not record:
+                    raise HTTPException(status_code=500, detail="创建 Atom 失败: 无效的响应格式")
 
-            record_id = extract_record_id(record)
+                record_id = extract_record_id(record)
 
-            # 同步到 Meilisearch
+            # 同步到 Meilisearch（事务外，避免阻塞外部搜索服务）
             await _sync_atom_to_meili(record_id, atom_data, request.tenant_id)
 
             atoms_result.append(

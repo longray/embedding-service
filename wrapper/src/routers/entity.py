@@ -625,6 +625,17 @@ async def batch_create_entities(request: BatchEntityRequest):
                         {"entity_id": record_id, "atom_ids": atom_record_ids}
                     )
 
+                # BL-FIX-005: 同步 Entity 到 Meilisearch
+                if state.memory_manager and state.memory_manager._meili:
+                    try:
+                        meili_doc = state.memory_manager._build_meili_doc(
+                            record_id, entity_data, request.tenant_id, doc_type="entity"
+                        )
+                        await state.memory_manager._meili.add_documents([meili_doc])
+                        logger.info("[Entity] 批量创建同步到 Meilisearch: %s", record_id)
+                    except Exception as meili_err:
+                        logger.warning("[Entity] 批量创建 Meilisearch 同步失败 %s: %s", record_id, meili_err)
+
                 entities_result.append(
                     BatchEntityItemResponse(
                         id=record_id,
