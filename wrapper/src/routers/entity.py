@@ -517,6 +517,7 @@ async def batch_create_entities(request: BatchEntityRequest):
     db = state.memory_manager.db
 
     entities_result: list[BatchEntityItemResponse] = []
+    meili_docs: list[dict] = []  # 收集所有 Meilisearch 文档
     created_count = 0
     skipped_count = 0
     errors_count = 0
@@ -524,7 +525,7 @@ async def batch_create_entities(request: BatchEntityRequest):
     # 检查重复（abstract + type + tenant_id）
     seen: set[tuple[str, str, str]] = set()
 
-    for i, entity_req in enumerate(request.entities):
+    for _i, entity_req in enumerate(request.entities):
         # 检查请求内重复
         key = (entity_req.abstract, entity_req.type, request.tenant_id)
         if key in seen:
@@ -625,16 +626,15 @@ async def batch_create_entities(request: BatchEntityRequest):
                         {"entity_id": record_id, "atom_ids": atom_record_ids}
                     )
 
-                # BL-FIX-005: 同步 Entity 到 Meilisearch
+                # 收集 Meilisearch 文档（批量同步）
                 if state.memory_manager and state.memory_manager._meili:
                     try:
                         meili_doc = state.memory_manager._build_meili_doc(
                             record_id, entity_data, request.tenant_id, doc_type="entity"
                         )
-                        await state.memory_manager._meili.add_documents([meili_doc])
-                        logger.info("[Entity] 批量创建同步到 Meilisearch: %s", record_id)
+                        meili_docs.append(meili_doc)
                     except Exception as meili_err:
-                        logger.warning("[Entity] 批量创建 Meilisearch 同步失败 %s: %s", record_id, meili_err)
+                        logger.warning("[Entity] 构建 Meilisearch 文档失败 %s: %s", record_id, meili_err)
 
                 entities_result.append(
                     BatchEntityItemResponse(
@@ -667,6 +667,14 @@ async def batch_create_entities(request: BatchEntityRequest):
                 )
             )
             errors_count += 1
+
+    # 批量同步到 Meilisearch
+    if meili_docs and state.memory_manager and state.memory_manager._meili:
+        try:
+            await state.memory_manager._meili.add_documents(meili_docs)
+            logger.info("[Entity] 批量同步 %d 个文档到 Meilisearch", len(meili_docs))
+        except Exception as meili_err:
+            logger.warning("[Entity] 批量同步 Meilisearch 失败: %s", meili_err)
 
     return BatchEntityResponse(
         entities=entities_result,

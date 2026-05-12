@@ -667,6 +667,7 @@ async def batch_create_atoms(request: BatchAtomRequest):
     db = state.memory_manager.db
 
     atoms_result: list[BatchAtomItemResponse] = []
+    meili_docs: list[dict] = []  # 收集所有 Meilisearch 文档
     created_count = 0
     skipped_count = 0
     errors_count = 0
@@ -674,7 +675,7 @@ async def batch_create_atoms(request: BatchAtomRequest):
     # 检查重复（entity_id + local_id）
     seen: set[tuple[str, str]] = set()
 
-    for i, atom_req in enumerate(request.atoms):
+    for _i, atom_req in enumerate(request.atoms):
         # 检查请求内重复
         key = (atom_req.entity_id or "", atom_req.local_id or "")
         if key[1] and key in seen:  # 只有有 local_id 才检查重复
@@ -774,8 +775,12 @@ async def batch_create_atoms(request: BatchAtomRequest):
 
                 record_id = extract_record_id(record)
 
-            # 同步到 Meilisearch（事务外，避免阻塞外部搜索服务）
-            await _sync_atom_to_meili(record_id, atom_data, request.tenant_id)
+            # 收集 Meilisearch 文档（批量同步）
+            meili_docs.append({
+                "id": record_id,
+                "data": atom_data,
+                "tenant_id": request.tenant_id,
+            })
 
             atoms_result.append(
                 BatchAtomItemResponse(
@@ -814,6 +819,15 @@ async def batch_create_atoms(request: BatchAtomRequest):
                 )
             )
             errors_count += 1
+
+    # 批量同步到 Meilisearch
+    if meili_docs:
+        try:
+            for doc in meili_docs:
+                await _sync_atom_to_meili(doc["id"], doc["data"], doc["tenant_id"])
+            logger.info("[Atom] 批量同步 %d 个文档到 Meilisearch", len(meili_docs))
+        except Exception as meili_err:
+            logger.warning("[Atom] 批量同步 Meilisearch 失败: %s", meili_err)
 
     return BatchAtomResponse(
         atoms=atoms_result,
