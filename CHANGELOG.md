@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.1] - 2026-05-11
+
+### Fixed
+
+- **Entity ID 格式统一** (BL-FIX-005, BL-FIX-006)
+  - createRelation API 同时支持 `memory` 和 `entity` 表
+  - listEntities API 同时查询 `memory` 和 `entity` 表
+  - 统一使用 SurrealDB RecordID 格式（`memory:xxx`, `entity:xxx`）
+  - 自动根据 RecordID 前缀识别表名
+
+- **listEntities Pydantic 验证错误** (BL-FIX-007)
+  - `EntityResponse` 模型 `abstract` 改为可选 (`str | None`)
+  - `EntityResponse` 模型 `overview` 支持多种类型 (`dict | str | None`)
+  - 添加数据清理逻辑：缺失 `abstract` 时从 `content` 提取
+  - `string` 类型的 `overview` 自动转换为 `dict`
+
+- **Entity/Atom Meilisearch 同步**
+  - Entity 创建时自动同步到 Meilisearch
+  - Atom 创建时自动同步到 Meilisearch
+  - 修复 Entity Keyword 搜索返回 0 结果的问题
+
+### Changed
+
+- `pyproject.toml` 跳过 B608 检查（表名来自 RecordID 前缀，非用户输入）
+
 ## [2.9.0] - 2026-05-08
 
 ### Added

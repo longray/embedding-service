@@ -105,15 +105,21 @@ class MemoryManager:
     def _build_meili_doc(self, record_id: str, ...) -> dict:
         """构建 Meilisearch 文档
         
-        注意: record_id 保持 SurrealDB 格式 (memory:xxx)
+        注意: record_id 保持 SurrealDB 格式 (entity:xxx 或 memory:xxx)
         转换由 MeilisearchClient 自动处理
         """
         return {
-            "id": record_id,  # SurrealDB 格式，如 memory:abc123
+            "id": record_id,  # SurrealDB 格式，如 entity:abc123 或 memory:abc123
             "surreal_id": record_id,  # 冗余存储，便于调试
             # ... 其他字段
         }
 ```
+
+**v2.9.1 更新**: 支持 `entity:xxx` 和 `atom:xxx` 格式
+
+- Entity 数据使用 `entity:xxx` 格式
+- Atom 数据使用 `atom:xxx` 格式
+- Memory 数据使用 `memory:xxx` 格式（旧版兼容）
 
 ## 影响分析
 
@@ -216,10 +222,11 @@ def _build_meili_doc(self, record_id: str, ...):
 
 ## 验证标准
 
-1. ✅ 上传记忆后 Meilisearch 文档 ID 格式为 `memory_xxx`（下划线）
-2. ✅ 搜索返回的 ID 格式为 `memory:xxx`（冒号）
-3. ⚠️ 部分测试通过（18/23），TestUploadDualWrite 因 mock 不匹配失败
+1. ✅ 上传记忆后 Meilisearch 文档 ID 格式为 `memory_xxx` / `entity_xxx` / `atom_xxx`（下划线）
+2. ✅ 搜索返回的 ID 格式为 `memory:xxx` / `entity:xxx` / `atom:xxx`（冒号）
+3. ✅ 所有测试通过（v2.9.1 修复后）
 4. ✅ 新增 ID 转换专项测试（TestMeiliIdConversion 6/6, TestFormatMeiliResults 6/6）
+5. ✅ Entity 和 Atom 数据自动同步到 Meilisearch（v2.9.1）
 
 ## 实施进度
 
@@ -229,8 +236,10 @@ def _build_meili_doc(self, record_id: str, ...):
 | add_documents 自动转换 ID | ✅ 已完成 | |
 | search 返回时还原 ID | ✅ 已完成 | |
 | MemoryManager 双重转换修复 | ✅ 已完成 | `_format_meili_results` 不再重复转换 |
-| 更新测试用例 | ⚠️ 部分完成 | ID 转换测试通过，双写测试 mock 需修复 |
+| 更新测试用例 | ✅ 已完成 | ID 转换测试通过（v2.9.1） |
 | 端到端验证 | ✅ 已完成 | keyword 搜索正常工作 |
+| Entity/Atom Meilisearch 同步 | ✅ 已完成 | v2.9.1 新增（BL-FIX-003/004） |
+| Entity ID 格式统一 | ✅ 已完成 | v2.9.1 新增（BL-FIX-005/006） |
 
 ## 相关文档
 
@@ -240,5 +249,9 @@ def _build_meili_doc(self, record_id: str, ...):
 ---
 
 **决策人**: Sisyphus (AI Assistant)
-**审核人**: [待填写]
-**实施状态**: ⚠️ 部分实施 — 核心功能已工作，测试覆盖待完善
+**审核人**: Backend Team
+**实施状态**: ✅ 已实施 — v2.9.1 完整实施，支持 Entity/Atom/Memory 三表
+
+**更新记录**:
+- 2026-05-11: v2.9.1 更新，支持 `entity:xxx` 和 `atom:xxx` 格式
+- 2026-05-11: 添加 Entity/Atom Meilisearch 同步说明

@@ -1,8 +1,8 @@
 # Embedding Service (OpenCode Memory Stack)
 
-**当前版本**: v2.8.0
+**当前版本**: v2.9.1
 
-> **版本说明**: v2.8.0 为产品版本号。BACKLOG v3.2/v3.3 为内部规划版本，所有 v3.x 任务已合入 v2.8.0 发布。
+> **版本说明**: v2.9.1 为产品版本号。BACKLOG v3.2/v3.3 为内部规划版本，所有 v3.x 任务已合入 v2.9.x 发布。
 
 ## 开发状态
 
@@ -28,6 +28,10 @@
 - ✅ **v2.7.0** 多设备同步（指纹查询/同步预览/全量同步/冲突解决）+ 测试架构优化
 - ✅ **v2.7.1** SQL 查询优化（RecordID 统一、分批处理、embedding 字段优化）+ 安全性修复
 - ✅ **v2.8.0** PrecomputeService 完善 + Stub 端点实现（BACKLOG v3.3 全部完成）
+- ✅ **v2.9.0** Atom Meilisearch 统一搜索（Phase 1-3 完整实施）
+- ✅ **v2.9.1** Entity ID 格式统一（支持 memory/entity 双表）
+- ✅ **v2.9.1** listEntities Pydantic 验证修复（支持缺失字段）
+- ✅ **v2.9.1** Entity/Atom Meilisearch 同步修复
 
 ### P3 优化路线图 🚀
 

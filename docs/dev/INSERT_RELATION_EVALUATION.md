@@ -63,10 +63,15 @@ result = await db.insert_relation("reference", {
 
 **缺点**:
 
-- 需要解析 RecordID 字符串（`memory:xxx` → `RecordID` 对象）
+- 需要解析 RecordID 字符串（`entity:xxx` / `memory:xxx` → `RecordID` 对象）
 - 与 SurrealQL 语法不一致
 - 调试困难（无法直接查看生成的查询）
 - 文档较少，行为不透明
+
+**v2.9.1 更新**: 支持 `entity:xxx` 和 `memory:xxx` 双格式
+
+- createRelation API 自动识别表名（根据 RecordID 前缀）
+- 同时支持 `memory` 和 `entity` 表
 
 ## 技术评估
 
