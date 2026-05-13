@@ -17,7 +17,7 @@ class ReferenceType(str, Enum):
     IMPORTS = "imports"
     EXTENDS = "extends"
     IMPLEMENTS = "implements"
-    DEPENDS_ON = "depends_on"
+    DEPENDS_ON = "depends_on"  # @deprecated since v3.4, use IMPORTS or IMPORTS_FROM
 
     # 知识关联
     WIKI_LINK = "wiki_link"
@@ -34,10 +34,19 @@ class ReferenceType(str, Enum):
     CONTAINS = "contains"
     SUMMARIZES = "summarizes"
 
+    # v3.4 graphify 新增
+    METHOD = "method"
+    IMPORTS_FROM = "imports_from"
+
     @classmethod
     def all_values(cls) -> list[str]:
         """获取所有允许的关系类型值"""
         return [e.value for e in cls]
+
+    @classmethod
+    def is_deprecated(cls, value: str) -> bool:
+        """检查关系类型是否已弃用"""
+        return value == cls.DEPENDS_ON
 
 
 class EmbeddingRequest(BaseModel):

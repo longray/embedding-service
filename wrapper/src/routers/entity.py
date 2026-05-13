@@ -87,6 +87,9 @@ class EntityCreateRequest(BaseModel):
     project: str | None = Field(default=None, description="项目ID")
     created_by: str = Field(default="system", description="创建者")
 
+    # v3.4 graphify 新增：标准化名称
+    norm_label: str | None = Field(default=None, description="标准化名称（小写），用于搜索")
+
 
 class EntityUpdateRequest(BaseModel):
     """更新 Entity 请求"""

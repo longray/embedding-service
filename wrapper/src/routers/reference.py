@@ -32,7 +32,18 @@ class ReferenceCreateRequest(BaseModel):
     tenant_id: str = Field(default="default", description="租户ID")
     weight: float = Field(default=0.5, ge=0.0, le=1.0, description="关系权重")
 
-    
+    # v3.4 graphify 新增：置信度字段
+    confidence: str | None = Field(
+        default=None,
+        description="关系发现方式: EXTRACTED/INFERRED/AMBIGUOUS"
+    )
+    confidence_score: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="置信度数值 0.0-1.0"
+    )
+
     file_path: str | None = Field(default=None, description="文件路径")
     line: int | None = Field(default=None, description="行号")
     column: int | None = Field(default=None, description="列号")
@@ -49,6 +60,11 @@ class ReferenceResponse(BaseModel):
     type: str = Field(..., description="关系类型")
     tenant_id: str = Field(..., description="租户ID")
     weight: float = Field(default=0.5, description="权重")
+
+    # v3.4 graphify 新增：置信度字段
+    confidence: str | None = Field(default=None, description="关系发现方式")
+    confidence_score: float | None = Field(default=None, description="置信度数值")
+
     file_path: str | None = Field(default=None, description="文件路径")
     line: int | None = Field(default=None, description="行号")
     column: int | None = Field(default=None, description="列号")

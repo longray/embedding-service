@@ -71,6 +71,9 @@ class AtomCreateRequest(BaseModel):
     entity_id: str | None = Field(default=None, description="所属 Entity ID")
     local_id: str | None = Field(default=None, description="客户端侧 ID (用于树结构)")
 
+    # v3.4 graphify 新增：标准化名称
+    norm_label: str | None = Field(default=None, description="标准化名称（小写），用于搜索")
+
 
 class AtomUpdateRequest(BaseModel):
     """更新 Atom 请求"""
