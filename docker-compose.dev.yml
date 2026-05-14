@@ -121,6 +121,8 @@ services:
     volumes:
       # 热重载：本地代码修改立即反映到容器内
       - ./wrapper/src:/app/wrapper/src
+      # 挂载 scripts 目录（schema 初始化脚本）
+      - ./scripts:/app/scripts
     depends_on:
       surrealdb:
         condition: service_healthy

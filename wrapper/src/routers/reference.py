@@ -148,6 +148,10 @@ async def create_reference(request: ReferenceCreateRequest):
             "tenant_id": request.tenant_id,
             "weight": request.weight,
         }
+        if request.confidence is not None:
+            content_obj["confidence"] = request.confidence
+        if request.confidence_score is not None:
+            content_obj["confidence_score"] = request.confidence_score
         if request.file_path is not None:
             content_obj["file_path"] = request.file_path
         if request.line is not None:
@@ -185,6 +189,8 @@ async def create_reference(request: ReferenceCreateRequest):
                 type=request.type,
                 tenant_id=request.tenant_id,
                 weight=request.weight,
+                confidence=request.confidence,
+                confidence_score=request.confidence_score,
                 file_path=request.file_path,
                 line=request.line,
                 column=request.column,

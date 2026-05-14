@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["entities"])
 
 # 模块级常量：Entity 有效类型
-ENTITY_VALID_TYPES = frozenset(["memory", "backlog", "wiki", "code"])
+# v3.4: 新增 document 类型支持文档文件（.md, .txt, .rst 等）
+ENTITY_VALID_TYPES = frozenset(["memory", "backlog", "wiki", "code", "document"])
 
 
 class AtomInlineCreate(BaseModel):
@@ -529,8 +530,10 @@ async def batch_create_entities(request: BatchEntityRequest):
     seen: set[tuple[str, str, str]] = set()
 
     for _i, entity_req in enumerate(request.entities):
+        # 优先使用 entity_req.tenant_id，如果没有则使用 request.tenant_id
+        tenant_id = entity_req.tenant_id if entity_req.tenant_id else request.tenant_id
         # 检查请求内重复
-        key = (entity_req.abstract, entity_req.type, request.tenant_id)
+        key = (entity_req.abstract, entity_req.type, tenant_id)
         if key in seen:
             entities_result.append(
                 BatchEntityItemResponse(
@@ -554,14 +557,14 @@ async def batch_create_entities(request: BatchEntityRequest):
                 atom_refs = await _process_atoms(
                     db,
                     entity_req.atoms,
-                    tenant_id=request.tenant_id,
+                    tenant_id=tenant_id,
                     entity_abstract=entity_req.abstract
                 )
 
                 # 准备数据
                 entity_data = {
                     "type": entity_req.type,
-                    "tenant_id": request.tenant_id,
+                    "tenant_id": tenant_id,
                     "abstract": entity_req.abstract,
                     "overview": entity_req.overview,
                     "atoms": [_parse_record_id(ref.id) for ref in atom_refs] if atom_refs else [],
@@ -633,7 +636,7 @@ async def batch_create_entities(request: BatchEntityRequest):
                 if state.memory_manager and state.memory_manager._meili:
                     try:
                         meili_doc = state.memory_manager._build_meili_doc(
-                            record_id, entity_data, request.tenant_id, doc_type="entity"
+                            record_id, entity_data, tenant_id, doc_type="entity"
                         )
                         meili_docs.append(meili_doc)
                     except Exception as meili_err:

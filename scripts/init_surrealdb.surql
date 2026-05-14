@@ -170,9 +170,9 @@ DEFINE FIELD IF NOT EXISTS description ON schema_version TYPE string;
 -- 记录当前版本（UPSERT 保证幂等）
 -- 注意: CONTENT 会替换所有字段，必须显式设置 applied_at
 UPSERT schema_version:current CONTENT {
-    version: '2.1.0',
+    version: '2.4.1',
     applied_at: time::now(),
-    description: 'Phase 2: ngram(2,8) 中文分词 + reference 图关系边表'
+    description: 'Phase 2-4: ngram(2,8) 中文分词 + reference 图关系边表 + Atom/Entity 架构 + 安全加固'
 };
 
 -- ==================== 运行时用户（安全加固 Phase 3C）====================
@@ -420,7 +420,7 @@ DEFINE FIELD IF NOT EXISTS id ON entity TYPE record<entity>;
 DEFINE FIELD IF NOT EXISTS tenant_id ON entity TYPE string
     ASSERT $value != NONE AND string::len($value) > 0;
 DEFINE FIELD IF NOT EXISTS type ON entity TYPE string
-    ASSERT $value IN ['memory', 'backlog', 'wiki', 'code'];
+    ASSERT $value IN ['memory', 'backlog', 'wiki', 'code', 'document'];
 DEFINE FIELD IF NOT EXISTS abstract ON entity TYPE string;
 DEFINE FIELD IF NOT EXISTS overview ON entity TYPE option<object>;
 DEFINE FIELD IF NOT EXISTS atoms ON entity TYPE option<array<record<atom>>>;

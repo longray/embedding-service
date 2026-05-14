@@ -735,10 +735,12 @@ async def batch_create_atoms(request: BatchAtomRequest):
                     continue
 
             # 准备数据
+            # 优先使用 atom_req.tenant_id，如果没有则使用 request.tenant_id
+            tenant_id = atom_req.tenant_id if atom_req.tenant_id else request.tenant_id
             atom_data = {
                 "type": atom_req.type,
                 "content": atom_req.content,
-                "tenant_id": request.tenant_id,
+                "tenant_id": tenant_id,
                 "name": atom_req.name,
                 "signature": atom_req.signature,
                 "params": atom_req.params,
