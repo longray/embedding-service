@@ -76,12 +76,13 @@ services:
     build:
       context: .
       dockerfile: wrapper/Dockerfile.multistage
-      target: production
-    container_name: wrapper-service
+      target: development  # 使用 development 模式支持热重载
+    container_name: wrapper-service-dev
     ports:
       - "18008:18008"
     environment:
       - WRAPPER_PORT=18008
+      - WRAPPER_HOST=0.0.0.0
       - WRAPPER_EMBEDDING_SERVICE_URL=http://embedding:18000
       - WRAPPER_SURREALDB_URL=ws://surrealdb:18002/rpc
       - WRAPPER_SURREALDB_NAMESPACE=memory_ns
@@ -92,6 +93,7 @@ services:
       - WRAPPER_MEILI_API_KEY=${MEILI_MASTER_KEY:-masterKey_change_in_production}
       - WRAPPER_MEILI_INDEX_NAME=memories
     volumes:
+      - ./wrapper/src:/app/wrapper/src  # 挂载源码支持热重载
       - ./scripts:/app/scripts
     depends_on:
       surrealdb:

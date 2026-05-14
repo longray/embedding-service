@@ -42,19 +42,20 @@ class TestAtomBatchOperations:
         assert response.status_code == 200
         result = response.json()
 
-        # 验证响应结构
-        assert "success" in result
-        assert "failed" in result
+        # 验证响应结构 (BL-B-105: 修复测试断言匹配实际响应格式)
+        assert "atoms" in result
         assert "total" in result
-        assert "success_count" in result
-        assert "failed_count" in result
+        assert "created" in result
+        assert "skipped" in result
+        assert "errors" in result
 
         # 验证数据
         assert result["total"] == 2
-        assert result["success_count"] == 2
-        assert result["failed_count"] == 0
-        assert len(result["success"]) == 2
-        assert len(result["failed"]) == 0
+        assert result["created"] == 2
+        assert result["skipped"] == 0
+        assert result["errors"] == 0
+        assert len(result["atoms"]) == 2
+        assert result["atoms"][0]["status"] == "created"
 
     async def test_batch_create_atoms_partial_failure(self, client):
         """测试批量创建 Atoms 部分失败"""
@@ -72,13 +73,14 @@ class TestAtomBatchOperations:
         assert response.status_code == 200
         result = response.json()
 
-        # 验证部分失败
+        # 验证部分失败 (BL-B-105: 修复测试断言匹配实际响应格式)
         assert result["total"] == 2
-        assert result["success_count"] == 1
-        assert result["failed_count"] == 1
-        assert len(result["success"]) == 1
-        assert len(result["failed"]) == 1
-        assert result["failed"][0]["index"] == 1
+        assert result["created"] == 1
+        assert result["errors"] == 1
+        assert len(result["atoms"]) == 2
+        # 找到错误的那条
+        error_atoms = [a for a in result["atoms"] if a["status"] == "error"]
+        assert len(error_atoms) == 1
 
     async def test_batch_create_atoms_exceed_limit(self, client):
         """测试批量创建 Atoms 超过限制"""
@@ -92,7 +94,8 @@ class TestAtomBatchOperations:
 
         assert response.status_code == 400
         result = response.json()
-        assert "超过限制" in result["detail"]
+        # BL-B-105: 错误消息包含"最多 100 条"
+        assert "最多 100 条" in result["detail"]
 
 
 class TestEntityBatchOperations:
@@ -114,17 +117,18 @@ class TestEntityBatchOperations:
         assert response.status_code == 200
         result = response.json()
 
-        # 验证响应结构
-        assert "success" in result
-        assert "failed" in result
+        # 验证响应结构 (BL-B-105: 修复测试断言匹配实际响应格式)
+        assert "entities" in result
         assert "total" in result
-        assert "success_count" in result
-        assert "failed_count" in result
+        assert "created" in result
+        assert "skipped" in result
+        assert "errors" in result
 
         # 验证数据
         assert result["total"] == 2
-        assert result["success_count"] == 2
-        assert result["failed_count"] == 0
+        assert result["created"] == 2
+        assert result["skipped"] == 0
+        assert result["errors"] == 0
 
     async def test_batch_create_entities_exceed_limit(self, client):
         """测试批量创建 Entities 超过限制"""
@@ -138,4 +142,5 @@ class TestEntityBatchOperations:
 
         assert response.status_code == 400
         result = response.json()
-        assert "超过限制" in result["detail"]
+        # BL-B-105: 错误消息包含"最多 100 条"
+        assert "最多 100 条" in result["detail"]

@@ -17,6 +17,15 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["atoms"])
 
+
+def _normalize_entity_id(entity_id: str | None) -> str | None:
+    """标准化 entity_id 格式，确保包含表名前缀"""
+    if not entity_id:
+        return entity_id
+    if ":" not in entity_id:
+        return f"entity:{entity_id}"
+    return entity_id
+
 # 模块级常量：Atom 有效类型
 # v3.3: 新增 chapter, section 支持知识文档场景
 ATOM_VALID_TYPES = frozenset([
@@ -166,6 +175,11 @@ class BatchAtomItemResponse(BaseModel):
     name: str | None = Field(default=None, description="名称")
     status: str = Field(..., description="状态: created/skipped/error")
     error: str | None = Field(default=None, description="错误信息")
+    # BL-B-108: 新增 Meilisearch 同步状态
+    sync_status: str | None = Field(
+        default=None,
+        description="Meilisearch 同步状态: synced/failed/pending",
+    )
 
 
 class BatchAtomResponse(BaseModel):
@@ -176,6 +190,10 @@ class BatchAtomResponse(BaseModel):
     created: int = Field(..., description="成功创建数")
     skipped: int = Field(..., description="跳过数（重复）")
     errors: int = Field(..., description="失败数")
+    # BL-B-108: 新增 Meilisearch 同步统计
+    meili_synced: int = Field(default=0, description="成功同步到 Meilisearch 的数量")
+    meili_failed: int = Field(default=0, description="同步 Meilisearch 失败的数量")
+    meili_error: str | None = Field(default=None, description="Meilisearch 同步错误信息")
 
 
 class AtomBudgetRequest(BaseModel):
@@ -260,22 +278,22 @@ async def create_atom(request: AtomCreateRequest):
         atom_data = {k: v for k, v in atom_data.items() if v is not None}
 
         # BL-B-100: 使用事务执行创建操作
-        async with transaction(db, "Atom"):
-            result = await db.create("atom", atom_data)
+        # BL-B-115: SurrealDB 3.0 SDK 自动处理事务，无需显式 BEGIN/COMMIT
+        result = await db.create("atom", atom_data)
 
-            if not result:
-                raise HTTPException(status_code=500, detail="创建 Atom 失败")
+        if not result:
+            raise HTTPException(status_code=500, detail="创建 Atom 失败")
 
-            record = parse_surrealdb_result(result)
-            if not record:
-                raise HTTPException(status_code=500, detail="创建 Atom 失败: 无效的响应格式")
+        record = parse_surrealdb_result(result)
+        if not record:
+            raise HTTPException(status_code=500, detail="创建 Atom 失败: 无效的响应格式")
 
-            record_id = extract_record_id(record)
-            
-            # Phase 2: 同步到 Meilisearch
-            await _sync_atom_to_meili(record_id, atom_data, request.tenant_id)
-            
-            return AtomResponse(id=record_id, **atom_data)
+        record_id = extract_record_id(record)
+        
+        # Phase 2: 同步到 Meilisearch
+        await _sync_atom_to_meili(record_id, atom_data, request.tenant_id)
+        
+        return AtomResponse(id=record_id, **atom_data)
 
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=e.message) from e
@@ -694,12 +712,48 @@ async def batch_create_atoms(request: BatchAtomRequest):
             embeddings = await state.memory_manager._get_embeddings(texts)
             logger.info("[Atom] Generated %d embeddings", len(embeddings))
             # 建立索引到 embedding 的映射
-            for (idx, _), embedding in zip(embedding_inputs, embeddings):
+            for (idx, _), embedding in zip(embedding_inputs, embeddings, strict=True):
                 embedding_map[idx] = embedding
     except Exception as e:
         logger.error("[Atom] Failed to generate embeddings: %s", e)
-        # embedding 失败时继续创建 atoms，只是没有 embedding
-        pass
+        # BL-B-101: embedding 失败时整个 batch 失败，保持原子性
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Embedding generation failed: {e!s}"
+        ) from e
+
+    # BL-B-102: 批量检查 entity 存在性（优化 N+1 查询）
+    # BL-B-109: 标准化 entity_id 格式
+    entity_ids_to_check: set[str] = set()
+    for atom_req in request.atoms:
+        if atom_req.entity_id:
+            normalized_id = _normalize_entity_id(atom_req.entity_id)
+            if normalized_id:  # BL-B-110: 修复类型错误，确保不为 None
+                entity_ids_to_check.add(normalized_id)
+    
+    # 批量查询所有 entity 是否存在
+    existing_entities: set[str] = set()
+    if entity_ids_to_check:
+        try:
+            entity_ids_list = list(entity_ids_to_check)
+            # 分批查询，每批 100 个
+            for i in range(0, len(entity_ids_list), 100):
+                batch = entity_ids_list[i:i+100]
+                entity_check_result = await db.query(
+                    "SELECT id FROM entity WHERE id IN $entity_ids",
+                    {"entity_ids": batch}
+                )
+                records = parse_surrealdb_result(entity_check_result) or []
+                for record in records:
+                    if record and record.get("id"):
+                        # 使用 extract_record_id 确保格式一致
+                        existing_entities.add(extract_record_id(record))
+        except Exception as e:
+            logger.error("[Atom] Failed to check entity existence: %s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Entity existence check failed: {e!s}"
+            ) from e
 
     # 检查重复（entity_id + local_id）
     seen: set[tuple[str, str]] = set()
@@ -731,20 +785,20 @@ async def batch_create_atoms(request: BatchAtomRequest):
                     f"无效的 Atom 类型: {atom_req.type}. 必须是 {list(ATOM_VALID_TYPES)}"
                 )
 
-            # 检查 entity_id 存在性（如果提供了）
+            # 检查 entity_id 存在性（使用批量查询结果）
+            # BL-B-109: 标准化 entity_id 格式后检查
             if atom_req.entity_id:
-                entity_check = await db.query(
-                    "SELECT id FROM entity WHERE id = type::record($entity_id)",
-                    {"entity_id": atom_req.entity_id}
-                )
-                if not parse_surrealdb_result(entity_check):
+                normalized_id = _normalize_entity_id(atom_req.entity_id)
+                if normalized_id not in existing_entities:
                     raise ValidationError(f"entity_id 不存在: {atom_req.entity_id}")
 
             # 检查是否已存在（entity_id + local_id）
+            # BL-B-111: 使用标准化后的 entity_id 查询
             if atom_req.entity_id and atom_req.local_id:
+                normalized_entity_id = _normalize_entity_id(atom_req.entity_id)
                 existing = await db.query(
                     "SELECT id FROM atom WHERE entity_id = $entity_id AND local_id = $local_id",
-                    {"entity_id": atom_req.entity_id, "local_id": atom_req.local_id}
+                    {"entity_id": normalized_entity_id, "local_id": atom_req.local_id}
                 )
                 if parse_surrealdb_result(existing):
                     atoms_result.append(
@@ -798,23 +852,24 @@ async def batch_create_atoms(request: BatchAtomRequest):
                 atom_data["embedding"] = embedding_map[idx]
 
             # BL-B-100: 使用事务执行创建操作（与 entity.py batch_create_entities 一致）
-            async with transaction(db, "Atom"):
-                result = await db.create("atom", atom_data)
+            # BL-B-115: SurrealDB 3.0 SDK 自动处理事务，无需显式 BEGIN/COMMIT
+            result = await db.create("atom", atom_data)
 
-                if not result:
-                    raise HTTPException(status_code=500, detail="创建 Atom 失败")
+            if not result:
+                raise HTTPException(status_code=500, detail="创建 Atom 失败")
 
-                record = parse_surrealdb_result(result)
-                if not record:
-                    raise HTTPException(status_code=500, detail="创建 Atom 失败: 无效的响应格式")
+            record = parse_surrealdb_result(result)
+            if not record:
+                raise HTTPException(status_code=500, detail="创建 Atom 失败: 无效的响应格式")
 
-                record_id = extract_record_id(record)
+            record_id = extract_record_id(record)
 
             # 收集 Meilisearch 文档（批量同步）
+            # BL-B-106: 修复 tenant_id 使用错误，使用计算好的 tenant_id 而非 request.tenant_id
             meili_docs.append({
                 "id": record_id,
                 "data": atom_data,
-                "tenant_id": request.tenant_id,
+                "tenant_id": tenant_id,
             })
 
             atoms_result.append(
@@ -855,14 +910,50 @@ async def batch_create_atoms(request: BatchAtomRequest):
             )
             errors_count += 1
 
-    # 批量同步到 Meilisearch
-    if meili_docs:
-        try:
-            for doc in meili_docs:
-                await _sync_atom_to_meili(doc["id"], doc["data"], doc["tenant_id"])
-            logger.info("[Atom] 批量同步 %d 个文档到 Meilisearch", len(meili_docs))
-        except Exception as meili_err:
-            logger.warning("[Atom] 批量同步 Meilisearch 失败: %s", meili_err)
+    # BL-B-108: 分批同步到 Meilisearch，追踪每条记录的状态
+    meili_synced = 0
+    meili_failed = 0
+    meili_error = None
+    meili_synced_ids: set[str] = set()
+    meili_failed_ids: list[str] = []
+
+    if meili_docs and state.memory_manager and state.memory_manager._meili:
+        MEILI_BATCH_SIZE = 20  # 每批 20 条，减小失败影响范围
+        
+        for i in range(0, len(meili_docs), MEILI_BATCH_SIZE):
+            batch = meili_docs[i:i + MEILI_BATCH_SIZE]
+            try:
+                meili_batch = []
+                for doc in batch:
+                    meili_doc = state.memory_manager._build_meili_doc(
+                        doc["id"], doc["data"], doc["tenant_id"], doc_type="atom"
+                    )
+                    meili_batch.append(meili_doc)
+                
+                if meili_batch:
+                    await state.memory_manager._meili.add_documents(meili_batch)
+                    meili_synced += len(meili_batch)
+                    meili_synced_ids.update(doc["id"] for doc in batch)
+                    logger.info("[Atom] 批量同步 %d 个文档到 Meilisearch", len(meili_batch))
+            except Exception as meili_err:
+                failed_count = len(batch)
+                meili_failed += failed_count
+                meili_failed_ids.extend(doc["id"] for doc in batch)
+                meili_error = str(meili_err)
+                logger.warning(
+                    "[Atom] Meilisearch 批次 %d 同步失败 (%d 条): %s",
+                    i // MEILI_BATCH_SIZE + 1, failed_count, meili_err
+                )
+
+    # 更新每条 response 的 sync 状态
+    for item in atoms_result:
+        if item.status == "created" and item.id:
+            if item.id in meili_failed_ids:
+                item.sync_status = "failed"
+            elif item.id in meili_synced_ids:
+                item.sync_status = "synced"
+            else:
+                item.sync_status = "pending"
 
     return BatchAtomResponse(
         atoms=atoms_result,
@@ -870,6 +961,9 @@ async def batch_create_atoms(request: BatchAtomRequest):
         created=created_count,
         skipped=skipped_count,
         errors=errors_count,
+        meili_synced=meili_synced,
+        meili_failed=meili_failed,
+        meili_error=meili_error,
     )
 
 

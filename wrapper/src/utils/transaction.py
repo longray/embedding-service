@@ -24,13 +24,14 @@ async def transaction(db: Any, logger_name: str = "db"):
             # 自动处理 COMMIT 或 CANCEL
     """
     logger = logging.getLogger(logger_name)
-    await db.query("BEGIN TRANSACTION")
+    # BL-B-115: SurrealDB 3.0 使用 BEGIN/COMMIT/CANCEL（不带 TRANSACTION）
+    await db.query("BEGIN")
     try:
         yield db
-        await db.query("COMMIT TRANSACTION")
+        await db.query("COMMIT")
     except Exception:
         try:
-            await db.query("CANCEL TRANSACTION")
+            await db.query("CANCEL")
         except Exception as cancel_error:
             logger.error("[%s] 事务回滚失败: %s", logger_name, cancel_error)
         raise

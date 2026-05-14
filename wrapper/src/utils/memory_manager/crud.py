@@ -70,27 +70,36 @@ class CrudMixin:
             span.set_attribute("embedding.cache_hits", len(cached_results))
             span.set_attribute("embedding.cache_misses", len(texts_to_fetch))
 
-            # Phase C-B2: 批量获取未缓存的 embeddings
+            # BL-B-112: 分批获取 embeddings，避免单次请求过大
+            # 性能测试: batch_size=50 最优 (43.3ms/atom)
+            EMBEDDING_BATCH_SIZE = 50
             fetched_results = {}
             if texts_to_fetch:
                 try:
                     http_pool = await self._get_http_pool()
-                    response = await http_pool.post(
-                        f"{self._embedding_service_url}/v1/embeddings",
-                        json={"input": texts_to_fetch, "model": "Qwen3-Embedding-0.6B"},
-                    )
-                    response.raise_for_status()
-                    data = response.json()
+                    
+                    # 分批处理
+                    for batch_start in range(0, len(texts_to_fetch), EMBEDDING_BATCH_SIZE):
+                        batch_end = min(batch_start + EMBEDDING_BATCH_SIZE, len(texts_to_fetch))
+                        batch = texts_to_fetch[batch_start:batch_end]
+                        batch_indices = {j: text_indices[batch_start + j] for j in range(len(batch))}
+                        
+                        response = await http_pool.post(
+                            f"{self._embedding_service_url}/v1/embeddings",
+                            json={"input": batch, "model": "Qwen3-Embedding-0.6B"},
+                        )
+                        response.raise_for_status()
+                        data = response.json()
 
-                    for j, item in enumerate(data["data"]):
-                        original_index = text_indices[j]
-                        embedding = item["embedding"]
-                        fetched_results[original_index] = embedding
+                        for j, item in enumerate(data["data"]):
+                            original_index = batch_indices[j]
+                            embedding = item["embedding"]
+                            fetched_results[original_index] = embedding
 
-                        # Phase C-B2: 存入缓存
-                        if self._cache_enabled and self._vector_cache:
-                            cache_key = hashlib.md5(texts_to_fetch[j].encode(), usedforsecurity=False).hexdigest()
-                            await self._vector_cache.set(cache_key, embedding, ttl=self._cache_ttl)
+                            # Phase C-B2: 存入缓存
+                            if self._cache_enabled and self._vector_cache:
+                                cache_key = hashlib.md5(batch[j].encode(), usedforsecurity=False).hexdigest()
+                                await self._vector_cache.set(cache_key, embedding, ttl=self._cache_ttl)
 
                 except Exception as e:
                     span.record_exception(e)
@@ -104,7 +113,8 @@ class CrudMixin:
                 elif i in fetched_results:
                     result.append(fetched_results[i])
                 else:
-                    result.append([])  # Empty embedding for empty text
+                    # BL-B-103: 空文本返回 None 而非 []，避免向量搜索维度错误
+                    result.append(None)
 
             span.set_attribute("embedding.dimension", len(result[0]) if result else 0)
             return result
@@ -167,6 +177,13 @@ class CrudMixin:
                 try:
                     content = memory.get("content", "")
                     mem_type = memory.get("type", "general")
+
+                    # BL-B-107: 跳过 embedding 为 None 的记忆（空内容）
+                    if embedding is None:
+                        logger.warning("[Upload] Skipping memory with empty content (no embedding): %s", memory.get("source_id", "unknown"))
+                        failed_count += 1
+                        errors.append(f"Empty content, no embedding for: {memory.get('source_id', 'unknown')}")
+                        continue
 
                     memory_data: dict[str, Any] = {
                         "content": content,
@@ -277,12 +294,16 @@ class CrudMixin:
                         continue
 
                     # Phase A-B7: 语义相似度检查 + 智能决策
-                    similar = await self._search_by_vector(
-                        embedding=embedding,
-                        limit=1,
-                        threshold=dedup_threshold,  # Phase A-B6: 动态阈值
-                        tenant_id=effective_tenant_id,
-                    )
+                    # BL-B-107: 跳过 embedding 为 None 的语义去重检查
+                    if embedding is None:
+                        logger.debug("[Upload] Skipping semantic dedup for memory with None embedding")
+                    else:
+                        similar = await self._search_by_vector(
+                            embedding=embedding,
+                            limit=1,
+                            threshold=dedup_threshold,  # Phase A-B6: 动态阈值
+                            tenant_id=effective_tenant_id,
+                        )
 
                     if similar:
                         similarity_score = similar[0].get("score", 0)

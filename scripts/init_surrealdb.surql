@@ -346,7 +346,8 @@ DEFINE INDEX IF NOT EXISTS idx_fingerprint_content_hash ON file_fingerprint FIEL
 -- 1. atom 表 - 原子级数据单元
 DEFINE TABLE IF NOT EXISTS atom TYPE NORMAL;
 
-DEFINE FIELD IF NOT EXISTS id ON atom TYPE record<atom>;
+-- BL-B-113: SurrealDB 3.0 中 id 字段不能显式定义为 record<atom>
+-- id 字段自动为 RecordID 类型
 DEFINE FIELD IF NOT EXISTS tenant_id ON atom TYPE string
     ASSERT $value != NONE AND string::len($value) > 0;
 DEFINE FIELD OVERWRITE type ON atom TYPE string
@@ -416,14 +417,15 @@ DEFINE INDEX idx_atom_name_ft ON atom
 -- 2. entity 表 - 实体（由 atom 组成）
 DEFINE TABLE IF NOT EXISTS entity TYPE NORMAL;
 
-DEFINE FIELD IF NOT EXISTS id ON entity TYPE record<entity>;
+-- BL-B-113: SurrealDB 3.0 中 id 字段不能显式定义为 record<entity>
 DEFINE FIELD IF NOT EXISTS tenant_id ON entity TYPE string
     ASSERT $value != NONE AND string::len($value) > 0;
 DEFINE FIELD IF NOT EXISTS type ON entity TYPE string
     ASSERT $value IN ['memory', 'backlog', 'wiki', 'code', 'document'];
 DEFINE FIELD IF NOT EXISTS abstract ON entity TYPE string;
 DEFINE FIELD IF NOT EXISTS overview ON entity TYPE option<object>;
-DEFINE FIELD IF NOT EXISTS atoms ON entity TYPE option<array<record<atom>>>;
+DEFINE FIELD IF NOT EXISTS atoms ON entity TYPE option<array<string>>;
+    -- BL-B-113: SurrealDB 3.0 不支持 record<atom>，使用 string 存储 atom ID
 DEFINE FIELD IF NOT EXISTS tags ON entity TYPE option<array<string>>;
 DEFINE FIELD IF NOT EXISTS project ON entity TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS created_by ON entity TYPE option<string>;
@@ -451,8 +453,7 @@ DEFINE INDEX IF NOT EXISTS idx_entity_created_at ON entity FIELDS created_at;
 -- 使用 OVERWRITE 强制更新 Schema
 DEFINE TABLE OVERWRITE reference TYPE RELATION;
 
-DEFINE FIELD in ON reference TYPE record<atom|entity|memory>;
-DEFINE FIELD out ON reference TYPE record<atom|entity|memory>;
+-- BL-B-113: SurrealDB 3.0 RELATION 表自动创建 in/out 字段，无需显式定义
 DEFINE FIELD IF NOT EXISTS tenant_id ON reference TYPE string
     ASSERT $value != NONE AND string::len($value) > 0;
 DEFINE FIELD OVERWRITE type ON reference TYPE string

@@ -181,13 +181,17 @@ class SurrealDBManager:
 
     async def _get_current_schema_version(self) -> str | None:
         """获取当前 Schema 版本，返回 None 表示未初始化"""
-        result = await self._db_query("SELECT * FROM schema_version ORDER BY applied_at DESC LIMIT 1")
-        if result and isinstance(result, list) and len(result) > 0:
-            if isinstance(result[0], dict):
-                return result[0].get("version")
-            if isinstance(result[0], list) and len(result[0]) > 0:
-                return result[0][0].get("version")
-        return None
+        try:
+            result = await self._db_query("SELECT * FROM schema_version ORDER BY applied_at DESC LIMIT 1")
+            if result and isinstance(result, list) and len(result) > 0:
+                if isinstance(result[0], dict):
+                    return result[0].get("version")
+                if isinstance(result[0], list) and len(result[0]) > 0:
+                    return result[0][0].get("version")
+            return None
+        except Exception:
+            # BL-B-114: 表不存在时返回 None，不抛出异常
+            return None
 
     async def _apply_init_script(self) -> None:
         """执行 init_surrealdb.surql 脚本（支持初始化和升级）
