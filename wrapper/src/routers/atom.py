@@ -675,10 +675,36 @@ async def batch_create_atoms(request: BatchAtomRequest):
     skipped_count = 0
     errors_count = 0
 
+    # Phase C-B2: 批量生成 embeddings
+    embedding_map: dict[int, list[float]] = {}
+    try:
+        # 收集所有需要生成 embedding 的 atom content
+        embedding_inputs: list[tuple[int, str]] = []  # (index, content)
+        for idx, atom_req in enumerate(request.atoms):
+            content = atom_req.content or ""
+            name = atom_req.name or ""
+            # 拼接 name + content 作为 embedding 输入
+            embedding_input = f"{name}\n{content}" if name else content
+            embedding_inputs.append((idx, embedding_input))
+        
+        # 批量生成 embeddings
+        if embedding_inputs and state.memory_manager:
+            texts = [inp for _, inp in embedding_inputs]
+            logger.info("[Atom] Generating embeddings for %d atoms", len(texts))
+            embeddings = await state.memory_manager._get_embeddings(texts)
+            logger.info("[Atom] Generated %d embeddings", len(embeddings))
+            # 建立索引到 embedding 的映射
+            for (idx, _), embedding in zip(embedding_inputs, embeddings):
+                embedding_map[idx] = embedding
+    except Exception as e:
+        logger.error("[Atom] Failed to generate embeddings: %s", e)
+        # embedding 失败时继续创建 atoms，只是没有 embedding
+        pass
+
     # 检查重复（entity_id + local_id）
     seen: set[tuple[str, str]] = set()
 
-    for _i, atom_req in enumerate(request.atoms):
+    for idx, atom_req in enumerate(request.atoms):
         # 检查请求内重复
         key = (atom_req.entity_id or "", atom_req.local_id or "")
         if key[1] and key in seen:  # 只有有 local_id 才检查重复
@@ -766,6 +792,10 @@ async def batch_create_atoms(request: BatchAtomRequest):
             }
 
             atom_data = {k: v for k, v in atom_data.items() if v is not None}
+
+            # Phase C-B2: 添加 embedding（如果生成成功）
+            if idx in embedding_map:
+                atom_data["embedding"] = embedding_map[idx]
 
             # BL-B-100: 使用事务执行创建操作（与 entity.py batch_create_entities 一致）
             async with transaction(db, "Atom"):
