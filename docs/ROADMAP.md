@@ -20,7 +20,26 @@
 
 ## 版本历史
 
-### v2.8.4 (当前) - v3.3 Atom Architecture 后端 ✅
+### v2.9.2 (当前) - RecordID 查询修复 ✅
+
+**发布日期**: 2026-05-15
+
+**核心功能**:
+
+- 所有 v2.9.1 功能
+- **RecordID 类型安全修复**：
+  - reference.py: from_id/to_id 查询添加 `type::record()` 转换
+  - weight_calculator.py: UPDATE/SELECT 查询添加 `type::record()` 转换
+  - sync.py: conflict 表查询添加 `type::record()` 转换
+  - atom.py: entity 存在性检查添加 `array::map()` 转换
+- **全代码库 SurrealDB 查询审计**：
+  - 审计 8 个核心文件
+  - 建立 RecordID 使用最佳实践（4 条规则）
+  - 创建 `RECORDID_QUERY_AUDIT_REPORT.md` 审计报告
+
+---
+
+### v2.8.4 - v3.3 Atom Architecture 后端 ✅
 
 **发布日期**: 2026-04-29
 

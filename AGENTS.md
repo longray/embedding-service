@@ -110,6 +110,7 @@ uv run python scripts/reset_all.py --skip-db
 ```
 
 **功能说明**：
+
 - 清空 SurrealDB: memory, atom, entity, reference, conflict 表
 - 清空 Meilisearch: 所有文档
 - 重新初始化: SurrealDB schema + Meilisearch 索引
@@ -196,6 +197,15 @@ docker-compose up -d
 
 ## 最近变更
 
+- **v2.9.2 RecordID 查询修复**（2026-05-15）：
+  - 修复 4 个 RecordID 类型不匹配 Bug（BL-B-116~119）
+  - reference.py: from_id/to_id 查询添加 `type::record()` 转换
+  - weight_calculator.py: UPDATE/SELECT 查询添加 `type::record()` 转换
+  - sync.py: conflict 表查询添加 `type::record()` 转换
+  - atom.py: entity 存在性检查添加 `array::map()` 转换
+  - 全代码库 SurrealDB 查询审计（8 个文件）
+  - 建立 RecordID 使用最佳实践（4 条规则）
+  - 创建 `RECORDID_QUERY_AUDIT_REPORT.md` 审计报告
 - **v3.3 Atom Architecture**（2026-04-29）：
   - Entity 内联 Atom 创建（`AtomInlineCreate` 模型，双格式 `atoms` 字段）
   - 统一搜索扩展（scope=atom/entity，Atom 结果含 content 等 5 字段）

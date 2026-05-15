@@ -1,6 +1,6 @@
 # Embedding Service (OpenCode Memory Stack)
 
-**当前版本**: v2.9.1
+**当前版本**: v2.9.2
 
 > **版本说明**: v2.9.1 为产品版本号。BACKLOG v3.2/v3.3 为内部规划版本，所有 v3.x 任务已合入 v2.9.x 发布。
 
@@ -32,6 +32,7 @@
 - ✅ **v2.9.1** Entity ID 格式统一（支持 memory/entity 双表）
 - ✅ **v2.9.1** listEntities Pydantic 验证修复（支持缺失字段）
 - ✅ **v2.9.1** Entity/Atom Meilisearch 同步修复
+- ✅ **v2.9.2** RecordID 查询 Bug 修复（BL-B-116~119）+ 全代码库审计报告
 
 ### P3 优化路线图 🚀
 

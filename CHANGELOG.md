@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.2] - 2026-05-15
+
+### Fixed
+
+- **RecordID 查询 Bug 修复** (BL-B-116, BL-B-117, BL-B-118, BL-B-119)
+  - `reference.py`: from_id/to_id 查询未转换 RecordID，导致图遍历返回空结果
+  - `weight_calculator.py`: UPDATE/SELECT 查询 `in`/`out` 字段未转换 RecordID，权重计算失效
+  - `sync.py`: conflict 表查询未转换 RecordID，同步冲突查询失败
+  - `atom.py`: entity 存在性检查未转换 RecordID 列表，批量创建失败
+  - 所有修复统一使用 `type::record($param)` 或 `array::map($ids, |$id| type::record($id))` 确保 SurrealDB 3.0 类型安全
+
+### Added
+
+- **RecordID 查询审计报告**: `docs/dev/RECORDID_QUERY_AUDIT_REPORT.md`
+  - 全代码库 SurrealDB 查询审计（8 个文件）
+  - RecordID 使用最佳实践（4 条规则）
+  - 正确/错误模式对比
+  - 代码审查清单
+
 ## [2.9.1] - 2026-05-11
 
 ### Fixed
