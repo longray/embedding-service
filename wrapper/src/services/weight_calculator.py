@@ -179,10 +179,11 @@ class WeightCalculator:
 
         try:
             # 更新 reference 表的 weight 字段
+            # BL-B-117: 使用 type::record() 转换 RecordID
             query = """
                 UPDATE reference
                 SET weight = $weight
-                WHERE in = $caller AND out = $callee AND tenant_id = $tenant_id
+                WHERE in = type::record($caller) AND out = type::record($callee) AND tenant_id = $tenant_id
             """
             await self._db.query(
                 query,
@@ -277,9 +278,10 @@ class WeightCalculator:
             return None
 
         try:
+            # BL-B-117: 使用 type::record() 转换 RecordID
             query = """
                 SELECT weight FROM reference
-                WHERE in = $caller AND out = $callee AND tenant_id = $tenant_id
+                WHERE in = type::record($caller) AND out = type::record($callee) AND tenant_id = $tenant_id
                 LIMIT 1
             """
             result = await self._db.query(
