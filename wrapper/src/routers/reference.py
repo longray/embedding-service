@@ -437,7 +437,8 @@ async def query_references(
 
         # 构建查询
         if from_id:
-            query = "SELECT * FROM $from_id->reference WHERE tenant_id = $tenant_id"
+            # BL-B-116: 使用 type::record() 将字符串转换为 RecordID
+            query = "SELECT * FROM type::record($from_id)->reference WHERE tenant_id = $tenant_id"
             params = {"from_id": from_id, "tenant_id": tenant_id}
             if type:
                 query += " AND type = $type"
@@ -447,7 +448,9 @@ async def query_references(
             # 图查询不支持 count，使用 len(result) 作为 total 的近似值
             total = len(result) if result else 0
         elif to_id:
-            query = "SELECT * FROM <-reference-$to_id WHERE tenant_id = $tenant_id"
+            # BL-B-116: 使用 type::record() 将字符串转换为 RecordID
+            # 反向图遍历: 查询指向该节点的关系
+            query = "SELECT * FROM reference WHERE out = type::record($to_id) AND tenant_id = $tenant_id"
             params = {"to_id": to_id, "tenant_id": tenant_id}
             if type:
                 query += " AND type = $type"
