@@ -145,7 +145,8 @@ class SyncMixin:
     ) -> dict[str, Any] | None:
         """获取单个冲突详情（conflict_id 可不带前缀）"""
         full_id = conflict_id if conflict_id.startswith("conflict:") else f"conflict:{conflict_id}"
-        query = "SELECT * FROM conflict WHERE id = $conflict_id AND tenant_id = $tenant_id LIMIT 1"
+        # BL-B-118: 使用 type::record() 转换 RecordID
+        query = "SELECT * FROM conflict WHERE id = type::record($conflict_id) AND tenant_id = $tenant_id LIMIT 1"
         result = await self._db_query(query, {"conflict_id": full_id, "tenant_id": tenant_id})
         records = self._extract_records(result)
         return records[0] if records else None
@@ -216,9 +217,10 @@ class SyncMixin:
                 meili_doc = self._build_meili_doc(new_source_id, conflict)
                 await self._meili.add_documents([meili_doc])
 
+        # BL-B-118: 使用 type::record() 转换 RecordID
         update_conflict_sql = """
             UPDATE conflict SET status = $status, resolution = $resolution
-            WHERE id = $conflict_id AND tenant_id = $tenant_id
+            WHERE id = type::record($conflict_id) AND tenant_id = $tenant_id
         """
         await self._db_query(
             update_conflict_sql,

@@ -739,8 +739,9 @@ async def batch_create_atoms(request: BatchAtomRequest):
             # 分批查询，每批 100 个
             for i in range(0, len(entity_ids_list), 100):
                 batch = entity_ids_list[i:i+100]
+                # BL-B-119: 使用 array::map() 转换 RecordID 列表
                 entity_check_result = await db.query(
-                    "SELECT id FROM entity WHERE id IN $entity_ids",
+                    "SELECT id FROM entity WHERE id IN array::map($entity_ids, |$id| type::record($id))",
                     {"entity_ids": batch}
                 )
                 records = parse_surrealdb_result(entity_check_result) or []
